@@ -1,0 +1,107 @@
+
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  DEBTOR = 'DEBTOR' // Moroso
+}
+
+export interface BiometricLog {
+  id: string;
+  date: string;
+  weight: number; // kg
+  height: number; // cm
+  bodyFat?: number; // %
+  chest?: number;
+  waist?: number;
+  hips?: number;
+}
+
+export interface ExerciseDetail {
+  id: string; // unique id inside the routine
+  name: string;
+  series: string;
+  reps: string;
+  weight: string;
+  notes?: string;
+}
+
+export interface RoutineDay {
+  dayName: string; // "Lunes", "Día 1", etc.
+  exercises: ExerciseDetail[];
+}
+
+export interface Routine {
+  id: string;
+  name: string;
+  goal: string; 
+  days: RoutineDay[];
+  assignedBy: string;
+  createdAt: string;
+}
+
+export interface Diet {
+  id: string;
+  name: string;
+  calories: number;
+  description: string;
+  generatedAt: string;
+}
+
+export interface PaymentLog {
+  id: string;
+  date: string;
+  amount: number;
+  concept: string; // "Cuota Mensual", "Matrícula", etc.
+  method: string; // "Efectivo", "Tarjeta"
+}
+
+export interface Member {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  joinDate: string;
+  photoUrl?: string; // New field for profile picture
+  status: UserStatus;
+  biometrics: BiometricLog[];
+  routines: Routine[];
+  diets: Diet[];
+  payments: PaymentLog[]; // New field for gym fee history
+  lastAttendance?: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  category: 'SUPPLEMENT' | 'DRINK' | 'MERCHANDISE' | 'OTHER';
+  stock: number;
+}
+
+export interface Sale {
+  id: string;
+  memberId?: string; // Optional (can be walk-in)
+  date: string;
+  items: {
+    productId: string;
+    productName: string;
+    quantity: number;
+    priceAtSale: number;
+  }[];
+  total: number;
+}
+
+export interface ExerciseMaster {
+  id: string;
+  name: string;
+  category: string; // Pecho, Espalda, Piernas, etc.
+}
+
+export interface AppState {
+  currentUser: { name: string; role: 'ADMIN' | 'TRAINER' } | null;
+  members: Member[];
+  inventory: Product[];
+  sales: Sale[];
+  exercises: ExerciseMaster[];
+}
