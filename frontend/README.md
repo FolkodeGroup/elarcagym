@@ -1,20 +1,35 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Proyecto Fullstack: Frontend y Backend
+## Instrucciones para desarrolladores
 
-# Run and deploy your AI Studio app
+### Estructura del proyecto
 
-This contains everything you need to run your app locally.
+El proyecto está organizado en dos carpetas principales:
 
-View your app in AI Studio: https://ai.studio/apps/drive/1lAhoNaEZJAJS5_3swML7qveAdkiqPUYW
+- `frontend/`: Contiene todo el código y configuración del frontend (aplicación web).
+- `backend/`: Reservado para el desarrollo futuro del backend.
 
-## Run Locally
+### Requisitos previos
+- Node.js (versión recomendada 18.x o superior)
 
-**Prerequisites:**  Node.js
+### Pasos para levantar el frontend localmente
 
+1. Abre una terminal y navega a la carpeta `frontend`:
+   ```bash
+   cd frontend
+   ```
+2. Instala las dependencias:
+   ```bash
+   npm install
+   ```
+3. (Opcional) Configura tu archivo de variables de entorno `.env.local` si necesitas claves de API u otras variables.
+4. Levanta el servidor de desarrollo:
+   ```bash
+   npm run dev
+   ```
+5. Accede a la aplicación en [http://localhost:3000](http://localhost:3000)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+---
+
+### Estructura para el backend
+
+La carpeta `backend/` está lista para que puedas iniciar el desarrollo del backend cuando lo requieras.
