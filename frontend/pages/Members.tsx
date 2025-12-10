@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
-import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, MessageCircle, Mail, Download } from 'lucide-react';
+import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, MessageCircle, Mail, Download, Edit2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LOGO_BASE64 } from '../services/assets';
@@ -15,12 +15,18 @@ const Members: React.FC = () => {
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Data for selected member
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
 
   // New Member Form State
   const [newMember, setNewMember] = useState({
+    firstName: '', lastName: '', email: '', phone: '', status: UserStatus.ACTIVE
+  });
+
+  // Edit Member Form State
+  const [editMember, setEditMember] = useState({
     firstName: '', lastName: '', email: '', phone: '', status: UserStatus.ACTIVE
   });
 
@@ -78,6 +84,28 @@ const Members: React.FC = () => {
       }
   };
 
+  const handleOpenEditModal = () => {
+      if(selectedMember) {
+          setEditMember({
+              firstName: selectedMember.firstName,
+              lastName: selectedMember.lastName,
+              email: selectedMember.email,
+              phone: selectedMember.phone,
+              status: selectedMember.status
+          });
+          setShowEditModal(true);
+      }
+  };
+
+  const handleSaveEditMember = (e: React.FormEvent) => {
+      e.preventDefault();
+      if(selectedMember) {
+          db.updateMember(selectedMember.id, editMember);
+          setShowEditModal(false);
+          refreshMembers();
+      }
+  };
+
   const toggleStatus = (e: React.MouseEvent, id: string, currentStatus: UserStatus) => {
      e.stopPropagation();
      const newStatus = currentStatus === UserStatus.ACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
@@ -109,7 +137,7 @@ const Members: React.FC = () => {
     // We add it to the first page, and assume mostly 1 page routines. 
     // Ideally loops for multiple pages, but simple here.
     doc.saveGraphicsState();
-    doc.setGState(new doc.GState({ opacity: 0.1 })); // Make it transparent
+    doc.setGState(new (doc as any).GState({ opacity: 0.1 })); // Make it transparent
     const imgSize = 100;
     const xCentered = (pageWidth - imgSize) / 2;
     const yCentered = (pageHeight - imgSize) / 2;
@@ -184,7 +212,7 @@ const Members: React.FC = () => {
             finalY = 20;
             // Re-add watermark for new page if desired
             doc.saveGraphicsState();
-            doc.setGState(new doc.GState({ opacity: 0.1 }));
+            doc.setGState(new (doc as any).GState({ opacity: 0.1 }));
             try {
                 doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
             } catch(e) {}
@@ -289,6 +317,15 @@ const Members: React.FC = () => {
 
                       {/* Status & Actions */}
                       <div className="mb-4 flex flex-col items-end gap-2">
+                          <div className="flex gap-2">
+                              <button
+                                  onClick={handleOpenEditModal}
+                                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-bold flex items-center gap-2 transition-colors"
+                                  title="Editar datos del cliente"
+                              >
+                                  <Edit2 size={16} /> Editar
+                              </button>
+                          </div>
                           <span className={`px-4 py-2 rounded-full text-sm font-bold border ${
                               selectedMember.status === UserStatus.ACTIVE ? 'bg-green-900/30 border-green-800 text-green-400' :
                               selectedMember.status === UserStatus.DEBTOR ? 'bg-red-900/30 border-red-800 text-red-400' :
@@ -461,6 +498,77 @@ const Members: React.FC = () => {
                       </div>
                       <div className="flex justify-end gap-2 mt-4">
                           <button type="button" onClick={() => setShowPaymentModal(false)} className="px-3 py-2 text-gray-400 text-sm">Cancelar</button>
+                          <button type="submit" className="px-4 py-2 bg-brand-gold text-black rounded font-bold text-sm">Confirmar</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Edit Member Modal */}
+              {showEditModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                  <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
+                    <h3 className="text-lg font-bold text-white mb-4">Editar Cliente</h3>
+                    <form onSubmit={handleSaveEditMember} className="space-y-4">
+                      <div>
+                          <label className="text-xs text-gray-400 block mb-1">Nombre</label>
+                          <input 
+                              type="text"
+                              required
+                              value={editMember.firstName}
+                              onChange={e => setEditMember({...editMember, firstName: e.target.value})}
+                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                              placeholder="Nombre"
+                          />
+                      </div>
+                      <div>
+                          <label className="text-xs text-gray-400 block mb-1">Apellido</label>
+                          <input 
+                              type="text"
+                              required
+                              value={editMember.lastName}
+                              onChange={e => setEditMember({...editMember, lastName: e.target.value})}
+                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                              placeholder="Apellido"
+                          />
+                      </div>
+                      <div>
+                          <label className="text-xs text-gray-400 block mb-1">Email</label>
+                          <input 
+                              type="email"
+                              required
+                              value={editMember.email}
+                              onChange={e => setEditMember({...editMember, email: e.target.value})}
+                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                              placeholder="Email"
+                          />
+                      </div>
+                      <div>
+                          <label className="text-xs text-gray-400 block mb-1">Teléfono</label>
+                          <input 
+                              type="text"
+                              required
+                              value={editMember.phone}
+                              onChange={e => setEditMember({...editMember, phone: e.target.value})}
+                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                              placeholder="Teléfono"
+                          />
+                      </div>
+                      <div>
+                          <label className="text-xs text-gray-400 block mb-1">Estado</label>
+                          <select 
+                              value={editMember.status}
+                              onChange={e => setEditMember({...editMember, status: e.target.value as UserStatus})}
+                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                          >
+                              <option value={UserStatus.ACTIVE}>Activo</option>
+                              <option value={UserStatus.DEBTOR}>Moroso</option>
+                              <option value={UserStatus.INACTIVE}>Inactivo</option>
+                          </select>
+                      </div>
+                      <div className="flex justify-end gap-2 mt-4">
+                          <button type="button" onClick={() => setShowEditModal(false)} className="px-3 py-2 text-gray-400 text-sm">Cancelar</button>
                           <button type="submit" className="px-4 py-2 bg-brand-gold text-black rounded font-bold text-sm">Confirmar</button>
                       </div>
                     </form>

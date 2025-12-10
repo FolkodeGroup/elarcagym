@@ -143,6 +143,18 @@ class MockDB {
     }
   }
 
+  updateMember(id: string, data: { firstName: string; lastName: string; email: string; phone: string; status: UserStatus }) {
+    const member = this.state.members.find(m => m.id === id);
+    if (member) {
+      member.firstName = data.firstName;
+      member.lastName = data.lastName;
+      member.email = data.email;
+      member.phone = data.phone;
+      member.status = data.status;
+      this.save();
+    }
+  }
+
   updateMemberPhoto(id: string, photoUrl: string) {
     const member = this.state.members.find(m => m.id === id);
     if (member) {
