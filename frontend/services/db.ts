@@ -40,6 +40,25 @@ const INITIAL_MEMBERS: Member[] = [
     payments: [
         { id: 'pay3', date: '2023-03-10', amount: 3000, concept: 'Marzo', method: 'Tarjeta' }
     ]
+  },
+  {
+    id: '3',
+    firstName: 'Carlos',
+    lastName: 'López',
+    email: 'carlos@example.com',
+    phone: '5491123456789',
+    joinDate: '2023-06-20',
+    status: UserStatus.DEBTOR,
+    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    biometrics: [
+      { id: 'b4', date: '2023-06-20', weight: 85, height: 178, bodyFat: 22 },
+    ],
+    routines: [],
+    diets: [],
+    payments: [
+        { id: 'pay4', date: '2023-06-20', amount: 3500, concept: 'Matrícula + Junio', method: 'Efectivo' },
+        { id: 'pay5', date: '2023-07-15', amount: 3000, concept: 'Julio', method: 'Efectivo' }
+    ]
   }
 ];
 
