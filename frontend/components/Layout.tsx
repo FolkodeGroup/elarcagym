@@ -17,7 +17,7 @@ interface LayoutProps {
   children: React.ReactNode;
   onLogout: () => void;
   currentPage: string;
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, filter?: string) => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavigate }) => {

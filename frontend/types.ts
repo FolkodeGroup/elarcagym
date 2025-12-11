@@ -92,6 +92,13 @@ export interface Sale {
   total: number;
 }
 
+export interface Reminder {
+  id: string;
+  text: string;
+  date: string;
+  priority: 'low' | 'medium' | 'high';
+}
+
 export interface ExerciseMaster {
   id: string;
   name: string;
@@ -104,4 +111,5 @@ export interface AppState {
   inventory: Product[];
   sales: Sale[];
   exercises: ExerciseMaster[];
+  reminders: Reminder[];
 }
