@@ -1,5 +1,5 @@
 
-import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine } from '../types';
+import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine, Reminder } from '../types';
 
 // Mock Data Initialization
 const INITIAL_MEMBERS: Member[] = [
@@ -94,6 +94,11 @@ class MockDB {
         this.state.exercises = INITIAL_EXERCISES;
         this.save();
       }
+      // Migration: Check if reminders exist
+      if (!this.state.reminders) {
+        this.state.reminders = [];
+        this.save();
+      }
       // Migration: Check if members have payments
       this.state.members.forEach(m => {
           if (!m.payments) m.payments = [];
@@ -105,7 +110,8 @@ class MockDB {
         members: INITIAL_MEMBERS,
         inventory: INITIAL_INVENTORY,
         sales: [],
-        exercises: INITIAL_EXERCISES
+        exercises: INITIAL_EXERCISES,
+        reminders: []
       };
       this.save();
     }
@@ -344,6 +350,39 @@ class MockDB {
 
   getSalesByMember(memberId: string) {
       return this.state.sales.filter(s => s.memberId === memberId);
+  }
+
+  // Reminders
+  getReminders() {
+    return this.state.reminders;
+  }
+
+  addReminder(data: Omit<Reminder, 'id'>) {
+    const newReminder: Reminder = {
+      ...data,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    this.state.reminders.push(newReminder);
+    this.save();
+    return newReminder;
+  }
+
+  updateReminder(reminderId: string, data: Partial<Reminder>) {
+    const idx = this.state.reminders.findIndex(r => r.id === reminderId);
+    if (idx !== -1) {
+      this.state.reminders[idx] = {
+        ...this.state.reminders[idx],
+        ...data
+      };
+      this.save();
+      return this.state.reminders[idx];
+    }
+    return null;
+  }
+
+  deleteReminder(reminderId: string) {
+    this.state.reminders = this.state.reminders.filter(r => r.id !== reminderId);
+    this.save();
   }
 }
 
