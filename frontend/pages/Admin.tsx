@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Product } from '../types';
 import { ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react';
+import { useNavigation } from '../contexts/NavigationContext';
+import Toast from '../components/Toast';
 
 const Admin: React.FC = () => {
-  const [inventory] = useState<Product[]>(db.getInventory());
-  const [cart, setCart] = useState<{product: Product, qty: number}[]>([]);
+    const [inventory] = useState<Product[]>(db.getInventory());
+    const [cart, setCart] = useState<{product: Product, qty: number}[]>([]);
+    const { setCanNavigate } = useNavigation();
+
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -17,6 +22,21 @@ const Admin: React.FC = () => {
     });
   };
 
+    const increaseQty = (productId: string) => {
+        setCart(prev => prev.map(p => p.product.id === productId ? { ...p, qty: p.qty + 1 } : p));
+    };
+
+    const decreaseQty = (productId: string) => {
+        setCart(prev => {
+            return prev.flatMap(p => {
+                if (p.product.id !== productId) return p;
+                const newQty = p.qty - 1;
+                if (newQty <= 0) return []; // remove item
+                return [{ ...p, qty: newQty }];
+            });
+        });
+    };
+
   const removeFromCart = (productId: string) => {
       setCart(prev => prev.filter(p => p.product.id !== productId));
   };
@@ -27,7 +47,9 @@ const Admin: React.FC = () => {
       if(cart.length === 0) return;
       db.recordSale(cart.map(c => ({ productId: c.product.id, quantity: c.qty })));
       setCart([]);
-      alert("Venta registrada con éxito.");
+      setToast({ message: 'Venta registrada con éxito.', type: 'success' });
+      // After checkout, allow navigation again
+      setCanNavigate(true);
   };
 
   const translateCategory = (cat: string) => {
@@ -39,6 +61,11 @@ const Admin: React.FC = () => {
           default: return cat;
       }
   };
+
+    // Block navigation when there are items in the cart
+    useEffect(() => {
+        setCanNavigate(cart.length === 0);
+    }, [cart, setCanNavigate]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]">
@@ -77,13 +104,22 @@ const Admin: React.FC = () => {
              ) : (
                  cart.map(item => (
                      <div key={item.product.id} className="flex justify-between items-center bg-black/40 p-3 rounded">
-                         <div>
+                         <div className="flex-1">
                              <p className="text-white text-sm font-bold">{item.product.name}</p>
-                             <p className="text-brand-gold text-xs">${item.product.price} x {item.qty}</p>
+                             <p className="text-brand-gold text-xs">${item.product.price}</p>
                          </div>
-                         <button onClick={() => removeFromCart(item.product.id)} className="text-red-500 hover:text-red-400">
-                             <Trash2 size={18} />
-                         </button>
+                         <div className="flex items-center gap-2">
+                             <button onClick={() => decreaseQty(item.product.id)} className="bg-gray-800 p-1 rounded text-gray-300 hover:bg-gray-700">
+                                 <Minus size={14} />
+                             </button>
+                             <span className="text-sm text-white w-8 text-center">{item.qty}</span>
+                             <button onClick={() => increaseQty(item.product.id)} className="bg-gray-800 p-1 rounded text-gray-300 hover:bg-gray-700">
+                                 <Plus size={14} />
+                             </button>
+                             <button onClick={() => removeFromCart(item.product.id)} className="text-red-500 hover:text-red-400 ml-2">
+                                 <Trash2 size={18} />
+                             </button>
+                         </div>
                      </div>
                  ))
              )}
@@ -103,7 +139,10 @@ const Admin: React.FC = () => {
              </button>
          </div>
       </div>
-    </div>
+            {toast && (
+                <Toast message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} />
+            )}
+        </div>
   );
 };
 

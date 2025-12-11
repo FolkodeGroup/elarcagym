@@ -212,6 +212,28 @@ class MockDB {
     }
   }
 
+  updateBiometric(memberId: string, biometric: { id: string; weight?: number; height?: number; bodyFat?: number; date?: string }) {
+    const member = this.state.members.find(m => m.id === memberId);
+    if (member) {
+      const idx = member.biometrics.findIndex(b => b.id === biometric.id);
+      if (idx !== -1) {
+        member.biometrics[idx] = {
+          ...member.biometrics[idx],
+          ...biometric
+        };
+        this.save();
+      }
+    }
+  }
+
+  deleteBiometric(memberId: string, biometricId: string) {
+    const member = this.state.members.find(m => m.id === memberId);
+    if (member) {
+      member.biometrics = member.biometrics.filter(b => b.id !== biometricId);
+      this.save();
+    }
+  }
+
   // Operations & Exercises
   getExercises() {
     return this.state.exercises;
