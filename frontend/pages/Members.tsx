@@ -18,6 +18,8 @@ const Members: React.FC = () => {
 
   // Data for selected member
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
+    // Track which day index is visible for each routine when expanded
+    const [visibleDayByRoutine, setVisibleDayByRoutine] = useState<Record<string, number>>({});
 
   // New Member Form State
   const [newMember, setNewMember] = useState({
@@ -105,38 +107,53 @@ const Members: React.FC = () => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // -- BACKGROUND LOGO (WATERMARK) --
-    // We add it to the first page, and assume mostly 1 page routines. 
-    // Ideally loops for multiple pages, but simple here.
-    doc.saveGraphicsState();
-    doc.setGState(new doc.GState({ opacity: 0.1 })); // Make it transparent
-    const imgSize = 100;
-    const xCentered = (pageWidth - imgSize) / 2;
-    const yCentered = (pageHeight - imgSize) / 2;
-    try {
-        doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-    } catch(e) {
-        console.warn("Could not add image", e);
-    }
-    doc.restoreGraphicsState();
+    // -- ADD LOGO AS FULL BACKGROUND --
+    // Function to add logo as background (defined here so it's accessible everywhere)
+    const addBackgroundLogo = () => {
+        doc.saveGraphicsState();
+        doc.setGState(new (doc as any).GState({ opacity: 0.08 })); // Very subtle so content is readable
+        const imgSize = pageHeight * 0.8; // Make it large to fill background
+        const xCentered = (pageWidth - imgSize) / 2;
+        const yCentered = (pageHeight - imgSize) / 2;
+        try {
+            doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
+        } catch(e) {
+            console.warn("Could not add image", e);
+        }
+        doc.restoreGraphicsState();
+    };
 
-    // 1. Header Section
+    // -- BACKGROUND COLOR & LOGO PATTERN --
+    // Add gradient-like background with dark color
+    doc.setFillColor(26, 26, 26); // Dark background (#1a1a1a)
+    doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+    // Add background logo FIRST so it's behind everything
+    addBackgroundLogo();
+
+    // 1. Header Section with Gold accent
+    // Add decorative gold bar at top
+    doc.setFillColor(212, 175, 55); // Gold color (#d4af37)
+    doc.rect(0, 0, pageWidth, 3, 'F');
+
     // Title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(30);
+    doc.setTextColor(212, 175, 55); // Gold text
     doc.text("¡¡¡A ENTRENAR!!!", pageWidth / 2, 20, { align: "center" });
 
     // Routine Name
     doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(routine.name.toUpperCase(), pageWidth / 2, 30, { align: "center" });
 
     // Gym Brand
     doc.setFontSize(10);
-    doc.setTextColor(150, 150, 150);
+    doc.setTextColor(180, 180, 180); // Light gray
     doc.text("EL ARCA - GYM & FITNESS", pageWidth / 2, 38, { align: "center" });
     
     // Reset Color
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(255, 255, 255);
 
     // 2. Table Data Construction
     let finalY = 45;
@@ -152,26 +169,52 @@ const Members: React.FC = () => {
             startY: finalY,
             head: [[day.dayName.toUpperCase(), "SERIES / REPETICIONES / CARGA"]],
             body: bodyRows,
-            theme: 'grid',
+            theme: 'plain', // Use plain so autotable doesn't fill cell backgrounds
             headStyles: {
-                fillColor: [0, 0, 255], // Blue header
-                textColor: [255, 255, 255],
-                fontStyle: 'bold',
                 halign: 'left',
-                fontSize: 12
+                fontStyle: 'bold',
+                fontSize: 12,
+                textColor: [0, 0, 0]
             },
             styles: {
                 fontSize: 10,
                 cellPadding: 4,
                 valign: 'middle',
-                fillColor: [255, 255, 255] // Force white background for rows
+                textColor: [255, 255, 255]
             },
             columnStyles: {
                 0: { cellWidth: 110, fontStyle: 'bold' },
                 1: { cellWidth: 'auto', fontStyle: 'normal' }
             },
-            didParseCell: function(data) {
-                // ...
+            willDrawCell: function(data) {
+                // Draw header background (gold) before autotable draws header text
+                const cell = data.cell;
+                if (cell.section === 'head') {
+                    // semi-opaque gold background for header
+                    doc.saveGraphicsState();
+                    try {
+                        doc.setGState(new (doc as any).GState({ opacity: 0.95 }));
+                    } catch (e) { /* fallback if GState unavailable */ }
+                    doc.setFillColor(212, 175, 55);
+                    doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
+                    doc.restoreGraphicsState();
+                }
+            },
+            didDrawCell: function(data) {
+                const cell = data.cell;
+                // Draw subtle borders for body cells so grid is visible but cells remain transparent
+                if (cell.section === 'body') {
+                    doc.setDrawColor(80, 80, 80);
+                    doc.setLineWidth(0.3);
+                    // bottom border
+                    doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height);
+                    // right border
+                    doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
+                }
+                // Ensure header text is black (on top of gold)
+                if (cell.section === 'head') {
+                    doc.setTextColor(0, 0, 0);
+                }
             }
         });
 
@@ -181,14 +224,17 @@ const Members: React.FC = () => {
         // Check page break
         if (finalY > pageHeight - 30) {
             doc.addPage();
+            
+            // Add background and logo to new page
+            doc.setFillColor(26, 26, 26); // Dark background
+            doc.rect(0, 0, pageWidth, pageHeight, 'F');
+            addBackgroundLogo();
+            
+            // Add gold bar
+            doc.setFillColor(212, 175, 55);
+            doc.rect(0, 0, pageWidth, 3, 'F');
+            
             finalY = 20;
-            // Re-add watermark for new page if desired
-            doc.saveGraphicsState();
-            doc.setGState(new doc.GState({ opacity: 0.1 }));
-            try {
-                doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-            } catch(e) {}
-            doc.restoreGraphicsState();
         }
     });
 
@@ -196,10 +242,15 @@ const Members: React.FC = () => {
     const pageCount = (doc as any).internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
+        
+        // Add gold bar at bottom
+        doc.setFillColor(212, 175, 55);
+        doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
+        
         doc.setFontSize(8);
-        doc.setTextColor(100);
-        doc.text(`Entrenador: ${routine.assignedBy || 'El Arca'} - Socio: ${memberName}`, 10, pageHeight - 10);
-        doc.text(`Página ${i} de ${pageCount}`, pageWidth - 30, pageHeight - 10);
+        doc.setTextColor(212, 175, 55); // Gold color for footer text
+        doc.text(`Entrenador: ${routine.assignedBy || 'El Arca'} - Socio: ${memberName}`, 10, pageHeight - 8);
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth - 30, pageHeight - 8);
     }
 
     // Download
@@ -358,25 +409,59 @@ const Members: React.FC = () => {
                                           
                                           {expandedRoutineId === routine.id && (
                                               <div className="p-4 border-t border-gray-800 bg-black/20 text-sm">
-                                                  {routine.days.map((day, idx) => (
-                                                      <div key={idx} className="mb-3 last:mb-0">
-                                                          <h5 className="font-bold text-gray-300 mb-1">{day.dayName}</h5>
-                                                          <ul className="list-disc list-inside text-gray-400 pl-2">
-                                                              {day.exercises.map(ex => (
-                                                                  <li key={ex.id}>
-                                                                      {ex.name} - <span className="text-gray-500">{ex.series}x{ex.reps} ({ex.weight})</span>
-                                                                  </li>
-                                                              ))}
-                                                          </ul>
+                                                  {/* Day selector: show small buttons for each day */}
+                                                  <div className="flex gap-2 mb-3">
+                                                      {routine.days.map((d, i) => (
+                                                          <button
+                                                            key={i}
+                                                            onClick={(e) => { e.stopPropagation(); setVisibleDayByRoutine(prev => ({ ...prev, [routine.id]: i })); }}
+                                                            className={`px-3 py-1 text-sm rounded ${((visibleDayByRoutine[routine.id] ?? 0) === i) ? 'bg-brand-gold text-black' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                                                          >
+                                                              {d.dayName}
+                                                          </button>
+                                                      ))}
+                                                  </div>
+
+                                                  {/* Show only the selected day's exercises */}
+                                                  {(() => {
+                                                      const idx = visibleDayByRoutine[routine.id] ?? 0;
+                                                      const day = routine.days[idx];
+                                                      return (
+                                                          <div className="mb-3">
+                                                              <h5 className="font-bold text-gray-300 mb-1">{day.dayName}</h5>
+                                                              <ul className="list-disc list-inside text-gray-400 pl-2">
+                                                                  {day.exercises.map(ex => (
+                                                                      <li key={ex.id}>
+                                                                          {ex.name} - <span className="text-gray-500">{ex.series}x{ex.reps} ({ex.weight})</span>
+                                                                      </li>
+                                                                  ))}
+                                                              </ul>
+                                                          </div>
+                                                      );
+                                                  })()}
+
+                                                  <div className="mt-4 pt-3 border-t border-gray-800 flex justify-between items-center">
+                                                      <div>
+                                                          <button 
+                                                            onClick={() => generateRoutinePDF(routine, `${selectedMember.firstName} ${selectedMember.lastName}`)}
+                                                            className="text-brand-gold text-xs flex items-center gap-1 hover:underline"
+                                                          >
+                                                              <Download size={14} /> Descargar PDF (Rutina completa)
+                                                          </button>
                                                       </div>
-                                                  ))}
-                                                  <div className="mt-4 pt-3 border-t border-gray-800 flex justify-end">
-                                                      <button 
-                                                        onClick={() => generateRoutinePDF(routine, `${selectedMember.firstName} ${selectedMember.lastName}`)}
-                                                        className="text-brand-gold text-xs flex items-center gap-1 hover:underline"
-                                                      >
-                                                          <Download size={14} /> Descargar PDF
-                                                      </button>
+                                                      <div>
+                                                          <button
+                                                            onClick={() => {
+                                                              // Download only the currently visible day as a single-day routine
+                                                              const idx = visibleDayByRoutine[routine.id] ?? 0;
+                                                              const single: Routine = { ...routine, days: routine.days.slice(idx, idx + 1) };
+                                                              generateRoutinePDF(single, `${selectedMember.firstName} ${selectedMember.lastName}`);
+                                                            }}
+                                                            className="text-gray-300 text-xs flex items-center gap-1 hover:underline"
+                                                          >
+                                                              <Download size={12} /> Descargar día mostrado
+                                                          </button>
+                                                      </div>
                                                   </div>
                                               </div>
                                           )}
