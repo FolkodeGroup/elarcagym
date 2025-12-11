@@ -28,8 +28,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         
         <div className="flex flex-col items-center mb-10">
           <div className="h-32 w-32 rounded-full border-4 border-brand-gold flex items-center justify-center bg-black mb-4 shadow-[0_0_20px_rgba(212,175,55,0.3)] overflow-hidden">
-             {/* LOGO REAL AQUI */}
-             <img src={LOGO_BASE64} alt="El Arca Logo" className="w-full h-full object-cover" />
+             {/* Intenta cargar el logo desde /images/arca-logo.jpg; si falla usa el BASE64 en assets */}
+             <img
+               src="/images/arca-logo.jpg"
+               onError={(e) => {
+                 const img = e.currentTarget as HTMLImageElement;
+                 if (img.src !== LOGO_BASE64) img.src = LOGO_BASE64;
+               }}
+               alt="El Arca Logo"
+               className="w-full h-full object-cover"
+             />
           </div>
           <h1 className="text-3xl font-display font-bold text-white tracking-widest text-center mt-2">
             EL ARCA
