@@ -8,8 +8,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LOGO_BASE64 } from '../services/assets';
 
-const Members: React.FC = () => {
+interface MembersProps {
+  initialFilter?: string | null;
+}
+
+const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const [members, setMembers] = useState<Member[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string | null>(initialFilter || null);
   const [filter, setFilter] = useState('');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   
@@ -117,10 +122,15 @@ const Members: React.FC = () => {
      refreshMembers();
   };
 
-  const filteredMembers = members.filter(m => 
-    m.lastName.toLowerCase().includes(filter.toLowerCase()) || 
-    m.firstName.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filteredMembers = members.filter(m => {
+    const matchesSearch = m.lastName.toLowerCase().includes(filter.toLowerCase()) || 
+                         m.firstName.toLowerCase().includes(filter.toLowerCase());
+    const matchesStatus = !statusFilter || 
+                         (statusFilter === 'active' && m.status === UserStatus.ACTIVE) ||
+                         (statusFilter === 'debtor' && m.status === UserStatus.DEBTOR) ||
+                         (statusFilter === 'inactive' && m.status === UserStatus.INACTIVE);
+    return matchesSearch && matchesStatus;
+  });
 
   // --- MESSAGING & PDF HELPERS ---
 

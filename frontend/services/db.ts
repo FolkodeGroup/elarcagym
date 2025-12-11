@@ -1,5 +1,5 @@
 
-import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine } from '../types';
+import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine, Reminder, Slot, Reservation } from '../types';
 
 // Mock Data Initialization
 const INITIAL_MEMBERS: Member[] = [
@@ -81,6 +81,30 @@ const INITIAL_EXERCISES: ExerciseMaster[] = [
   { id: 'e10', name: 'Plancha Abdominal', category: 'Core' },
 ];
 
+// Helper: Generate initial slots for a week (8 slots per day, 1 hour each)
+const generateInitialSlots = (): Slot[] => {
+  const slots: Slot[] = [];
+  const today = new Date();
+  const times = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00'];
+  
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + dayOffset);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    times.forEach(time => {
+      slots.push({
+        id: Math.random().toString(36).substr(2, 9),
+        date: dateStr,
+        time,
+        duration: 60,
+        status: 'available'
+      });
+    });
+  }
+  return slots;
+};
+
 // LocalStorage Wrapper to simulate DB
 class MockDB {
   private state: AppState;
@@ -94,6 +118,21 @@ class MockDB {
         this.state.exercises = INITIAL_EXERCISES;
         this.save();
       }
+      // Migration: Check if reminders exist
+      if (!this.state.reminders) {
+        this.state.reminders = [];
+        this.save();
+      }
+      // Migration: Check if slots exist
+      if (!this.state.slots) {
+        this.state.slots = generateInitialSlots();
+        this.save();
+      }
+      // Migration: Check if reservations exist
+      if (!this.state.reservations) {
+        this.state.reservations = [];
+        this.save();
+      }
       // Migration: Check if members have payments
       this.state.members.forEach(m => {
           if (!m.payments) m.payments = [];
@@ -105,7 +144,10 @@ class MockDB {
         members: INITIAL_MEMBERS,
         inventory: INITIAL_INVENTORY,
         sales: [],
-        exercises: INITIAL_EXERCISES
+        exercises: INITIAL_EXERCISES,
+        reminders: [],
+        slots: generateInitialSlots(),
+        reservations: []
       };
       this.save();
     }
@@ -344,6 +386,103 @@ class MockDB {
 
   getSalesByMember(memberId: string) {
       return this.state.sales.filter(s => s.memberId === memberId);
+  }
+
+  // Reminders
+  getReminders() {
+    return this.state.reminders;
+  }
+
+  addReminder(data: Omit<Reminder, 'id'>) {
+    const newReminder: Reminder = {
+      ...data,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    this.state.reminders.push(newReminder);
+    this.save();
+    return newReminder;
+  }
+
+  updateReminder(reminderId: string, data: Partial<Reminder>) {
+    const idx = this.state.reminders.findIndex(r => r.id === reminderId);
+    if (idx !== -1) {
+      this.state.reminders[idx] = {
+        ...this.state.reminders[idx],
+        ...data
+      };
+      this.save();
+      return this.state.reminders[idx];
+    }
+    return null;
+  }
+
+  deleteReminder(reminderId: string) {
+    this.state.reminders = this.state.reminders.filter(r => r.id !== reminderId);
+    this.save();
+  }
+
+  // Slots
+  getSlots() {
+    return this.state.slots;
+  }
+
+  getSlotsByDate(date: string) {
+    return this.state.slots.filter(s => s.date === date);
+  }
+
+  updateSlotStatus(slotId: string, status: 'available' | 'reserved' | 'occupied') {
+    const slot = this.state.slots.find(s => s.id === slotId);
+    if (slot) {
+      slot.status = status;
+      this.save();
+      return slot;
+    }
+    return null;
+  }
+
+  // Reservations
+  getReservations() {
+    return this.state.reservations;
+  }
+
+  addReservation(data: Omit<Reservation, 'id' | 'createdAt'>) {
+    const newReservation: Reservation = {
+      ...data,
+      id: Math.random().toString(36).substr(2, 9),
+      createdAt: new Date().toISOString()
+    };
+    this.state.reservations.push(newReservation);
+    // Update slot status to reserved
+    this.updateSlotStatus(data.slotId, 'reserved');
+    this.save();
+    return newReservation;
+  }
+
+  updateReservation(reservationId: string, data: Partial<Reservation>) {
+    const idx = this.state.reservations.findIndex(r => r.id === reservationId);
+    if (idx !== -1) {
+      this.state.reservations[idx] = {
+        ...this.state.reservations[idx],
+        ...data
+      };
+      this.save();
+      return this.state.reservations[idx];
+    }
+    return null;
+  }
+
+  deleteReservation(reservationId: string) {
+    const reservation = this.state.reservations.find(r => r.id === reservationId);
+    if (reservation) {
+      // Update slot status back to available
+      this.updateSlotStatus(reservation.slotId, 'available');
+    }
+    this.state.reservations = this.state.reservations.filter(r => r.id !== reservationId);
+    this.save();
+  }
+
+  getReservationBySlotId(slotId: string) {
+    return this.state.reservations.find(r => r.slotId === slotId);
   }
 }
 
