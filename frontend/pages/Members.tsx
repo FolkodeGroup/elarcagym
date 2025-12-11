@@ -284,11 +284,14 @@ const Members: React.FC = () => {
       const msgText = `Hola ${selectedMember.firstName}, te recordamos que tu cuota en El Arca Gym está vencida o próxima a vencer. Por favor acércate a regularizar tu situación. Gracias! 💪`;
       
       if (type === 'wa') {
-          const url = `https://wa.me/${formatPhoneNumber(selectedMember.phone)}?text=${encodeURIComponent(msgText)}`;
+          const phone = formatPhoneNumber(selectedMember.phone);
+          const url = `https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`;
+          alert(`📲 Se abrirá WhatsApp con el número: ${phone}\n\nMensaje:\n"${msgText}"`);
           window.open(url, '_blank');
       } else {
-           const url = `mailto:${selectedMember.email}?subject=Aviso de Cuota - El Arca Gym&body=${encodeURIComponent(msgText)}`;
-           window.open(url, '_blank');
+          const url = `mailto:${selectedMember.email}?subject=Aviso de Cuota - El Arca Gym&body=${encodeURIComponent(msgText)}`;
+          alert(`📧 Se abrirá tu cliente de correo\n\nDestinatario: ${selectedMember.email}\n\nMensaje:\n"${msgText}"`);
+          window.open(url, '_blank');
       }
   };
 
