@@ -7,10 +7,13 @@ import Biometrics from './pages/Biometrics';
 import Operations from './pages/Operations';
 import Admin from './pages/Admin';
 import { db } from './services/db';
+import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const { canNavigate, pendingPage, setPendingPage, confirmNavigation } = useNavigation();
+  const [showNavModal, setShowNavModal] = useState(false);
 
   useEffect(() => {
     // Check if user is already logged in from localStorage persistence
@@ -29,6 +32,26 @@ const App: React.FC = () => {
     setIsAuthenticated(false);
   };
 
+  // Intercept navigation
+  const handleNavigate = (page: string) => {
+    if (!canNavigate) {
+      setPendingPage(page);
+      setShowNavModal(true);
+      return;
+    }
+    setCurrentPage(page);
+  };
+
+  const handleConfirmNavigation = (allow: boolean) => {
+    if (allow && pendingPage) {
+      setCurrentPage(pendingPage);
+      confirmNavigation(true);
+    } else {
+      confirmNavigation(false);
+    }
+    setShowNavModal(false);
+  };
+
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
@@ -45,13 +68,35 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout 
-        onLogout={handleLogout} 
-        currentPage={currentPage}
-        onNavigate={setCurrentPage}
-    >
-      {renderPage()}
-    </Layout>
+    <>
+      <Layout 
+          onLogout={handleLogout} 
+          currentPage={currentPage}
+          onNavigate={handleNavigate}
+      >
+        {renderPage()}
+      </Layout>
+      {showNavModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#111] max-w-md w-full rounded-lg border border-gray-700 p-6">
+            <h3 className="text-lg font-bold text-white mb-2">Tienes cambios sin guardar</h3>
+            <p className="text-sm text-gray-300 mb-4">Si sales ahora, perderás todos los cambios que has hecho en la rutina. ¿Deseas continuar?</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => handleConfirmNavigation(false)} className="px-4 py-2 text-sm text-gray-300 rounded border border-gray-700 hover:bg-gray-800">Volver</button>
+              <button onClick={() => handleConfirmNavigation(true)} className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700">Descartar y continuar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <NavigationProvider>
+      <AppContent />
+    </NavigationProvider>
   );
 };
 
