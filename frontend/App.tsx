@@ -6,6 +6,7 @@ import Members from './pages/Members';
 import Biometrics from './pages/Biometrics';
 import Operations from './pages/Operations';
 import Admin from './pages/Admin';
+import Reservas from './pages/Reservas';
 import { db } from './services/db';
 import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
 
@@ -69,6 +70,7 @@ const AppContent: React.FC = () => {
       case 'biometrics': return <Biometrics />;
       case 'operations': return <Operations />;
       case 'admin': return <Admin />;
+      case 'reservas': return <Reservas />;
       default: return <Dashboard onNavigate={handleNavigate} />;
     }
   };

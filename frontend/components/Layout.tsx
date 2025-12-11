@@ -8,7 +8,8 @@ import {
   LogOut, 
   Menu,
   X,
-  Instagram
+  Instagram,
+  Calendar
 } from 'lucide-react';
 import { db } from '../services/db';
 import { UserStatus } from '../types';
@@ -29,6 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
     { id: 'members', label: 'Socios', icon: Users },
     { id: 'biometrics', label: 'Seguimiento', icon: ClipboardList },
     { id: 'operations', label: 'Gestor de Rutinas', icon: Dumbbell },
+    { id: 'reservas', label: 'Reservas', icon: Calendar },
     { id: 'admin', label: 'Administración', icon: DollarSign },
   ];
 
