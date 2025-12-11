@@ -1,21 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Product } from '../types';
-import { ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Edit2 } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
 
 const Admin: React.FC = () => {
-    const [inventory] = useState<Product[]>(db.getInventory());
+    const [inventory, setInventory] = useState<Product[]>(db.getInventory());
     const [cart, setCart] = useState<{product: Product, qty: number}[]>([]);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [newProductForm, setNewProductForm] = useState({ name: '', price: '', category: 'OTHER', stock: '' });
+    const [editProductForm, setEditProductForm] = useState({ name: '', price: '', category: 'OTHER', stock: '' });
     const { setCanNavigate } = useNavigation();
 
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const addToCart = (product: Product) => {
+    // Validate stock
+    if (product.stock <= 0) {
+      setToast({ message: `No hay más unidades de "${product.name}".`, type: 'error' });
+      return;
+    }
     setCart(prev => {
         const existing = prev.find(p => p.product.id === product.id);
         if(existing) {
+            if (existing.qty + 1 > product.stock) {
+                setToast({ message: `No hay suficiente stock de "${product.name}".`, type: 'error' });
+                return prev;
+            }
             return prev.map(p => p.product.id === product.id ? {...p, qty: p.qty + 1} : p);
         }
         return [...prev, { product, qty: 1 }];
@@ -23,7 +37,15 @@ const Admin: React.FC = () => {
   };
 
     const increaseQty = (productId: string) => {
-        setCart(prev => prev.map(p => p.product.id === productId ? { ...p, qty: p.qty + 1 } : p));
+        const prod = inventory.find(i => i.id === productId);
+        setCart(prev => prev.map(p => {
+            if (p.product.id !== productId) return p;
+            if (prod && p.qty + 1 > prod.stock) {
+                setToast({ message: `No hay suficiente stock de "${p.product.name}".`, type: 'error' });
+                return p;
+            }
+            return { ...p, qty: p.qty + 1 };
+        }));
     };
 
     const decreaseQty = (productId: string) => {
@@ -50,6 +72,8 @@ const Admin: React.FC = () => {
       setToast({ message: 'Venta registrada con éxito.', type: 'success' });
       // After checkout, allow navigation again
       setCanNavigate(true);
+      // Refresh inventory from DB after sale
+      setInventory(db.getInventory());
   };
 
   const translateCategory = (cat: string) => {
@@ -72,6 +96,9 @@ const Admin: React.FC = () => {
       {/* Product Grid */}
       <div className="lg:col-span-2 overflow-auto pr-2">
         <h2 className="text-2xl font-display font-bold text-white mb-6">Productos</h2>
+        <div className="flex items-center gap-3 mb-4">
+            <button onClick={() => setShowAddModal(true)} className="bg-brand-gold text-black px-3 py-1 rounded font-bold flex items-center gap-2"> <Plus /> Nuevo Producto</button>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {inventory.map(product => (
                 <button 
@@ -85,6 +112,9 @@ const Admin: React.FC = () => {
                     </div>
                     <h3 className="font-bold text-white group-hover:text-brand-gold transition-colors">{product.name}</h3>
                     <p className="text-xs text-gray-500 mt-1">Stock: {product.stock}</p>
+                    <div className="mt-3 flex gap-2">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setEditingProduct(product); setEditProductForm({ name: product.name, price: String(product.price), category: product.category, stock: String(product.stock) }); setShowEditModal(true); }} className="text-gray-300 bg-gray-800 p-2 rounded hover:bg-gray-700"><Edit2 size={14} /></button>
+                    </div>
                 </button>
             ))}
         </div>
@@ -141,6 +171,69 @@ const Admin: React.FC = () => {
       </div>
             {toast && (
                 <Toast message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} />
+            )}
+            {/* Add Product Modal */}
+            {showAddModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/60" onClick={() => setShowAddModal(false)} />
+                    <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md">
+                        <h4 className="text-lg font-bold mb-4">Nuevo Producto</h4>
+                        <div className="space-y-3">
+                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Nombre" value={newProductForm.name} onChange={e => setNewProductForm({...newProductForm, name: e.target.value})} />
+                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Precio" value={newProductForm.price} onChange={e => setNewProductForm({...newProductForm, price: e.target.value})} />
+                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Stock" value={newProductForm.stock} onChange={e => setNewProductForm({...newProductForm, stock: e.target.value})} />
+                            <select className="w-full bg-black border border-gray-700 p-2 rounded text-white" value={newProductForm.category} onChange={e => setNewProductForm({...newProductForm, category: e.target.value})}>
+                                <option value="SUPPLEMENT">Suplementos</option>
+                                <option value="DRINK">Bebidas</option>
+                                <option value="MERCHANDISE">Indumentaria</option>
+                                <option value="OTHER">Otros</option>
+                            </select>
+                            <div className="flex justify-end gap-2 mt-4">
+                                <button className="px-4 py-2 rounded bg-gray-700" onClick={() => setShowAddModal(false)}>Cancelar</button>
+                                <button className="px-4 py-2 rounded bg-brand-gold text-black" onClick={() => {
+                                    // create
+                                    const p = db.addProduct({ name: newProductForm.name, price: Number(newProductForm.price), category: newProductForm.category, stock: Number(newProductForm.stock) });
+                                    setInventory(db.getInventory());
+                                    setToast({ message: `Producto "${p.name}" agregado.`, type: 'success' });
+                                    setShowAddModal(false);
+                                    setNewProductForm({ name: '', price: '', category: 'OTHER', stock: '' });
+                                }}>Crear</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Product Modal */}
+            {showEditModal && editingProduct && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/60" onClick={() => setShowEditModal(false)} />
+                    <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md">
+                        <h4 className="text-lg font-bold mb-4">Editar Producto</h4>
+                        <div className="space-y-3">
+                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Nombre" value={editProductForm.name} onChange={e => setEditProductForm({...editProductForm, name: e.target.value})} />
+                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Precio" value={editProductForm.price} onChange={e => setEditProductForm({...editProductForm, price: e.target.value})} />
+                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Stock" value={editProductForm.stock} onChange={e => setEditProductForm({...editProductForm, stock: e.target.value})} />
+                            <select className="w-full bg-black border border-gray-700 p-2 rounded text-white" value={editProductForm.category} onChange={e => setEditProductForm({...editProductForm, category: e.target.value})}>
+                                <option value="SUPPLEMENT">Suplementos</option>
+                                <option value="DRINK">Bebidas</option>
+                                <option value="MERCHANDISE">Indumentaria</option>
+                                <option value="OTHER">Otros</option>
+                            </select>
+                            <div className="flex justify-end gap-2 mt-4">
+                                <button className="px-4 py-2 rounded bg-gray-700" onClick={() => setShowEditModal(false)}>Cancelar</button>
+                                <button className="px-4 py-2 rounded bg-brand-gold text-black" onClick={() => {
+                                    if (!editingProduct) return;
+                                    const updated = db.updateProduct(editingProduct.id, { name: editProductForm.name, price: Number(editProductForm.price), category: editProductForm.category, stock: Number(editProductForm.stock) });
+                                    setInventory(db.getInventory());
+                                    setToast({ message: `Producto "${updated?.name || editingProduct.name}" actualizado.`, type: 'success' });
+                                    setShowEditModal(false);
+                                    setEditingProduct(null);
+                                }}>Guardar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
   );

@@ -291,6 +291,29 @@ class MockDB {
     return this.state.inventory;
   }
 
+  addProduct(data: Omit<Product, 'id'>) {
+    const newProduct: Product = {
+      ...data,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    this.state.inventory.push(newProduct);
+    this.save();
+    return newProduct;
+  }
+
+  updateProduct(productId: string, data: Partial<Product>) {
+    const idx = this.state.inventory.findIndex(p => p.id === productId);
+    if (idx !== -1) {
+      this.state.inventory[idx] = {
+        ...this.state.inventory[idx],
+        ...data
+      };
+      this.save();
+      return this.state.inventory[idx];
+    }
+    return null;
+  }
+
   recordSale(items: {productId: string, quantity: number}[], memberId?: string) {
     let total = 0;
     const saleItems = items.map(item => {
