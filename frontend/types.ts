@@ -99,6 +99,24 @@ export interface Reminder {
   priority: 'low' | 'medium' | 'high';
 }
 
+export interface Slot {
+  id: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM (24h format)
+  duration: number; // minutes
+  status: 'available' | 'reserved' | 'occupied';
+}
+
+export interface Reservation {
+  id: string;
+  slotId: string;
+  clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface ExerciseMaster {
   id: string;
   name: string;
@@ -112,4 +130,6 @@ export interface AppState {
   sales: Sale[];
   exercises: ExerciseMaster[];
   reminders: Reminder[];
+  slots: Slot[];
+  reservations: Reservation[];
 }
