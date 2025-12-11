@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
 import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, MessageCircle, Mail, Download, Edit2 } from 'lucide-react';
+import Toast from '../components/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LOGO_BASE64 } from '../services/assets';
@@ -35,6 +36,7 @@ const Members: React.FC = () => {
   // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentConcept, setPaymentConcept] = useState('Cuota Mensual');
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     refreshMembers();
@@ -315,7 +317,7 @@ const Members: React.FC = () => {
       if(!selectedMember) return;
 
       // 1. Generate and Download PDF
-      alert(`⏳ Generando y descargando PDF con logo para ${method === 'whatsapp' ? 'WhatsApp' : 'Email'}...\n\nPor favor adjunta el archivo descargado en el mensaje.`);
+      setToast({ message: `⏳ Generando y descargando PDF para ${method === 'whatsapp' ? 'WhatsApp' : 'Email'}. Adjunta el archivo descargado en el mensaje.`, type: 'info' });
       generateRoutinePDF(routine, `${selectedMember.firstName} ${selectedMember.lastName}`);
 
       // 2. Open App with Message
@@ -337,11 +339,11 @@ const Members: React.FC = () => {
       if (type === 'wa') {
           const phone = formatPhoneNumber(selectedMember.phone);
           const url = `https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`;
-          alert(`📲 Se abrirá WhatsApp con el número: ${phone}\n\nMensaje:\n"${msgText}"`);
+          setToast({ message: `📲 Se abrirá WhatsApp con el número: ${phone}. Mensaje listo para enviar.`, type: 'info' });
           window.open(url, '_blank');
       } else {
           const url = `mailto:${selectedMember.email}?subject=Aviso de Cuota - El Arca Gym&body=${encodeURIComponent(msgText)}`;
-          alert(`📧 Se abrirá tu cliente de correo\n\nDestinatario: ${selectedMember.email}\n\nMensaje:\n"${msgText}"`);
+          setToast({ message: `📧 Se abrirá tu cliente de correo. Destinatario: ${selectedMember.email}`, type: 'info' });
           window.open(url, '_blank');
       }
   };
@@ -686,6 +688,9 @@ const Members: React.FC = () => {
                   </div>
                 </div>
               )}
+              {toast && (
+                  <Toast message={toast.message} type={toast.type} duration={3500} onClose={() => setToast(null)} />
+              )}
           </div>
       );
   }
@@ -744,6 +749,9 @@ const Members: React.FC = () => {
                                  <span className="text-lg">🦁</span>
                              )}
                         </div>
+                        {toast && (
+                            <Toast message={toast.message} type={toast.type} duration={3500} onClose={() => setToast(null)} />
+                        )}
                         <div>
                             <div className="font-bold text-white group-hover:text-brand-gold transition-colors">{member.lastName}, {member.firstName}</div>
                             <div className="text-xs text-gray-500">Desde: {new Date(member.joinDate).toLocaleDateString()}</div>
