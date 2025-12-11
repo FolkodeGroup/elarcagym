@@ -256,6 +256,14 @@ class MockDB {
     }
   }
 
+  deleteRoutine(memberId: string, routineId: string) {
+    const member = this.state.members.find(m => m.id === memberId);
+    if (member) {
+      member.routines = member.routines.filter(r => r.id !== routineId);
+      this.save();
+    }
+  }
+
   // Admin / Sales
   getInventory() {
     return this.state.inventory;

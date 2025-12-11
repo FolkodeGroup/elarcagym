@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { db } from '../services/db';
 import { Member, ExerciseMaster, RoutineDay, ExerciseDetail, Routine } from '../types';
 import { Dumbbell, Plus, Save, Trash2, ClipboardList, Edit2, RotateCcw, Search, ChevronDown, Check } from 'lucide-react';
+import { useNavigation } from '../contexts/NavigationContext';
+import Toast from '../components/Toast';
 
 const Operations: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [exercisesMaster, setExercisesMaster] = useState<ExerciseMaster[]>([]);
+  const { setCanNavigate } = useNavigation();
   
   // Selection State
   const [selectedMemberId, setSelectedMemberId] = useState('');
@@ -17,9 +20,17 @@ const Operations: React.FC = () => {
   const [routineDays, setRoutineDays] = useState<RoutineDay[]>([
     { dayName: 'Día 1', exercises: [] }
   ]);
-  const [activeDayIndex, setActiveDayIndex] = useState(0);
+    const [activeDayIndex, setActiveDayIndex] = useState(0);
+    const [isDirty, setIsDirty] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<null | { type: 'switchDay' | 'loadRoutine' | 'reset', payload?: any }>(null);
 
-  // Add Exercise Form State
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Delete confirmation state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [routineToDelete, setRoutineToDelete] = useState<{ id: string; name: string } | null>(null);  // Add Exercise Form State
   const [series, setSeries] = useState('4');
   const [reps, setReps] = useState('10');
   const [weight, setWeight] = useState('');
@@ -56,6 +67,25 @@ const Operations: React.FC = () => {
   useEffect(() => {
     resetForm();
   }, [selectedMemberId]);
+
+  // Protect against leaving page with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'Hay cambios sin guardar. Si sales sin guardar, perderás los cambios.';
+        return 'Hay cambios sin guardar. Si sales sin guardar, perderás los cambios.';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  // Control navigation blocking based on isDirty state
+  useEffect(() => {
+    setCanNavigate(!isDirty);
+  }, [isDirty, setCanNavigate]);
 
   // --- Logic for Searchable Dropdown ---
   const filteredExercises = useMemo(() => {
@@ -99,6 +129,16 @@ const Operations: React.FC = () => {
     resetExerciseInput();
   };
 
+    // Reset form with optional confirmation if there are unsaved changes
+    const resetFormWithConfirm = (askConfirm = false) => {
+        if (askConfirm && isDirty) {
+            const ok = window.confirm('Hay cambios sin guardar. ¿Deseas descartarlos y continuar?');
+            if (!ok) return;
+        }
+        resetForm();
+        setIsDirty(false);
+    };
+
   const resetExerciseInput = () => {
       setExerciseSearch('');
       setSelectedExerciseId('');
@@ -106,18 +146,64 @@ const Operations: React.FC = () => {
       setNotes('');
   };
 
-  const loadRoutineForEditing = (routine: Routine) => {
-    setEditingRoutineId(routine.id);
-    setRoutineName(routine.name);
-    setRoutineGoal(routine.goal);
-    // Deep copy to avoid mutating state directly from initial selection
-    setRoutineDays(JSON.parse(JSON.stringify(routine.days)));
-    setActiveDayIndex(0);
-  };
+        const loadRoutineForEditing = (routine: Routine) => {
+                if (isDirty) {
+                        setPendingAction({ type: 'loadRoutine', payload: routine });
+                        setShowUnsavedModal(true);
+                        return;
+                }
+                setEditingRoutineId(routine.id);
+                setRoutineName(routine.name);
+                setRoutineGoal(routine.goal);
+                // Deep copy to avoid mutating state directly from initial selection
+                setRoutineDays(JSON.parse(JSON.stringify(routine.days)));
+                setActiveDayIndex(0);
+                setIsDirty(false);
+        };
+
+        const attemptChangeDay = (idx: number) => {
+            if (isDirty) {
+                setPendingAction({ type: 'switchDay', payload: idx });
+                setShowUnsavedModal(true);
+                return;
+            }
+            setActiveDayIndex(idx);
+        };
+
+        const attemptResetForm = () => {
+            if (isDirty) {
+                setPendingAction({ type: 'reset' });
+                setShowUnsavedModal(true);
+                return;
+            }
+            resetForm();
+        };
+
+        const executePendingAction = () => {
+            if (!pendingAction) return;
+            const { type, payload } = pendingAction;
+            if (type === 'switchDay') {
+                setActiveDayIndex(payload as number);
+            } else if (type === 'reset') {
+                resetForm();
+                setIsDirty(false);
+            } else if (type === 'loadRoutine') {
+                const routine: Routine = payload as Routine;
+                setEditingRoutineId(routine.id);
+                setRoutineName(routine.name);
+                setRoutineGoal(routine.goal);
+                setRoutineDays(JSON.parse(JSON.stringify(routine.days)));
+                setActiveDayIndex(0);
+                setIsDirty(false);
+            }
+            setPendingAction(null);
+            setShowUnsavedModal(false);
+        };
 
   const handleAddDay = () => {
-    setRoutineDays([...routineDays, { dayName: `Día ${routineDays.length + 1}`, exercises: [] }]);
-    setActiveDayIndex(routineDays.length);
+        setRoutineDays([...routineDays, { dayName: `Día ${routineDays.length + 1}`, exercises: [] }]);
+        setActiveDayIndex(routineDays.length);
+        setIsDirty(true);
   };
 
   const handleAddExerciseToDay = (e: React.FormEvent) => {
@@ -128,7 +214,7 @@ const Operations: React.FC = () => {
             handleOpenCreateModal();
             return;
         }
-        alert("Por favor selecciona un ejercicio válido de la lista.");
+        setToast({ message: 'Por favor selecciona un ejercicio válido de la lista.', type: 'error' });
         return;
     };
 
@@ -147,7 +233,7 @@ const Operations: React.FC = () => {
     const updatedDays = [...routineDays];
     updatedDays[activeDayIndex].exercises.push(newDetail);
     setRoutineDays(updatedDays);
-
+        setIsDirty(true);
     resetExerciseInput();
   };
 
@@ -155,6 +241,7 @@ const Operations: React.FC = () => {
     const updatedDays = [...routineDays];
     updatedDays[dayIndex].exercises = updatedDays[dayIndex].exercises.filter(e => e.id !== exId);
     setRoutineDays(updatedDays);
+        setIsDirty(true);
   };
 
   const handleCreateMasterExercise = () => {
@@ -168,11 +255,12 @@ const Operations: React.FC = () => {
     setShowNewExModal(false);
     setNewExName('');
     setNewExCategory('');
+        setIsDirty(true);
   };
 
   const handleSaveRoutine = () => {
     if(!routineName || !selectedMemberId) {
-        alert("Por favor ingresa un nombre para la rutina y selecciona un socio.");
+        setToast({ message: 'Por favor ingresa un nombre para la rutina y selecciona un socio.', type: 'error' });
         return;
     }
     
@@ -180,7 +268,7 @@ const Operations: React.FC = () => {
     const finalDays = routineDays.filter(d => d.exercises.length > 0);
     
     if(finalDays.length === 0) {
-        alert("La rutina debe tener al menos un ejercicio.");
+        setToast({ message: 'La rutina debe tener al menos un ejercicio.', type: 'error' });
         return;
     }
 
@@ -192,15 +280,38 @@ const Operations: React.FC = () => {
 
     if (editingRoutineId) {
         db.updateRoutine(selectedMemberId, editingRoutineId, payload);
-        alert("¡Rutina actualizada correctamente!");
+        setToast({ message: `¡Rutina "${payload.name}" actualizada correctamente!`, type: 'success' });
     } else {
         db.saveRoutine(selectedMemberId, payload);
-        alert("¡Rutina asignada correctamente!");
+        setToast({ message: `¡Rutina "${payload.name}" asignada correctamente!`, type: 'success' });
     }
 
     // Refresh member list to show updated routines and reset
     setMembers(db.getMembers());
     resetForm();
+    setIsDirty(false);
+  };
+
+  const handleDeleteRoutine = (routineId: string, routineName: string) => {
+    setRoutineToDelete({ id: routineId, name: routineName });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteRoutine = () => {
+    if (!routineToDelete || !selectedMemberId) return;
+    
+    db.deleteRoutine(selectedMemberId, routineToDelete.id);
+    setMembers(db.getMembers());
+    setToast({ message: `¡Rutina "${routineToDelete.name}" eliminada correctamente!`, type: 'success' });
+    
+    // If we were editing this routine, reset the form
+    if (editingRoutineId === routineToDelete.id) {
+      resetForm();
+      setIsDirty(false);
+    }
+    
+    setShowDeleteModal(false);
+    setRoutineToDelete(null);
   };
 
   const selectedMember = members.find(m => m.id === selectedMemberId);
@@ -220,7 +331,7 @@ const Operations: React.FC = () => {
         <div className="flex gap-2">
             {editingRoutineId && (
                  <button 
-                 onClick={resetForm}
+                 onClick={attemptResetForm}
                  className="bg-gray-700 text-white px-4 py-2 rounded font-bold hover:bg-gray-600 flex items-center gap-2"
              >
                  <RotateCcw size={18} /> Cancelar / Nueva
@@ -260,7 +371,7 @@ const Operations: React.FC = () => {
                         <input 
                             type="text" placeholder="Ej: Hipertrofia Fase 1"
                             value={routineName}
-                            onChange={e => setRoutineName(e.target.value)}
+                            onChange={e => { setRoutineName(e.target.value); setIsDirty(true); }}
                             className="w-full bg-black border border-gray-700 text-white p-2 rounded text-sm focus:border-brand-gold focus:outline-none"
                         />
                     </div>
@@ -268,7 +379,7 @@ const Operations: React.FC = () => {
                         <label className="text-gray-400 text-xs block mb-1">Objetivo</label>
                         <select 
                             value={routineGoal}
-                            onChange={e => setRoutineGoal(e.target.value)}
+                            onChange={e => { setRoutineGoal(e.target.value); setIsDirty(true); }}
                             className="w-full bg-black border border-gray-700 text-white p-2 rounded text-sm focus:border-brand-gold focus:outline-none"
                         >
                             <option>Hipertrofia</option>
@@ -296,19 +407,28 @@ const Operations: React.FC = () => {
                                         ? 'bg-brand-gold/10 border-brand-gold' 
                                         : 'bg-black border-gray-800 hover:border-gray-600'}`}
                             >
-                                <div className="overflow-hidden">
+                                <div className="overflow-hidden flex-1">
                                     <p className={`text-sm font-bold truncate ${editingRoutineId === routine.id ? 'text-brand-gold' : 'text-gray-300'}`}>
                                         {routine.name}
                                     </p>
                                     <p className="text-xs text-gray-500">{new Date(routine.createdAt).toLocaleDateString()}</p>
                                 </div>
-                                <button 
-                                    onClick={() => loadRoutineForEditing(routine)}
-                                    className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-700"
-                                    title="Editar Rutina"
-                                >
-                                    <Edit2 size={14} />
-                                </button>
+                                <div className="flex gap-1">
+                                    <button 
+                                        onClick={() => loadRoutineForEditing(routine)}
+                                        className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-700"
+                                        title="Editar Rutina"
+                                    >
+                                        <Edit2 size={14} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteRoutine(routine.id, routine.name)}
+                                        className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-gray-700"
+                                        title="Eliminar Rutina"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -324,10 +444,10 @@ const Operations: React.FC = () => {
                     </button>
                 </div>
                 <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                    {routineDays.map((day, idx) => (
+                        {routineDays.map((day, idx) => (
                         <button
                             key={idx}
-                            onClick={() => setActiveDayIndex(idx)}
+                            onClick={() => attemptChangeDay(idx)}
                             className={`w-full text-left p-3 rounded flex justify-between items-center transition-colors
                                 ${activeDayIndex === idx ? 'bg-brand-gold text-black font-bold' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                         >
@@ -536,6 +656,55 @@ const Operations: React.FC = () => {
                   </div>
               </div>
           </div>
+      )}
+
+      {/* Delete Routine Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#111] max-w-md w-full rounded-lg border border-gray-700 p-6">
+            <h3 className="text-lg font-bold text-white mb-2">¿Eliminar rutina?</h3>
+            <p className="text-sm text-gray-300 mb-4">
+              ¿Estás seguro de que deseas eliminar la rutina "{routineToDelete?.name}"? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => { setShowDeleteModal(false); setRoutineToDelete(null); }} 
+                className="px-4 py-2 text-sm text-gray-300 rounded border border-gray-700 hover:bg-gray-800"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmDeleteRoutine} 
+                className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+            {/* Unsaved changes modal */}
+            {showUnsavedModal && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#111] max-w-md w-full rounded-lg border border-gray-700 p-6">
+                        <h3 className="text-lg font-bold text-white mb-2">Tienes cambios sin guardar</h3>
+                        <p className="text-sm text-gray-300 mb-4">Hay modificaciones en la rutina que no han sido guardadas. ¿Deseas descartarlas y continuar?</p>
+                        <div className="flex justify-end gap-3">
+                            <button onClick={() => { setShowUnsavedModal(false); setPendingAction(null); }} className="px-4 py-2 text-sm text-gray-300 rounded border border-gray-700">Volver</button>
+                            <button onClick={executePendingAction} className="px-4 py-2 bg-red-600 text-white rounded text-sm">Descartar y continuar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+      
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={3000}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

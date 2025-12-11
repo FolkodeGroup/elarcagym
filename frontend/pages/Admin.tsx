@@ -44,7 +44,7 @@ const Admin: React.FC = () => {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]">
       {/* Product Grid */}
       <div className="lg:col-span-2 overflow-auto pr-2">
-        <h2 className="text-2xl font-display font-bold text-white mb-6">Punto de Venta</h2>
+        <h2 className="text-2xl font-display font-bold text-white mb-6">Productos</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {inventory.map(product => (
                 <button 
@@ -67,13 +67,13 @@ const Admin: React.FC = () => {
       <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl flex flex-col h-full">
          <div className="p-6 border-b border-gray-800">
              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                 <ShoppingCart /> Canasta
+                 <ShoppingCart /> Carrito de compras
              </h3>
          </div>
          
          <div className="flex-1 overflow-auto p-4 space-y-3">
              {cart.length === 0 ? (
-                 <p className="text-center text-gray-500 mt-10">La canasta está vacía.</p>
+                 <p className="text-center text-gray-500 mt-10">El carrito está vacío.</p>
              ) : (
                  cart.map(item => (
                      <div key={item.product.id} className="flex justify-between items-center bg-black/40 p-3 rounded">
