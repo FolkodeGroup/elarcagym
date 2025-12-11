@@ -6,14 +6,16 @@ import Members from './pages/Members';
 import Biometrics from './pages/Biometrics';
 import Operations from './pages/Operations';
 import Admin from './pages/Admin';
+import Reservas from './pages/Reservas';
 import { db } from './services/db';
 import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
 
 const AppContent: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState('dashboard');
-  const { canNavigate, pendingPage, setPendingPage, confirmNavigation } = useNavigation();
+  const [pageFilter, setPageFilter] = useState<string | null>(null);
   const [showNavModal, setShowNavModal] = useState(false);
+  const { canNavigate, pendingPage, setPendingPage, confirmNavigation } = useNavigation();
 
   useEffect(() => {
     // Check if user is already logged in from localStorage persistence
@@ -33,13 +35,18 @@ const AppContent: React.FC = () => {
   };
 
   // Intercept navigation
-  const handleNavigate = (page: string) => {
+  const handleNavigate = (page: string, filter?: string) => {
     if (!canNavigate) {
       setPendingPage(page);
       setShowNavModal(true);
       return;
     }
     setCurrentPage(page);
+    if (filter) {
+      setPageFilter(filter);
+    } else {
+      setPageFilter(null);
+    }
   };
 
   const handleConfirmNavigation = (allow: boolean) => {
@@ -58,12 +65,13 @@ const AppContent: React.FC = () => {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'dashboard': return <Dashboard />;
-      case 'members': return <Members />;
+      case 'dashboard': return <Dashboard onNavigate={handleNavigate} />;
+      case 'members': return <Members initialFilter={pageFilter} />;
       case 'biometrics': return <Biometrics />;
       case 'operations': return <Operations />;
       case 'admin': return <Admin />;
-      default: return <Dashboard />;
+      case 'reservas': return <Reservas />;
+      default: return <Dashboard onNavigate={handleNavigate} />;
     }
   };
 
