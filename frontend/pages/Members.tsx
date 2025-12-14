@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
@@ -152,9 +151,23 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     });
   };
 
+  // --- FUNCIÓN PARA NORMALIZAR TEXTO (QUITAR TILDES) ---
+  const normalizeText = (text: string) => {
+    return text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  };
+
   const filteredMembers = members.filter(m => {
-    const matchesSearch = m.lastName.toLowerCase().includes(filter.toLowerCase()) || 
-                         m.firstName.toLowerCase().includes(filter.toLowerCase());
+    // Usamos la función normalizeText para comparar sin tildes ni mayúsculas
+    const searchTerm = normalizeText(filter);
+    const memberLastName = normalizeText(m.lastName);
+    const memberFirstName = normalizeText(m.firstName);
+
+    const matchesSearch = memberLastName.includes(searchTerm) || 
+                          memberFirstName.includes(searchTerm);
+                          
     const matchesStatus = !statusFilter || 
                          (statusFilter === 'active' && m.status === UserStatus.ACTIVE) ||
                          (statusFilter === 'debtor' && m.status === UserStatus.DEBTOR) ||
