@@ -126,15 +126,18 @@ const Biometrics: React.FC = () => {
                         <h3 className="text-lg font-bold text-white mb-4">Evolución de Peso</h3>
                         <div className="h-64">
                             {chartData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                        <XAxis dataKey="fecha" stroke="#666" />
-                                        <YAxis stroke="#666" domain={["dataMin - 5", "dataMax + 5"]} />
-                                        <Tooltip contentStyle={{ backgroundColor: '#000', border: '1px solid #333' }} />
-                                        <Line type="monotone" dataKey="peso" stroke="#D4AF37" strokeWidth={2} dot={{ fill: '#D4AF37' }} activeDot={{ r: 8 }} />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                                // minWidth y minHeight agregados para evitar error de dimensiones en Recharts
+                                <div style={{ minWidth: 0, minHeight: 200, width: '100%', height: '100%' }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={chartData}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                            <XAxis dataKey="fecha" stroke="#666" />
+                                            <YAxis stroke="#666" domain={["dataMin - 5", "dataMax + 5"]} />
+                                            <Tooltip contentStyle={{ backgroundColor: '#000', border: '1px solid #333' }} />
+                                            <Line type="monotone" dataKey="peso" stroke="#D4AF37" strokeWidth={2} dot={{ fill: '#D4AF37' }} activeDot={{ r: 8 }} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
                             ) : (
                                 <div className="h-full flex items-center justify-center text-gray-500">Sin datos registrados</div>
                             )}

@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        sourcemap: false, // Desactiva source maps en server
+      },
+      build: {
+        sourcemap: false, // Desactiva source maps en build
       },
       plugins: [react()],
       define: {
