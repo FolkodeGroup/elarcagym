@@ -128,7 +128,7 @@ const Biometrics: React.FC = () => {
                             {chartData.length > 0 ? (
                                 // minWidth y minHeight agregados para evitar error de dimensiones en Recharts
                                 <div style={{ minWidth: 0, minHeight: 200, width: '100%', height: '100%' }}>
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" height={250}>
                                         <LineChart data={chartData}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="#333" />
                                             <XAxis dataKey="fecha" stroke="#666" />
