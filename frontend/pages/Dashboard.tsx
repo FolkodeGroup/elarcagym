@@ -150,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <div className="h-64 w-full">
             {/* minWidth y minHeight agregados para evitar error de dimensiones en Recharts */}
             <div style={{ minWidth: 0, minHeight: 200, width: '100%', height: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={250}>
               <BarChart data={data} layout="vertical">
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" stroke="#9ca3af" width={100} />
