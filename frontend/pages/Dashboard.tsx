@@ -148,7 +148,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className="lg:col-span-2 bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
           <h3 className="text-lg font-display font-bold text-white mb-6">Estado de la Membresía</h3>
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            {/* minWidth y minHeight agregados para evitar error de dimensiones en Recharts */}
+            <div style={{ minWidth: 0, minHeight: 200, width: '100%', height: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} layout="vertical">
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" stroke="#9ca3af" width={100} />
@@ -162,7 +164,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
