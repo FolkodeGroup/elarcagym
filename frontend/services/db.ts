@@ -19,8 +19,8 @@ const INITIAL_MEMBERS: Member[] = [
     routines: [],
     diets: [],
     payments: [
-        { id: 'pay1', date: '2023-01-15', amount: 3500, concept: 'Matrícula + Enero', method: 'Efectivo' },
-        { id: 'pay2', date: '2023-02-15', amount: 3000, concept: 'Febrero', method: 'Efectivo' }
+        { id: 'pay1', date: '2025-12-05', amount: 3000, concept: 'Diciembre', method: 'Efectivo' },
+        { id: 'pay2', date: '2025-11-05', amount: 3000, concept: 'Noviembre', method: 'Efectivo' }
     ]
   },
   {
@@ -38,7 +38,7 @@ const INITIAL_MEMBERS: Member[] = [
     routines: [],
     diets: [],
     payments: [
-        { id: 'pay3', date: '2023-03-10', amount: 3000, concept: 'Marzo', method: 'Tarjeta' }
+        { id: 'pay3', date: '2025-09-10', amount: 3000, concept: 'Septiembre', method: 'Tarjeta' }
     ]
   },
   {
@@ -56,8 +56,159 @@ const INITIAL_MEMBERS: Member[] = [
     routines: [],
     diets: [],
     payments: [
-        { id: 'pay4', date: '2023-06-20', amount: 3500, concept: 'Matrícula + Junio', method: 'Efectivo' },
-        { id: 'pay5', date: '2023-07-15', amount: 3000, concept: 'Julio', method: 'Efectivo' }
+        { id: 'pay4', date: '2025-10-20', amount: 3500, concept: 'Octubre', method: 'Efectivo' },
+        { id: 'pay5', date: '2025-09-20', amount: 3000, concept: 'Septiembre', method: 'Efectivo' }
+    ]
+  },
+  // Al Día - Pagos recientes (últimos 15 días)
+  {
+    id: '4',
+    firstName: 'Ana',
+    lastName: 'Rodríguez',
+    email: 'ana@example.com',
+    phone: '5491234567890',
+    joinDate: '2024-01-10',
+    status: UserStatus.ACTIVE,
+    photoUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    biometrics: [],
+    routines: [],
+    diets: [],
+    payments: [
+        { id: 'pay6', date: '2025-12-10', amount: 3000, concept: 'Diciembre', method: 'Tarjeta' }
+    ]
+  },
+  {
+    id: '5',
+    firstName: 'Diego',
+    lastName: 'Martínez',
+    email: 'diego@example.com',
+    phone: '5491987654321',
+    joinDate: '2024-02-15',
+    status: UserStatus.ACTIVE,
+    photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    biometrics: [],
+    routines: [],
+    diets: [],
+    payments: [
+        { id: 'pay7', date: '2025-12-08', amount: 3000, concept: 'Diciembre', method: 'Tarjeta' },
+        { id: 'pay8', date: '2025-11-08', amount: 3000, concept: 'Noviembre', method: 'Tarjeta' }
+    ]
+  },
+  // Próximo a Vencer - Pagos hace 35-45 días
+  {
+    id: '6',
+    firstName: 'Sofia',
+    lastName: 'García',
+    email: 'sofia@example.com',
+    phone: '5491122334455',
+    joinDate: '2024-03-20',
+    status: UserStatus.ACTIVE,
+    photoUrl: 'https://images.unsplash.com/photo-1507876466876-fd7813c3e9b6?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    biometrics: [],
+    routines: [],
+    diets: [],
+    payments: [
+        { id: 'pay9', date: '2025-11-01', amount: 3000, concept: 'Noviembre', method: 'Efectivo' }
+    ]
+  },
+  {
+    id: '7',
+    firstName: 'Luis',
+    lastName: 'Fernández',
+    email: 'luis@example.com',
+    phone: '5491556677889',
+    joinDate: '2024-04-05',
+    status: UserStatus.ACTIVE,
+    photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    biometrics: [],
+    routines: [],
+    diets: [],
+    payments: [
+        { id: 'pay10', date: '2025-11-03', amount: 3000, concept: 'Noviembre', method: 'Tarjeta' }
+    ]
+  },
+  // Morosos - Sin pago hace más de 60 días
+  {
+    id: '8',
+    firstName: 'Miguel',
+    lastName: 'Sánchez',
+    email: 'miguel@example.com',
+    phone: '5491998776655',
+    joinDate: '2024-05-12',
+    status: UserStatus.DEBTOR,
+    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    biometrics: [],
+    routines: [],
+    diets: [],
+    payments: [
+        { id: 'pay11', date: '2025-09-25', amount: 3000, concept: 'Septiembre', method: 'Efectivo' }
+    ]
+  },
+  {
+    id: '9',
+    firstName: 'Patricia',
+    lastName: 'Torres',
+    email: 'patricia@example.com',
+    phone: '5491334455667',
+    joinDate: '2024-06-08',
+    status: UserStatus.DEBTOR,
+    photoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    biometrics: [],
+    routines: [],
+    diets: [],
+    payments: [
+        { id: 'pay12', date: '2025-08-15', amount: 3000, concept: 'Agosto', method: 'Tarjeta' }
+    ]
+  },
+  // Inactivo
+  {
+    id: '10',
+    firstName: 'Roberto',
+    lastName: 'Díaz',
+    email: 'roberto@example.com',
+    phone: '5491776655443',
+    joinDate: '2023-08-30',
+    status: UserStatus.INACTIVE,
+    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    biometrics: [],
+    routines: [],
+    diets: [],
+    payments: [
+        { id: 'pay13', date: '2025-06-10', amount: 3000, concept: 'Junio', method: 'Efectivo' }
+    ]
+  },
+  // Más socios variados
+  {
+    id: '11',
+    firstName: 'Gabriela',
+    lastName: 'Ruiz',
+    email: 'gabriela@example.com',
+    phone: '5491667788990',
+    joinDate: '2024-07-14',
+    status: UserStatus.ACTIVE,
+    photoUrl: 'https://images.unsplash.com/photo-1507876466876-fd7813c3e9b6?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    biometrics: [],
+    routines: [],
+    diets: [],
+    payments: [
+        { id: 'pay14', date: '2025-12-12', amount: 3000, concept: 'Diciembre', method: 'Tarjeta' },
+        { id: 'pay15', date: '2025-11-12', amount: 3000, concept: 'Noviembre', method: 'Tarjeta' }
+    ]
+  },
+  {
+    id: '12',
+    firstName: 'Fernando',
+    lastName: 'Castillo',
+    email: 'fernando@example.com',
+    phone: '5491445566778',
+    joinDate: '2024-08-22',
+    status: UserStatus.ACTIVE,
+    photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    biometrics: [],
+    routines: [],
+    diets: [],
+    payments: [
+        { id: 'pay16', date: '2025-11-05', amount: 3000, concept: 'Noviembre', method: 'Efectivo' }
     ]
   }
 ];
@@ -113,31 +264,29 @@ class MockDB {
     const stored = localStorage.getItem('el_arca_db');
     if (stored) {
       this.state = JSON.parse(stored);
-      // Migration: Check if exercises exist
-      if (!this.state.exercises) {
-        this.state.exercises = INITIAL_EXERCISES;
-        this.save();
-      }
-      // Migration: Check if reminders exist
-      if (!this.state.reminders) {
-        this.state.reminders = [];
-        this.save();
-      }
-      // Migration: Check if slots exist
-      if (!this.state.slots) {
-        this.state.slots = generateInitialSlots();
-        this.save();
-      }
-      // Migration: Check if reservations exist
-      if (!this.state.reservations) {
-        this.state.reservations = [];
-        this.save();
-      }
-      // Migration: Check if members have payments
+      // Migration: ensure core arrays exist
+      if (!this.state.exercises) this.state.exercises = INITIAL_EXERCISES;
+      if (!this.state.reminders) this.state.reminders = [];
+      if (!this.state.slots) this.state.slots = generateInitialSlots();
+      if (!this.state.reservations) this.state.reservations = [];
+
+      // Migration: ensure members array contains any new initial members (merge, avoid duplicates)
+      const existingIds = new Set(this.state.members.map(m => m.id));
+      let added = false;
+      INITIAL_MEMBERS.forEach(initM => {
+        if (!existingIds.has(initM.id)) {
+          this.state.members.push(initM);
+          added = true;
+        }
+      });
+
+      // Migration: Check if members have payments and photoUrl fields
       this.state.members.forEach(m => {
           if (!m.payments) m.payments = [];
           if (!m.photoUrl) m.photoUrl = '';
       });
+
+      if (added) this.save();
     } else {
       this.state = {
         currentUser: null,
