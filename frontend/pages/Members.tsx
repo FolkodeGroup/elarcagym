@@ -122,15 +122,55 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
      refreshMembers();
   };
 
+  // Helper: Check if member payment is due soon (within 30 days without payment)
+  const isPaymentDueSoon = (member: Member): boolean => {
+    if (member.status !== UserStatus.ACTIVE) return false;
+    if (!member.payments || member.payments.length === 0) return true;
+
+    // find the most recent payment date
+    const paymentDates = member.payments.map(p => new Date(p.date).getTime());
+    const lastPaymentTs = Math.max(...paymentDates);
+    const lastPaymentDate = new Date(lastPaymentTs);
+    const today = new Date();
+    const daysWithoutPayment = (today.getTime() - lastPaymentDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    // Return true if between 30 and 60 days since last payment
+    return daysWithoutPayment >= 30 && daysWithoutPayment < 60;
+  };
+
+  // Helper: Check if member is current (paid recently - within last 30 days)
+  const isCurrentOnPayment = (member: Member): boolean => {
+    if (member.status !== UserStatus.ACTIVE) return false;
+    if (!member.payments || member.payments.length === 0) return false;
+
+    // If any payment within last 30 days, consider current
+    const today = new Date();
+    return member.payments.some(p => {
+      const pd = new Date(p.date);
+      const days = (today.getTime() - pd.getTime()) / (1000 * 60 * 60 * 24);
+      return days < 30;
+    });
+  };
+
   const filteredMembers = members.filter(m => {
     const matchesSearch = m.lastName.toLowerCase().includes(filter.toLowerCase()) || 
                          m.firstName.toLowerCase().includes(filter.toLowerCase());
     const matchesStatus = !statusFilter || 
                          (statusFilter === 'active' && m.status === UserStatus.ACTIVE) ||
                          (statusFilter === 'debtor' && m.status === UserStatus.DEBTOR) ||
-                         (statusFilter === 'inactive' && m.status === UserStatus.INACTIVE);
+                         (statusFilter === 'inactive' && m.status === UserStatus.INACTIVE) ||
+                         (statusFilter === 'current' && isCurrentOnPayment(m)) ||
+                         (statusFilter === 'dueSoon' && isPaymentDueSoon(m)) ||
+                         (statusFilter === 'all' && true);
     return matchesSearch && matchesStatus;
   });
+
+  // Counts for dashboard cards
+  const totalCount = members.length;
+  const alDiaCount = members.filter(m => isCurrentOnPayment(m)).length;
+  const debtorsCount = members.filter(m => m.status === UserStatus.DEBTOR).length;
+  const dueSoonCount = members.filter(m => isPaymentDueSoon(m)).length;
+  const inactiveCount = members.filter(m => m.status === UserStatus.INACTIVE).length;
 
   // --- MESSAGING & PDF HELPERS ---
 
@@ -719,16 +759,99 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         </button>
       </div>
 
-      {/* Filters & Search */}
-      <div className="bg-[#1a1a1a] p-4 rounded-xl border border-gray-800 flex items-center gap-3">
-        <Search className="text-gray-500" size={20} />
-        <input 
-          type="text" 
-          placeholder="Buscar por nombre..." 
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="bg-transparent border-none focus:outline-none text-white w-full"
-        />
+      {/* Stats + Filters */}
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div onClick={() => setStatusFilter(null)} className={`p-4 rounded-lg border cursor-pointer ${statusFilter===null ? 'border-brand-gold bg-[#2a2a2a]' : 'border-gray-800 bg-[#111]'}`}>
+            <p className="text-xs text-gray-400">Todos</p>
+            <p className="text-2xl font-bold text-white">{totalCount}</p>
+          </div>
+          <div onClick={() => setStatusFilter('current')} className={`p-4 rounded-lg border cursor-pointer ${statusFilter==='current' ? 'border-green-500 bg-[#052e1a]' : 'border-gray-800 bg-[#111]'}`}>
+            <p className="text-xs text-gray-400">Al Día</p>
+            <p className="text-2xl font-bold text-green-400">{alDiaCount}</p>
+          </div>
+          <div onClick={() => setStatusFilter('debtor')} className={`p-4 rounded-lg border cursor-pointer ${statusFilter==='debtor' ? 'border-red-500 bg-[#2a0b0b]' : 'border-gray-800 bg-[#111]'}`}>
+            <p className="text-xs text-gray-400">Morosos</p>
+            <p className="text-2xl font-bold text-red-400">{debtorsCount}</p>
+          </div>
+          <div onClick={() => setStatusFilter('dueSoon')} className={`p-4 rounded-lg border cursor-pointer ${statusFilter==='dueSoon' ? 'border-yellow-500 bg-[#2a220b]' : 'border-gray-800 bg-[#111]'}`}>
+            <p className="text-xs text-gray-400">Próx. a Vencer</p>
+            <p className="text-2xl font-bold text-yellow-300">{dueSoonCount}</p>
+          </div>
+          <div onClick={() => setStatusFilter('inactive')} className={`p-4 rounded-lg border cursor-pointer ${statusFilter==='inactive' ? 'border-gray-500 bg-[#151515]' : 'border-gray-800 bg-[#111]'}`}>
+            <p className="text-xs text-gray-400">Inactivos</p>
+            <p className="text-2xl font-bold text-gray-300">{inactiveCount}</p>
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="bg-[#1a1a1a] p-4 rounded-xl border border-gray-800 flex items-center gap-3">
+          <Search className="text-gray-500" size={20} />
+          <input 
+            type="text" 
+            placeholder="Buscar socio..." 
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="bg-transparent border-none focus:outline-none text-white w-full"
+          />
+        </div>
+
+        {/* Filter Pills */}
+        <div className="bg-[#1a1a1a] p-4 rounded-xl border border-gray-800">
+          <p className="text-xs uppercase text-gray-500 font-bold mb-3 tracking-wider">Filtrar por estado:</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setStatusFilter(null)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                statusFilter === null
+                  ? 'bg-brand-gold text-black'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              Todos
+            </button>
+            <button
+              onClick={() => setStatusFilter('current')}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                statusFilter === 'current'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              Al Día
+            </button>
+            <button
+              onClick={() => setStatusFilter('debtor')}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                statusFilter === 'debtor'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              Morosos
+            </button>
+            <button
+              onClick={() => setStatusFilter('dueSoon')}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                statusFilter === 'dueSoon'
+                  ? 'bg-yellow-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              Próximo a Vencer
+            </button>
+            <button
+              onClick={() => setStatusFilter('inactive')}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                statusFilter === 'inactive'
+                  ? 'bg-gray-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              Inactivos
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Table */}
