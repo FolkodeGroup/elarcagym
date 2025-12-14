@@ -15,6 +15,7 @@ const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [pageFilter, setPageFilter] = useState<string | null>(null);
   const [showNavModal, setShowNavModal] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const { canNavigate, pendingPage, setPendingPage, confirmNavigation } = useNavigation();
 
   useEffect(() => {
@@ -41,12 +42,18 @@ const AppContent: React.FC = () => {
       setShowNavModal(true);
       return;
     }
-    setCurrentPage(page);
-    if (filter) {
-      setPageFilter(filter);
-    } else {
-      setPageFilter(null);
-    }
+    // Fade out effect
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setCurrentPage(page);
+      if (filter) {
+        setPageFilter(filter);
+      } else {
+        setPageFilter(null);
+      }
+      // Fade in effect
+      setIsTransitioning(false);
+    }, 200);
   };
 
   const handleConfirmNavigation = (allow: boolean) => {
@@ -82,7 +89,9 @@ const AppContent: React.FC = () => {
           currentPage={currentPage}
           onNavigate={handleNavigate}
       >
-        {renderPage()}
+        <div className={`transition-opacity duration-200 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+          {renderPage()}
+        </div>
       </Layout>
       {showNavModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
