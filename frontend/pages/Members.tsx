@@ -40,6 +40,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentConcept, setPaymentConcept] = useState('Cuota Mensual');
+  // Assign slot modal
+  const [showAssignSlotModal, setShowAssignSlotModal] = useState(false);
+  const [assignDate, setAssignDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [assignTime, setAssignTime] = useState<string>('08:00');
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
@@ -467,6 +471,13 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                               >
                                   <Edit2 size={16} /> Editar
                               </button>
+                              <button
+                                onClick={() => setShowAssignSlotModal(true)}
+                                className="px-4 py-2 bg-green-900/30 hover:bg-green-800 text-green-400 rounded font-bold flex items-center gap-2 transition-colors"
+                                title="Asignar Turno"
+                              >
+                                <Clock size={16} /> Asignar Turno
+                              </button>
                           </div>
                           <span className={`px-4 py-2 rounded-full text-sm font-bold border ${
                               selectedMember.status === UserStatus.ACTIVE ? 'bg-green-900/30 border-green-800 text-green-400' :
@@ -751,6 +762,56 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   </div>
                 </div>
               )}
+             {/* Assign Slot Modal */}
+             {showAssignSlotModal && selectedMember && (
+               <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                 <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
+                   <h3 className="text-lg font-bold text-white mb-4">Asignar Turno a {selectedMember.firstName}</h3>
+                   <div className="space-y-3">
+                     <div>
+                       <label className="text-xs text-gray-400 block mb-1">Fecha</label>
+                       <input type="date" value={assignDate} onChange={e => setAssignDate(e.target.value)} className="w-full bg-black border border-gray-600 text-white p-2 rounded" />
+                     </div>
+                     <div>
+                       <label className="text-xs text-gray-400 block mb-1">Horario</label>
+                       <select value={assignTime} onChange={e => setAssignTime(e.target.value)} className="w-full bg-black border border-gray-600 text-white p-2 rounded">
+                         <option>08:00</option>
+                         <option>09:00</option>
+                         <option>10:00</option>
+                         <option>13:00</option>
+                         <option>14:30</option>
+                         <option>16:00</option>
+                         <option>17:30</option>
+                         <option>19:00</option>
+                         <option>20:30</option>
+                       </select>
+                     </div>
+                     <div className="flex justify-end gap-2 mt-4">
+                       <button onClick={() => setShowAssignSlotModal(false)} className="px-3 py-2 text-gray-400 text-sm">Cancelar</button>
+                       <button onClick={async () => {
+                         // Try to find a slot for this date/time
+                         const candidates = db.getSlotsByDate(assignDate);
+                         let slot = candidates.find(s => s.time === assignTime);
+                         if (!slot) {
+                           // create slot
+                           slot = db.addSlot(assignDate, assignTime, 90, 'available');
+                         }
+                        // Allow multiple reservations unless slot is explicitly occupied
+                        if (slot.status === 'occupied') {
+                          setToast({ message: 'El turno seleccionado no está disponible.', type: 'error' });
+                          return;
+                        }
+                         // Create reservation using member data
+                         db.addReservation({ slotId: slot.id, clientName: `${selectedMember.firstName} ${selectedMember.lastName}`, clientPhone: selectedMember.phone, clientEmail: selectedMember.email });
+                         setToast({ message: 'Turno asignado correctamente.', type: 'success' });
+                         setShowAssignSlotModal(false);
+                         refreshMembers();
+                       }} className="px-4 py-2 bg-brand-gold text-black rounded font-bold">Asignar</button>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             )}
               {toast && (
                   <Toast message={toast.message} type={toast.type} duration={3500} onClose={() => setToast(null)} />
               )}

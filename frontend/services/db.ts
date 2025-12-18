@@ -232,11 +232,16 @@ const INITIAL_EXERCISES: ExerciseMaster[] = [
   { id: 'e10', name: 'Plancha Abdominal', category: 'Core' },
 ];
 
-// Helper: Generate initial slots for a week (8 slots per day, 1 hour each)
+// Helper: Generate initial slots for a week using the gym's schedule
+// Morning slots (90 min): 08:00-09:30, 09:00-10:30, 10:00-11:30
+// Afternoon slots (90 min): 13:00-14:30, 14:30-16:00, 16:00-17:30, 17:30-19:00, 19:00-20:30, 20:30-22:00
 const generateInitialSlots = (): Slot[] => {
   const slots: Slot[] = [];
   const today = new Date();
-  const times = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00'];
+  const times = [
+    '08:00', '09:00', '10:00',
+    '13:00', '14:30', '16:00', '17:30', '19:00', '20:30'
+  ];
   
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
     const date = new Date(today);
@@ -248,7 +253,7 @@ const generateInitialSlots = (): Slot[] => {
         id: Math.random().toString(36).substr(2, 9),
         date: dateStr,
         time,
-        duration: 60,
+        duration: 90,
         status: 'available'
       });
     });
@@ -264,13 +269,14 @@ class MockDB {
     const stored = localStorage.getItem('el_arca_db');
     if (stored) {
       this.state = JSON.parse(stored);
-      // Migration: ensure core arrays exist
+
+      // Ensure core arrays exist
       if (!this.state.exercises) this.state.exercises = INITIAL_EXERCISES;
       if (!this.state.reminders) this.state.reminders = [];
       if (!this.state.slots) this.state.slots = generateInitialSlots();
       if (!this.state.reservations) this.state.reservations = [];
 
-      // Migration: ensure members array contains any new initial members (merge, avoid duplicates)
+      // Merge initial members (avoid duplicates)
       const existingIds = new Set(this.state.members.map(m => m.id));
       let added = false;
       INITIAL_MEMBERS.forEach(initM => {
@@ -280,11 +286,73 @@ class MockDB {
         }
       });
 
-      // Migration: Check if members have payments and photoUrl fields
+      // Ensure members fields exist
       this.state.members.forEach(m => {
           if (!m.payments) m.payments = [];
           if (!m.photoUrl) m.photoUrl = '';
       });
+
+      // Automatic migration to schemaVersion 1: update slots to new schedule (90min)
+      const currentVersion = (this.state as any).schemaVersion || 0;
+      if (currentVersion < 1) {
+        try {
+          // Backup current DB
+          const backupKey = `el_arca_db_backup_${Date.now()}`;
+          localStorage.setItem(backupKey, stored);
+          console.log('[MockDB] Backup created:', backupKey);
+
+          const oldSlots: Slot[] = this.state.slots || [];
+          const oldSlotsById = new Map(oldSlots.map(s => [s.id, s] as [string, Slot]));
+          const newSlots = generateInitialSlots();
+
+          const timeToMinutes = (t: string) => {
+            const [hh, mm] = t.split(':').map(Number);
+            return hh * 60 + mm;
+          };
+
+          // For each reservation, map to a new slot (same date, same or nearest time).
+          this.state.reservations.forEach((res: Reservation) => {
+            const oldSlot = oldSlotsById.get(res.slotId);
+            if (!oldSlot) return;
+            const candidates = newSlots.filter(s => s.date === oldSlot.date);
+            if (candidates.length === 0) {
+              // No candidate on that date: preserve the old slot so reservation isn't lost
+              const preserved = { ...oldSlot };
+              newSlots.push(preserved);
+              res.slotId = preserved.id;
+              return;
+            }
+
+            // Try exact time match first
+            let match = candidates.find(s => s.time === oldSlot.time);
+            if (!match) {
+              // Find nearest by minutes difference
+              const oldM = timeToMinutes(oldSlot.time);
+              let best: Slot | null = null;
+              let bestDiff = Infinity;
+              candidates.forEach(c => {
+                const diff = Math.abs(timeToMinutes(c.time) - oldM);
+                if (diff < bestDiff) {
+                  bestDiff = diff;
+                  best = c;
+                }
+              });
+              match = best || null;
+            }
+
+            if (match) {
+              res.slotId = match.id;
+            }
+          });
+
+          // Replace slots with the new set and set schema version
+          this.state.slots = newSlots;
+          (this.state as any).schemaVersion = 1;
+          console.log('[MockDB] Migrated to schemaVersion 1 — slots updated.');
+        } catch (err) {
+          console.error('[MockDB] Migration to v1 failed:', err);
+        }
+      }
 
       if (added) this.save();
     } else {
@@ -363,6 +431,30 @@ class MockDB {
       member.status = data.status;
       this.save();
     }
+  }
+
+  updateMemberAvailability(id: string, availableTimes: string[]) {
+    const member = this.state.members.find(m => m.id === id);
+    if (member) {
+      (member as any).availableTimes = availableTimes;
+      this.save();
+      return member;
+    }
+    return null;
+  }
+
+  // Slots management: allow adding a slot dynamically
+  addSlot(date: string, time: string, duration: number = 90, status: 'available' | 'reserved' | 'occupied' = 'available') {
+    const newSlot: Slot = {
+      id: Math.random().toString(36).substr(2, 9),
+      date,
+      time,
+      duration,
+      status
+    };
+    this.state.slots.push(newSlot);
+    this.save();
+    return newSlot;
   }
 
   updateMemberPhoto(id: string, photoUrl: string) {
@@ -601,8 +693,7 @@ class MockDB {
       createdAt: new Date().toISOString()
     };
     this.state.reservations.push(newReservation);
-    // Update slot status to reserved
-    this.updateSlotStatus(data.slotId, 'reserved');
+    // Note: allow multiple reservations per slot — do not force slot status change here
     this.save();
     return newReservation;
   }
@@ -623,8 +714,7 @@ class MockDB {
   deleteReservation(reservationId: string) {
     const reservation = this.state.reservations.find(r => r.id === reservationId);
     if (reservation) {
-      // Update slot status back to available
-      this.updateSlotStatus(reservation.slotId, 'available');
+      // Remove only the reservation; do not modify slot status to allow multiple occupants
     }
     this.state.reservations = this.state.reservations.filter(r => r.id !== reservationId);
     this.save();
@@ -632,6 +722,10 @@ class MockDB {
 
   getReservationBySlotId(slotId: string) {
     return this.state.reservations.find(r => r.slotId === slotId);
+  }
+
+  getReservationsBySlotId(slotId: string) {
+    return this.state.reservations.filter(r => r.slotId === slotId);
   }
 }
 

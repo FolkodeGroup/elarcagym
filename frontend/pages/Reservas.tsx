@@ -53,8 +53,9 @@ const Reservas: React.FC = () => {
   };
 
   const handleReserveSlot = (slot: Slot) => {
-    if (slot.status !== 'available') {
-      setToast({ message: 'Este turno no está disponible.', type: 'error' });
+    // Allow multiple reservations per slot. Only block if explicitly occupied.
+    if (slot.status === 'occupied') {
+      setToast({ message: 'Este turno está ocupado y no acepta más reservas.', type: 'error' });
       return;
     }
     setSelectedSlot(slot);
@@ -126,13 +127,21 @@ const Reservas: React.FC = () => {
     }
   };
 
-  const getReservationForSlot = (slotId: string) => {
-    return reservations.find(r => r.slotId === slotId);
+  const getReservationsForSlot = (slotId: string) => {
+    return reservations.filter(r => r.slotId === slotId);
   };
 
   const dateSlots = getDateSlots();
-  const availableCount = dateSlots.filter(s => s.status === 'available').length;
-  const reservedCount = dateSlots.filter(s => s.status === 'reserved').length;
+  // Derive status from reservations: if slot.status === 'occupied' -> occupied
+  // else if any reservations exist for that slot -> reserved, else available
+  const slotComputedStatus = (slot: Slot) => {
+    if (slot.status === 'occupied') return 'occupied';
+    const res = reservations.filter(r => r.slotId === slot.id);
+    return res.length > 0 ? 'reserved' : 'available';
+  };
+
+  const availableCount = dateSlots.filter(s => slotComputedStatus(s) === 'available').length;
+  const reservedCount = dateSlots.filter(s => slotComputedStatus(s) === 'reserved').length;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -205,53 +214,49 @@ const Reservas: React.FC = () => {
             <p className="text-gray-500 col-span-full text-center py-8">No hay turnos para esta fecha</p>
           ) : (
             dateSlots.map(slot => {
-              const reservation = getReservationForSlot(slot.id);
+              const slotReservations = getReservationsForSlot(slot.id);
               return (
                 <div
                   key={slot.id}
-                  onClick={() => slot.status === 'available' && handleReserveSlot(slot)}
-                  className={`p-4 rounded border transition-all ${getStatusColor(slot.status)}`}
+                  onClick={() => slotComputedStatus(slot) !== 'occupied' && handleReserveSlot(slot)}
+                  className={`p-4 rounded border transition-all ${getStatusColor(slotComputedStatus(slot))}`}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <Clock size={16} className={
-                      slot.status === 'available' ? 'text-green-400' :
-                      slot.status === 'reserved' ? 'text-blue-400' : 'text-red-400'
+                      slotComputedStatus(slot) === 'available' ? 'text-green-400' :
+                      slotComputedStatus(slot) === 'reserved' ? 'text-blue-400' : 'text-red-400'
                     } />
                     <span className="font-bold text-white">{slot.time}</span>
                   </div>
                   
                   <p className="text-xs text-gray-400 mb-2">{slot.duration} min</p>
                   
-                  {reservation ? (
-                    <div className="bg-black/40 p-2 rounded text-sm">
-                      <p className="text-white font-semibold truncate">{reservation.clientName}</p>
-                      {reservation.clientPhone && <p className="text-gray-400 text-xs">{reservation.clientPhone}</p>}
-                      <div className="flex gap-1 mt-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditReservation(reservation);
-                          }}
-                          className="flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
-                        >
-                          <Edit2 size={12} className="inline mr-1" />
-                          Editar
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteReservation(reservation);
-                          }}
-                          className="flex-1 px-2 py-1 bg-red-900/50 hover:bg-red-800/50 rounded text-xs"
-                        >
-                          <Trash2 size={12} className="inline mr-1" />
-                          Borrar
-                        </button>
-                      </div>
+                  {slotReservations.length > 0 ? (
+                    <div className="bg-black/40 p-2 rounded text-sm space-y-2">
+                      {slotReservations.map(res => (
+                        <div key={res.id} className="border-b border-gray-800 pb-2">
+                          <p className="text-white font-semibold truncate">{res.clientName}</p>
+                          {res.clientPhone && <p className="text-gray-400 text-xs">{res.clientPhone}</p>}
+                          <div className="flex gap-1 mt-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleEditReservation(res); }}
+                              className="flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+                            >
+                              <Edit2 size={12} className="inline mr-1" />Editar
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteReservation(res); }}
+                              className="flex-1 px-2 py-1 bg-red-900/50 hover:bg-red-800/50 rounded text-xs"
+                            >
+                              <Trash2 size={12} className="inline mr-1" />Borrar
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
+                    ) : (
                     <p className="text-xs text-gray-500 italic">
-                      {getStatusLabel(slot.status)}
+                      {getStatusLabel(slotComputedStatus(slot))}
                     </p>
                   )}
                 </div>
