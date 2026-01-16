@@ -9,9 +9,20 @@ import {
   Menu,
   X,
   Instagram,
-  Calendar
+  Calendar,
+  Settings,
+  Download,
+  BarChart3,
+  Shield,
+  FileText,
+  ChevronDown,
+  Sun,
+  Moon,
+  ShoppingCart
 } from 'lucide-react';
 import { db } from '../services/db';
+import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { UserStatus } from '../types';
 
 interface LayoutProps {
@@ -23,19 +34,29 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavigate }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showBackup, setShowBackup] = useState(false);
+  const [showReports, setShowReports] = useState(false);
+  const [showAudit, setShowAudit] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
   const user = db.getUser();
 
   const menuItems = [
-    { id: 'dashboard', label: 'Panel Principal', icon: Activity },
-    { id: 'members', label: 'Socios', icon: Users },
-    { id: 'biometrics', label: 'Seguimiento', icon: ClipboardList },
-    { id: 'operations', label: 'Gestor de Rutinas', icon: Dumbbell },
-    { id: 'reservas', label: 'Reservas', icon: Calendar },
-    { id: 'admin', label: 'Administración', icon: DollarSign },
+    { id: 'dashboard', label: t('panelPrincipal'), icon: Activity },
+    { id: 'members', label: t('socios'), icon: Users },
+    { id: 'biometrics', label: t('seguimiento'), icon: ClipboardList },
+    { id: 'operations', label: t('gestorRutinas'), icon: Dumbbell },
+    { id: 'reservas', label: t('reservas'), icon: Calendar },
+    { id: 'admin', label: t('comercio'), icon: ShoppingCart },
+    { id: 'Ingresos', label: t('ingresosVentas'), icon: DollarSign },
   ];
 
   return (
-    <div className="min-h-screen bg-brand-dark text-white flex overflow-hidden">
+    <div className="min-h-screen bg-brand-dark text-white flex overflow-hidden" onClick={() => adminMenuOpen && setAdminMenuOpen(false)}>
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -116,14 +137,112 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
             {menuItems.find(i => i.id === currentPage)?.label}
           </h2>
 
-          <div className="flex items-center space-x-4">
-             <div className="flex flex-col items-end">
-                <span className="text-sm font-medium text-white">{user?.name}</span>
-                <span className="text-xs text-brand-gold">{user?.role === 'ADMIN' ? 'Administrador' : 'Entrenador'}</span>
-             </div>
-             <div className="h-10 w-10 rounded-full bg-brand-gold flex items-center justify-center text-black font-bold">
-                {user?.name.charAt(0)}
-             </div>
+          <div className="flex items-center space-x-4 relative">
+             <button 
+               onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+               className="h-10 w-10 rounded-lg bg-brand-gold flex items-center justify-center text-black hover:bg-yellow-400 transition relative hover:scale-110 group"
+               title="Ajustes y configuración"
+             >
+                <Settings size={20} className="group-hover:rotate-90 transition-transform" />
+                {adminMenuOpen && (
+                  <span className="absolute inset-0 rounded-lg border-2 border-brand-gold animate-pulse"></span>
+                )}
+             </button>
+
+             {/* Admin Dropdown Menu */}
+             {adminMenuOpen && (
+               <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-16 w-64 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-2xl z-50 overflow-hidden">
+                 <div className="bg-gradient-to-r from-brand-gold to-yellow-500 p-3">
+                   <h3 className="text-black font-bold text-sm">{t('panelAdmin')}</h3>
+                   <p className="text-xs text-black/70">{t('gestiona')}</p>
+                 </div>
+
+                 <div className="py-2">
+                   {/* Configuración */}
+                   <button
+                     onClick={() => { setShowSettings(true); setAdminMenuOpen(false); }}
+                     className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
+                   >
+                     <Settings size={18} className="text-brand-gold group-hover:scale-110 transition" />
+                     <div className="flex-1 text-left">
+                       <p className="text-sm font-semibold">{t('ajustes')}</p>
+                       <p className="text-xs text-gray-400">{t('ajustesApp')}</p>
+                     </div>
+                   </button>
+
+                   {/* Preferencias */}
+                   <button
+                     onClick={() => { setShowPreferences(true); setAdminMenuOpen(false); }}
+                     className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
+                   >
+                     <ChevronDown size={18} className="text-blue-400 group-hover:scale-110 transition" />
+                     <div className="flex-1 text-left">
+                       <p className="text-sm font-semibold">{t('preferencias')}</p>
+                       <p className="text-xs text-gray-400">{t('temaIdioma')}</p>
+                     </div>
+                   </button>
+
+                   {/* Respaldos */}
+                   <button
+                     onClick={() => { setShowBackup(true); setAdminMenuOpen(false); }}
+                     className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
+                   >
+                     <Download size={18} className="text-green-400 group-hover:scale-110 transition" />
+                     <div className="flex-1 text-left">
+                       <p className="text-sm font-semibold">{t('respaldos')}</p>
+                       <p className="text-xs text-gray-400">{t('importarExportar')}</p>
+                     </div>
+                   </button>
+
+                   {/* Reportes */}
+                   <button
+                     onClick={() => { setShowReports(true); setAdminMenuOpen(false); }}
+                     className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
+                   >
+                     <BarChart3 size={18} className="text-purple-400 group-hover:scale-110 transition" />
+                     <div className="flex-1 text-left">
+                       <p className="text-sm font-semibold">{t('reportes')}</p>
+                       <p className="text-xs text-gray-400">{t('analisisIngresos')}</p>
+                     </div>
+                   </button>
+
+                   {/* Auditoría */}
+                   <button
+                     onClick={() => { setShowAudit(true); setAdminMenuOpen(false); }}
+                     className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
+                   >
+                     <Shield size={18} className="text-red-400 group-hover:scale-110 transition" />
+                     <div className="flex-1 text-left">
+                       <p className="text-sm font-semibold">{t('auditoria')}</p>
+                       <p className="text-xs text-gray-400">{t('registroCambios')}</p>
+                     </div>
+                   </button>
+
+                   {/* Sobre la App */}
+                   <button
+                     onClick={() => { setShowAbout(true); setAdminMenuOpen(false); }}
+                     className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group border-t border-gray-700"
+                   >
+                     <FileText size={18} className="text-cyan-400 group-hover:scale-110 transition" />
+                     <div className="flex-1 text-left">
+                       <p className="text-sm font-semibold">{t('sobreApp')}</p>
+                       <p className="text-xs text-gray-400">{t('versionInfo')}</p>
+                     </div>
+                   </button>
+
+                   {/* Cerrar Sesión */}
+                   <button
+                     onClick={() => { onLogout(); setAdminMenuOpen(false); }}
+                     className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-red-900/20 transition text-red-400 group border-t border-gray-700"
+                   >
+                     <LogOut size={18} className="group-hover:scale-110 transition" />
+                     <div className="flex-1 text-left">
+                       <p className="text-sm font-semibold">{t('cerrarSesion')}</p>
+                     </div>
+                   </button>
+                 </div>
+               </div>
+             )}
           </div>
         </header>
 
@@ -131,6 +250,290 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
         <main className="flex-1 overflow-auto p-4 md:p-8 bg-brand-dark">
           {children}
         </main>
+
+        {/* MODALES DE ADMINISTRACIÓN */}
+
+        {/* Modal Configuración */}
+        {showSettings && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Settings className="text-brand-gold" />
+                  Configuración de la App
+                </h3>
+                <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <label className="block text-white font-semibold mb-2">Nombre del Gimnasio</label>
+                  <input type="text" defaultValue="El Arca" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2" />
+                </div>
+
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <label className="block text-white font-semibold mb-2">Correo de Contacto</label>
+                  <input type="email" placeholder="info@elarcagym.com" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2" />
+                </div>
+
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <label className="block text-white font-semibold mb-2">Teléfono</label>
+                  <input type="tel" placeholder="+54 9 (xxx) xxx-xxxx" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2" />
+                </div>
+
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <label className="block text-white font-semibold mb-2">Horario de Atención</label>
+                  <div className="flex gap-2">
+                    <input type="time" defaultValue="06:00" className="flex-1 bg-black text-white border border-gray-700 rounded px-3 py-2" />
+                    <span className="text-white flex items-center">a</span>
+                    <input type="time" defaultValue="22:00" className="flex-1 bg-black text-white border border-gray-700 rounded px-3 py-2" />
+                  </div>
+                </div>
+
+                <button className="w-full bg-brand-gold text-black py-2 rounded-lg font-bold hover:bg-yellow-400 transition">
+                  Guardar Cambios
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Preferencias */}
+        {showPreferences && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-2xl w-full p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <ChevronDown className="text-blue-400" />
+                  {t('preferencias')}
+                </h3>
+                <button onClick={() => setShowPreferences(false)} className="text-gray-400 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <label className="block text-white font-semibold mb-2">{t('tema')}</label>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => toggleTheme('dark')}
+                      className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition ${
+                        theme === 'dark' 
+                          ? 'bg-brand-gold text-black' 
+                          : 'bg-gray-700 text-white hover:bg-gray-600'
+                      }`}
+                    >
+                      <Moon size={16} />
+                      {t('oscuro')}
+                    </button>
+                    <button 
+                      onClick={() => toggleTheme('light')}
+                      className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition ${
+                        theme === 'light' 
+                          ? 'bg-brand-gold text-black' 
+                          : 'bg-gray-700 text-white hover:bg-gray-600'
+                      }`}
+                    >
+                      <Sun size={16} />
+                      {t('claro')}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <label className="block text-white font-semibold mb-2">{t('idioma')}</label>
+                  <select 
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value as 'es' | 'en' | 'pt')}
+                    className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2"
+                  >
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                    <option value="pt">Português</option>
+                  </select>
+                </div>
+
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" defaultChecked className="w-4 h-4" />
+                    <span className="text-white font-semibold">{t('notificaciones')}</span>
+                  </label>
+                </div>
+
+                <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition">
+                  {t('aplicarPreferencias')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Respaldos */}
+        {showBackup && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-2xl w-full p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Download className="text-green-400" />
+                  Gestión de Respaldos
+                </h3>
+                <button onClick={() => setShowBackup(false)} className="text-gray-400 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-green-900/20 border border-green-800 p-4 rounded-lg">
+                  <p className="text-white font-semibold mb-3">Exportar Datos</p>
+                  <p className="text-sm text-gray-300 mb-3">Descarga un respaldo completo de todos tus datos en formato JSON</p>
+                  <button className="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 transition">
+                    📥 Descargar Respaldo Completo
+                  </button>
+                </div>
+
+                <div className="bg-blue-900/20 border border-blue-800 p-4 rounded-lg">
+                  <p className="text-white font-semibold mb-3">Importar Datos</p>
+                  <p className="text-sm text-gray-300 mb-3">Carga un archivo de respaldo anterior</p>
+                  <input type="file" accept=".json" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2 mb-3" />
+                  <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition">
+                    📤 Importar Respaldo
+                  </button>
+                </div>
+
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <p className="text-white text-sm">
+                    <strong>Último respaldo:</strong> 16 de enero de 2026 - 14:30
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Reportes */}
+        {showReports && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <BarChart3 className="text-purple-400" />
+                  Reportes
+                </h3>
+                <button onClick={() => setShowReports(false)} className="text-gray-400 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <button className="w-full bg-purple-600/20 border border-purple-700 p-4 rounded-lg text-left hover:bg-purple-600/40 transition">
+                  <p className="text-white font-semibold">📊 Reporte de Ingresos Mensuales</p>
+                  <p className="text-xs text-gray-400">Analiza tus ingresos por mes</p>
+                </button>
+
+                <button className="w-full bg-purple-600/20 border border-purple-700 p-4 rounded-lg text-left hover:bg-purple-600/40 transition">
+                  <p className="text-white font-semibold">💰 Reporte de Ventas</p>
+                  <p className="text-xs text-gray-400">Detalles de productos vendidos</p>
+                </button>
+
+                <button className="w-full bg-purple-600/20 border border-purple-700 p-4 rounded-lg text-left hover:bg-purple-600/40 transition">
+                  <p className="text-white font-semibold">👥 Reporte de Afiliaciones</p>
+                  <p className="text-xs text-gray-400">Nuevos miembros y cancelaciones</p>
+                </button>
+
+                <button className="w-full bg-purple-600/20 border border-purple-700 p-4 rounded-lg text-left hover:bg-purple-600/40 transition">
+                  <p className="text-white font-semibold">📈 Reporte de Ocupación</p>
+                  <p className="text-xs text-gray-400">Uso de reservas y horarios</p>
+                </button>
+
+                <button className="w-full bg-purple-600 text-white py-2 rounded-lg font-bold hover:bg-purple-700 transition mt-4">
+                  📥 Exportar Reportes PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Auditoría */}
+        {showAudit && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Shield className="text-red-400" />
+                  Registro de Auditoría
+                </h3>
+                <button onClick={() => setShowAudit(false)} className="text-gray-400 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="bg-gray-800/30 p-3 rounded border-l-4 border-blue-500">
+                  <p className="text-white text-sm font-semibold">✏️ Productos actualizados</p>
+                  <p className="text-xs text-gray-400">Por: Admin - 16/01/2026 14:30</p>
+                </div>
+
+                <div className="bg-gray-800/30 p-3 rounded border-l-4 border-green-500">
+                  <p className="text-white text-sm font-semibold">➕ Nuevo socio agregado</p>
+                  <p className="text-xs text-gray-400">Por: Admin - 16/01/2026 13:15</p>
+                </div>
+
+                <div className="bg-gray-800/30 p-3 rounded border-l-4 border-yellow-500">
+                  <p className="text-white text-sm font-semibold">🛒 Venta registrada - $250.00</p>
+                  <p className="text-xs text-gray-400">Por: Admin - 16/01/2026 12:45</p>
+                </div>
+
+                <div className="bg-gray-800/30 p-3 rounded border-l-4 border-red-500">
+                  <p className="text-white text-sm font-semibold">🗑️ Producto eliminado</p>
+                  <p className="text-xs text-gray-400">Por: Admin - 15/01/2026 11:20</p>
+                </div>
+              </div>
+
+              <button className="w-full bg-red-600 text-white py-2 rounded-lg font-bold hover:bg-red-700 transition mt-4">
+                📥 Exportar Auditoría
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Sobre la App */}
+        {showAbout && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-md w-full p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <FileText className="text-cyan-400" />
+                  Sobre la App
+                </h3>
+                <button onClick={() => setShowAbout(false)} className="text-gray-400 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="text-center space-y-4">
+                <div className="text-4xl font-display font-bold text-brand-gold">
+                  EL ARCA
+                </div>
+                <p className="text-gray-400 text-sm">Centro Deportivo - Gestor Integral</p>
+
+                <div className="bg-gray-800/50 p-4 rounded-lg space-y-2">
+                  <p className="text-white"><strong>Versión:</strong> 1.0.0</p>
+                  <p className="text-white"><strong>Lanzamiento:</strong> Enero 2026</p>
+                  <p className="text-white"><strong>Desarrollado por:</strong> Folkode</p>
+                </div>
+
+                <div className="text-xs text-gray-500 space-y-1">
+                  <p>© 2026 El Arca Gym. Todos los derechos reservados.</p>
+                  <p className="cursor-pointer text-cyan-400 hover:underline">Términos de Servicio</p>
+                  <p className="cursor-pointer text-cyan-400 hover:underline">Política de Privacidad</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

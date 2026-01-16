@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Reminder } from '../types';
-import { Users, AlertCircle, TrendingUp, DollarSign, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Users, AlertCircle, TrendingUp, DollarSign, Plus, Edit2, Trash2, CreditCard } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
@@ -38,6 +38,34 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const activeMembers = members.filter(m => m.status === UserStatus.ACTIVE).length;
   const debtors = members.filter(m => m.status === UserStatus.DEBTOR).length;
+
+  // Helper: Check if member is current (paid recently - within last 30 days)
+  const isCurrentOnPayment = (member: Member): boolean => {
+    if (member.status !== UserStatus.ACTIVE) return false;
+    if (!member.payments || member.payments.length === 0) return false;
+
+    // If any payment within last 30 days, consider current
+    const today = new Date();
+    return member.payments.some(p => {
+      const pd = new Date(p.date);
+      const days = (today.getTime() - pd.getTime()) / (1000 * 60 * 60 * 24);
+      return days < 30;
+    });
+  };
+
+  const currentMembers = members.filter(m => isCurrentOnPayment(m)).length;
+
+  // Calcular ingresos de hoy
+  const getTodayIncome = () => {
+    const hoy = new Date().toISOString().split('T')[0];
+    const ventasHoy = db.getAllSales().filter(venta => {
+      const fechaVenta = new Date(venta.date).toISOString().split('T')[0];
+      return fechaVenta === hoy;
+    });
+    return ventasHoy.reduce((acc, venta) => acc + venta.total, 0);
+  };
+
+  const todayIncome = getTodayIncome();
 
   const data = [
     { name: 'Activos', value: activeMembers, color: '#4ade80' },
@@ -104,10 +132,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleNavigateToIngresos = () => {
+    onNavigate('Ingresos');
+  };
+
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <button onClick={() => onNavigate('members')} className="text-left hover:opacity-80 transition">
           <StatCard 
             title="Socios Totales" 
@@ -124,6 +156,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             color="text-green-500" 
           />
         </button>
+        <button onClick={() => onNavigate('members', 'current')} className="text-left hover:opacity-80 transition">
+          <StatCard 
+            title="Al Día" 
+            value={currentMembers} 
+            icon={CreditCard} 
+            color="text-blue-500" 
+          />
+        </button>
         <button onClick={() => onNavigate('members', 'debtor')} className="text-left hover:opacity-80 transition">
           <StatCard 
             title="Morosos" 
@@ -133,10 +173,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             bg="bg-red-500/10"
           />
         </button>
-        <button onClick={() => onNavigate('admin')} className="text-left hover:opacity-80 transition">
+        <button onClick={handleNavigateToIngresos} className="text-left hover:opacity-80 transition">
           <StatCard 
             title="Ingresos (Hoy)" 
-            value={`$0`} 
+            value={`$${todayIncome.toFixed(2)}`} 
             icon={DollarSign} 
             color="text-brand-gold" 
           />
