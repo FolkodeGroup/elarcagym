@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Product } from '../types';
-import { ShoppingCart, Plus, Minus, Trash2, Edit2 } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Edit2, Search } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
 
 const Admin: React.FC = () => {
     const [inventory, setInventory] = useState<Product[]>(db.getInventory());
     const [cart, setCart] = useState<{product: Product, qty: number}[]>([]);
+    const [searchFilter, setSearchFilter] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('ALL');
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -86,6 +88,14 @@ const Admin: React.FC = () => {
       }
   };
 
+  // Filter products based on search and category
+  const filteredInventory = inventory.filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchFilter.toLowerCase()) || 
+                           product.category.toLowerCase().includes(searchFilter.toLowerCase());
+      const matchesCategory = categoryFilter === 'ALL' || product.category === categoryFilter;
+      return matchesSearch && matchesCategory;
+  });
+
     // Block navigation when there are items in the cart
     useEffect(() => {
         setCanNavigate(cart.length === 0);
@@ -95,12 +105,90 @@ const Admin: React.FC = () => {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]">
       {/* Product Grid */}
       <div className="lg:col-span-2 overflow-auto pr-2">
-        <h2 className="text-2xl font-display font-bold text-white mb-6">Productos</h2>
-        <div className="flex items-center gap-3 mb-4">
-            <button onClick={() => setShowAddModal(true)} className="bg-brand-gold text-black px-3 py-1 rounded font-bold flex items-center gap-2"> <Plus /> Nuevo Producto</button>
+        <div className="mb-6">
+            <h2 className="text-2xl font-display font-bold text-white mb-4">Productos</h2>
+            
+            {/* Search and Filter Controls */}
+            <div className="space-y-3 mb-4">
+                {/* Search Input */}
+                <div className="relative">
+                    <Search className="absolute left-3 top-3 text-gray-500" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar productos..." 
+                        value={searchFilter}
+                        onChange={(e) => setSearchFilter(e.target.value)}
+                        className="w-full bg-[#1a1a1a] border border-gray-800 p-3 pl-10 rounded-lg text-white placeholder-gray-500 focus:border-brand-gold transition"
+                    />
+                </div>
+
+                {/* Category Filter */}
+                <div className="flex gap-2 flex-wrap">
+                    <button
+                        onClick={() => setCategoryFilter('ALL')}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                            categoryFilter === 'ALL'
+                                ? 'bg-brand-gold text-black'
+                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                    >
+                        Todos
+                    </button>
+                    <button
+                        onClick={() => setCategoryFilter('SUPPLEMENT')}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                            categoryFilter === 'SUPPLEMENT'
+                                ? 'bg-brand-gold text-black'
+                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                    >
+                        Suplementos
+                    </button>
+                    <button
+                        onClick={() => setCategoryFilter('DRINK')}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                            categoryFilter === 'DRINK'
+                                ? 'bg-brand-gold text-black'
+                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                    >
+                        Bebidas
+                    </button>
+                    <button
+                        onClick={() => setCategoryFilter('MERCHANDISE')}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                            categoryFilter === 'MERCHANDISE'
+                                ? 'bg-brand-gold text-black'
+                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                    >
+                        Indumentaria
+                    </button>
+                    <button
+                        onClick={() => setCategoryFilter('OTHER')}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                            categoryFilter === 'OTHER'
+                                ? 'bg-brand-gold text-black'
+                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                    >
+                        Otros
+                    </button>
+                </div>
+            </div>
+
+            {/* Add Product Button */}
+            <button onClick={() => setShowAddModal(true)} className="bg-brand-gold text-black px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-yellow-500 transition"> 
+                <Plus size={18} /> Nuevo Producto
+            </button>
         </div>
+
+        {/* Product Count */}
+        <p className="text-sm text-gray-400 mb-3">{filteredInventory.length} producto{filteredInventory.length !== 1 ? 's' : ''}</p>
+
+        {/* Products Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {inventory.map(product => (
+            {filteredInventory.map(product => (
                 <button 
                     key={product.id}
                     onClick={() => addToCart(product)}
