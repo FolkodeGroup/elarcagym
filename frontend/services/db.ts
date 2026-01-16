@@ -537,6 +537,20 @@ class MockDB {
       return this.state.sales.filter(s => s.memberId === memberId);
   }
 
+  getAllSales() {
+    return this.state.sales || [];
+  }
+
+  deleteSale(saleId: string) {
+    const index = this.state.sales.findIndex(s => s.id === saleId);
+    if (index !== -1) {
+      this.state.sales.splice(index, 1);
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
   // Reminders
   getReminders() {
     return this.state.reminders;
