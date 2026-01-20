@@ -303,10 +303,14 @@ const Reservas: React.FC = () => {
       {/* Slots Grid */}
       <div className="bg-[#1a1a1a] p-6 rounded-lg border border-gray-800">
         <h3 className="text-lg font-bold text-white mb-4">
-          Turnos - {new Date(selectedDate).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          {(() => {
+            // Mostrar la fecha seleccionada correctamente en local
+            const dateObj = new Date(selectedDate + 'T00:00:00');
+            return `Turnos - ${dateObj.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+          })()}
         </h3>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {dateSlots.length === 0 ? (
             <p className="text-gray-500 col-span-full text-center py-8">No hay turnos para esta fecha</p>
           ) : (
@@ -314,25 +318,24 @@ const Reservas: React.FC = () => {
               const slotReservations = reservations.filter(r => r.slotId === slot.id);
               const isFull = slotReservations.length >= 10;
               const canAddMore = !isFull;
-              
               return (
                 <div
                   key={slot.id}
-                  className={`p-4 rounded border transition-all flex flex-col ${
-                    slotReservations.length > 0 
-                      ? 'bg-blue-900/30 border-blue-800 cursor-pointer hover:bg-blue-900/50' 
-                      : 'bg-green-900/30 border-green-800 hover:bg-green-900/50 cursor-pointer'
-                  }`}
+                  className={`p-4 rounded-xl border-2 shadow-sm transition-all flex flex-col gap-2
+                    ${isFull ? 'bg-red-900/40 border-red-700' :
+                      slotReservations.length > 0 ? 'bg-blue-900/30 border-blue-700' : 'bg-green-900/30 border-green-700 hover:bg-green-900/50 cursor-pointer'}
+                  `}
                   style={slot.color ? { borderColor: slot.color } : {}}
+                  onClick={() => canAddMore && handleReserveSlot(slot)}
                 >
-                  <div className="flex items-center gap-2 mb-2 justify-between">
+                  <div className="flex items-center gap-2 mb-1 justify-between">
                     <div className="flex items-center gap-2">
-                      <Clock size={16} className={
-                        slotReservations.length === 0 ? 'text-green-400' :
-                        isFull ? 'text-red-400' : 'text-blue-400'
+                      <Clock size={18} className={
+                        isFull ? 'text-red-400' :
+                        slotReservations.length > 0 ? 'text-blue-400' : 'text-green-400'
                       } />
-                      <span className="font-bold text-white">{slot.time}</span>
-                      <span className="text-xs bg-gray-700/50 px-2 py-1 rounded">
+                      <span className="font-bold text-white text-lg">{slot.time}</span>
+                      <span className="text-xs bg-gray-700/70 px-2 py-1 rounded font-bold">
                         {slotReservations.length}/10
                       </span>
                     </div>
@@ -345,18 +348,18 @@ const Reservas: React.FC = () => {
                           setToast({ message: 'Turno eliminado.', type: 'info' });
                         }
                       }}
-                      className="p-1 bg-red-900/30 hover:bg-red-900/60 rounded transition text-red-400"
+                      className="p-1 bg-red-900/40 hover:bg-red-900/70 rounded transition text-red-300"
                       title="Eliminar turno"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
-                  
-                  <p className="text-xs text-gray-400 mb-2">{slot.duration} min</p>
-                  {slot.target && <p className="text-xs text-brand-gold mb-2 font-semibold">{slot.target}</p>}
-                  
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-gray-400">Duración: <b>{slot.duration} min</b></span>
+                    {slot.target && <span className="text-xs text-brand-gold font-semibold">{slot.target}</span>}
+                  </div>
                   {slotReservations.length > 0 ? (
-                    <div className="space-y-2 flex-1 mb-3">
+                    <div className="space-y-2 flex-1 mb-2">
                       <div className="max-h-32 overflow-y-auto space-y-1">
                         {slotReservations.map(reservation => (
                           <div key={reservation.id} className={`bg-black/40 p-2 rounded text-xs border ${
@@ -380,7 +383,6 @@ const Reservas: React.FC = () => {
                                     e.stopPropagation();
                                     const newAttended = reservation.attended === false ? true : false;
                                     db.updateReservationAttendance(reservation.id, newAttended);
-                                    // Update state locally for instant UI feedback
                                     setReservations(prevReservations =>
                                       prevReservations.map(r =>
                                         r.id === reservation.id ? { ...r, attended: newAttended } : r
