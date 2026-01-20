@@ -70,10 +70,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const todayIncome = getTodayIncome();
 
+  const inactiveMembers = members.filter(m => m.status === UserStatus.INACTIVE).length;
   const data = [
     { name: 'Activos', value: activeMembers, color: '#4ade80' },
     { name: 'Morosos', value: debtors, color: '#ef4444' },
-    { name: 'Inactivos', value: members.length - activeMembers - debtors, color: '#9ca3af' },
+    { name: 'Inactivos', value: inactiveMembers, color: '#9ca3af' },
   ];
 
   const handleAddReminder = () => {
