@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
 import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, Download, Edit2 } from 'lucide-react';
@@ -23,6 +23,11 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+
+  // Camera refs
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Data for selected member
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
@@ -31,12 +36,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   // New Member Form State
   const [newMember, setNewMember] = useState({
-    firstName: '', lastName: '', email: '', phone: '', status: UserStatus.ACTIVE
+    firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE
   });
 
   // Edit Member Form State
   const [editMember, setEditMember] = useState({
-    firstName: '', lastName: '', email: '', phone: '', status: UserStatus.ACTIVE
+    firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE
   });
 
   // Payment Form State
@@ -67,7 +72,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     e.preventDefault();
     db.addMember(newMember);
     setShowAddModal(false);
-    setNewMember({ firstName: '', lastName: '', email: '', phone: '', status: UserStatus.ACTIVE });
+    setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE });
     refreshMembers();
   };
 
@@ -84,6 +89,53 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       }
   };
 
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      setToast({ message: 'No se pudo acceder a la cámara.', type: 'error' });
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !selectedMember) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    db.updateMemberPhoto(selectedMember.id, dataUrl);
+    stopCamera();
+    setShowCameraModal(false);
+    refreshMembers();
+    setToast({ message: 'Foto capturada exitosamente.', type: 'success' });
+  };
+
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
   const handleRegisterPayment = (e: React.FormEvent) => {
       e.preventDefault();
       if(selectedMember) {
@@ -99,6 +151,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
           setEditMember({
               firstName: selectedMember.firstName,
               lastName: selectedMember.lastName,
+              dni: selectedMember.dni || '',
               email: selectedMember.email,
               phone: selectedMember.phone,
               status: selectedMember.status
@@ -486,23 +539,39 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                   <div className="w-full h-full flex items-center justify-center text-4xl">🦁</div>
                               )}
                           </div>
-                          <label className="absolute bottom-0 right-0 bg-brand-gold text-black p-2 rounded-full cursor-pointer hover:bg-yellow-500 transition-colors shadow-lg">
-                              <Camera size={18} />
-                              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                          </label>
+                          <div className="absolute bottom-0 right-0 flex gap-1">
+                              <label className="bg-brand-gold text-black p-2 rounded-full cursor-pointer hover:bg-yellow-500 transition-colors shadow-lg">
+                                  <Camera size={18} title="Subir foto" />
+                                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                              </label>
+                              <button 
+                                onClick={() => { setShowCameraModal(true); startCamera(); }}
+                                className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+                                title="Tomar foto con cámara"
+                              >
+                                  <Camera size={18} />
+                              </button>
+                          </div>
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 text-center md:text-left mb-2">
                           <h2 className="text-3xl font-display font-bold text-white uppercase tracking-wider">
-                              {selectedMember.lastName}, {selectedMember.firstName}
+                              {selectedMember.firstName} {selectedMember.lastName}
                           </h2>
-                          <div className="flex items-center justify-center md:justify-start gap-4 text-gray-400 mt-2">
-                              <span>{selectedMember.email}</span>
-                              <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-                              <span>{selectedMember.phone}</span>
-                              <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-                              <span>Miembro desde {new Date(selectedMember.joinDate).getFullYear()}</span>
+                          <div className="flex flex-col gap-3 mt-3">
+                              <div className="flex items-center justify-center md:justify-start gap-2 text-gray-400 text-sm flex-wrap">
+                                  <span className="flex items-center gap-1"><Mail size={14} /> {selectedMember.email}</span>
+                                  <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
+                                  <span className="flex items-center gap-1"><Phone size={14} /> {selectedMember.phone}</span>
+                              </div>
+                              {selectedMember.dni && (
+                                <div className="bg-brand-gold/10 border border-brand-gold/30 px-3 py-2 rounded inline-block w-fit">
+                                  <span className="text-xs text-gray-400">DNI: </span>
+                                  <span className="text-brand-gold font-bold text-sm">{selectedMember.dni}</span>
+                                </div>
+                              )}
+                              <span className="text-xs text-gray-500">Miembro desde {new Date(selectedMember.joinDate).toLocaleDateString('es-ES')}</span>
                           </div>
                       </div>
 
@@ -759,6 +828,17 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                           />
                       </div>
                       <div>
+                          <label className="text-xs text-gray-400 block mb-1">DNI</label>
+                          <input 
+                              type="text"
+                              required
+                              value={editMember.dni}
+                              onChange={e => setEditMember({...editMember, dni: e.target.value})}
+                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                              placeholder="DNI"
+                          />
+                      </div>
+                      <div>
                           <label className="text-xs text-gray-400 block mb-1">Email</label>
                           <input 
                               type="email"
@@ -948,7 +1028,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                             <Toast message={toast.message} type={toast.type} duration={3500} onClose={() => setToast(null)} />
                         )}
                         <div>
-                            <div className="font-bold text-white group-hover:text-brand-gold transition-colors">{member.lastName}, {member.firstName}</div>
+                            <div className="font-bold text-white group-hover:text-brand-gold transition-colors">{member.firstName} {member.lastName}</div>
                             <div className="text-xs text-gray-500">Desde: {new Date(member.joinDate).toLocaleDateString()}</div>
                         </div>
                     </div>
@@ -1023,6 +1103,14 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                 />
               </div>
               <input 
+                type="text"
+                required
+                placeholder="DNI (requerido)" 
+                value={newMember.dni}
+                onChange={e => setNewMember({...newMember, dni: e.target.value})}
+                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
+              />
+              <input 
                 type="email"
                 placeholder="Email" 
                 value={newMember.email}
@@ -1040,6 +1128,46 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                 <button type="submit" className="px-6 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500">Guardar</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Camera Modal */}
+      {showCameraModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0b0b0b] p-6 rounded-xl border border-gray-800 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-white">Capturar Foto</h3>
+              <button 
+                onClick={() => { setShowCameraModal(false); stopCamera(); }} 
+                className="text-gray-400 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="bg-black rounded-lg overflow-hidden mb-4">
+              <video 
+                ref={videoRef} 
+                className="w-full aspect-video object-cover"
+                playsInline
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowCameraModal(false); stopCamera(); }}
+                className="flex-1 px-4 py-2 text-gray-400 hover:text-white border border-gray-700 rounded"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={capturePhoto}
+                className="flex-1 px-4 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500"
+              >
+                <Camera size={18} className="inline mr-2" /> Capturar
+              </button>
+            </div>
           </div>
         </div>
       )}
