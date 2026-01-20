@@ -137,6 +137,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     return daysWithoutPayment >= 30 && daysWithoutPayment < 60;
   };
 
+
   // Helper: Check if member is current (paid recently - within last 30 days)
   const isCurrentOnPayment = (member: Member): boolean => {
     if (member.status !== UserStatus.ACTIVE) return false;
@@ -149,6 +150,45 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       const days = (today.getTime() - pd.getTime()) / (1000 * 60 * 60 * 24);
       return days < 30;
     });
+  };
+
+  // Helper: Check if member is debtor by payment logic (no payment in current month, and last payment not between 1-10 of current month)
+  const isDebtorByPayment = (member: Member): boolean => {
+    if (!member.payments || member.payments.length === 0) return true;
+
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    // Pagos en el mes y año actual
+    const paymentsThisMonth = member.payments.filter(p => {
+      const pd = new Date(p.date);
+      return pd.getMonth() === currentMonth && pd.getFullYear() === currentYear;
+    });
+
+    if (paymentsThisMonth.length > 0) {
+      // Si hay pagos este mes, no es moroso
+      return false;
+    }
+
+    // Buscar el último pago
+    const paymentDates = member.payments.map(p => new Date(p.date));
+    const lastPaymentDate = paymentDates.reduce((a, b) => (a > b ? a : b));
+
+    // Si el último pago fue en el mes actual, pero fuera del 1-10, igual no es moroso (ya está cubierto arriba)
+    // Si el último pago fue en el mes anterior o anterior, revisar si fue entre el 1 y 10 del mes actual
+    if (
+      lastPaymentDate.getFullYear() === currentYear &&
+      lastPaymentDate.getMonth() === currentMonth &&
+      lastPaymentDate.getDate() >= 1 &&
+      lastPaymentDate.getDate() <= 10
+    ) {
+      // Si el último pago fue entre el 1 y 10 del mes en curso, no es moroso
+      return false;
+    }
+
+    // Si no cumple ninguna de las condiciones anteriores, es moroso
+    return true;
   };
 
   // --- FUNCIÓN PARA NORMALIZAR TEXTO (QUITAR TILDES) ---
@@ -169,19 +209,19 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                           memberFirstName.includes(searchTerm);
                           
     const matchesStatus = !statusFilter || 
-                         (statusFilter === 'active' && m.status === UserStatus.ACTIVE) ||
-                         (statusFilter === 'debtor' && m.status === UserStatus.DEBTOR) ||
-                         (statusFilter === 'inactive' && m.status === UserStatus.INACTIVE) ||
-                         (statusFilter === 'current' && isCurrentOnPayment(m)) ||
-                         (statusFilter === 'dueSoon' && isPaymentDueSoon(m)) ||
-                         (statusFilter === 'all' && true);
+               (statusFilter === 'active' && m.status === UserStatus.ACTIVE) ||
+               (statusFilter === 'debtor' && isDebtorByPayment(m)) ||
+               (statusFilter === 'inactive' && m.status === UserStatus.INACTIVE) ||
+               (statusFilter === 'current' && isCurrentOnPayment(m)) ||
+               (statusFilter === 'dueSoon' && isPaymentDueSoon(m)) ||
+               (statusFilter === 'all' && true);
     return matchesSearch && matchesStatus;
   });
 
   // Counts for dashboard cards
   const totalCount = members.length;
   const alDiaCount = members.filter(m => isCurrentOnPayment(m)).length;
-  const debtorsCount = members.filter(m => m.status === UserStatus.DEBTOR).length;
+  const debtorsCount = members.filter(m => isDebtorByPayment(m)).length;
   const dueSoonCount = members.filter(m => isPaymentDueSoon(m)).length;
   const inactiveCount = members.filter(m => m.status === UserStatus.INACTIVE).length;
 
@@ -910,10 +950,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                      ${member.status === UserStatus.ACTIVE ? 'bg-green-900 text-green-200' : 
-                        member.status === UserStatus.DEBTOR ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-300'}`}>
-                      {member.status === UserStatus.ACTIVE ? 'Al Día' : 
-                       member.status === UserStatus.DEBTOR ? 'Moroso' : 'Inactivo'}
+                      ${isCurrentOnPayment(member) ? 'bg-green-900 text-green-200' : 
+                        isDebtorByPayment(member) ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-300'}`}>
+                      {isCurrentOnPayment(member) ? 'Al Día' : 
+                       isDebtorByPayment(member) ? 'Moroso' : 'Inactivo'}
                     </span>
                   </td>
                   <td className="p-4 text-right space-x-2" onClick={e => e.stopPropagation()}>
