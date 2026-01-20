@@ -12,6 +12,9 @@ const Operations: React.FC = () => {
   
   // Selection State
   const [selectedMemberId, setSelectedMemberId] = useState('');
+  const [memberSearchText, setMemberSearchText] = useState('');
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
+  const memberSearchRef = useRef<HTMLDivElement>(null);
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   
   // Routine Builder State
@@ -53,10 +56,13 @@ const Operations: React.FC = () => {
     const memberList = db.getMembers();
     if(memberList.length > 0) setSelectedMemberId(memberList[0].id);
 
-    // Click outside listener for dropdown
+    // Click outside listener for dropdowns
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (memberSearchRef.current && !memberSearchRef.current.contains(event.target as Node)) {
+        setShowMemberDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -110,6 +116,25 @@ const Operations: React.FC = () => {
       setExerciseSearch(ex.name);
       setIsDropdownOpen(false);
   };
+
+  // Get sorted and filtered members for member search
+  const filteredMembers = useMemo(() => {
+    const search = memberSearchText.toLowerCase().trim();
+    let result = members.filter(m => {
+      const fullName = `${m.firstName} ${m.lastName}`.toLowerCase();
+      const searchName = `${m.lastName} ${m.firstName}`.toLowerCase();
+      return fullName.includes(search) || searchName.includes(search) || m.email.toLowerCase().includes(search);
+    });
+    // Sort by firstName, then lastName
+    return result.sort((a, b) => {
+      const aFirstName = a.firstName.toLowerCase();
+      const bFirstName = b.firstName.toLowerCase();
+      if (aFirstName !== bFirstName) {
+        return aFirstName.localeCompare(bFirstName);
+      }
+      return a.lastName.toLowerCase().localeCompare(b.lastName.toLowerCase());
+    });
+  }, [members, memberSearchText]);
 
   const handleOpenCreateModal = () => {
       setNewExName(exerciseSearch); // Pre-fill with what user typed
@@ -355,16 +380,45 @@ const Operations: React.FC = () => {
             <div>
                 <h3 className="font-bold text-white mb-4 uppercase tracking-wider text-xs border-b border-gray-700 pb-2">Configuración</h3>
                 <div className="space-y-4">
-                    <div>
+                    <div className="relative" ref={memberSearchRef}>
                         <label className="text-gray-400 text-xs block mb-1">Socio</label>
-                        <select 
-                            value={selectedMemberId}
-                            onChange={e => setSelectedMemberId(e.target.value)}
-                            className="w-full bg-black border border-gray-700 text-white p-2 rounded text-sm focus:border-brand-gold focus:outline-none"
-                            disabled={!!editingRoutineId} // Disable member switching while editing to prevent confusion
-                        >
-                            {members.map(m => <option key={m.id} value={m.id}>{m.lastName}, {m.firstName}</option>)}
-                        </select>
+                        <input
+                          type="text"
+                          placeholder="Buscar socio..."
+                          value={memberSearchText}
+                          onChange={(e) => {
+                            setMemberSearchText(e.target.value);
+                            setShowMemberDropdown(true);
+                          }}
+                          onFocus={() => setShowMemberDropdown(true)}
+                          disabled={!!editingRoutineId}
+                          className="w-full bg-black border border-gray-700 text-white p-2 rounded text-sm focus:border-brand-gold focus:outline-none disabled:opacity-50"
+                        />
+                        {showMemberDropdown && filteredMembers.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-black border border-gray-700 rounded z-40 max-h-48 overflow-y-auto">
+                            {filteredMembers.map(member => (
+                              <button
+                                key={member.id}
+                                onClick={() => {
+                                  setSelectedMemberId(member.id);
+                                  setMemberSearchText(`${member.firstName} ${member.lastName}`);
+                                  setShowMemberDropdown(false);
+                                }}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-800 text-white text-sm border-b border-gray-800 last:border-0 transition flex justify-between items-center"
+                              >
+                                <span>{member.firstName} {member.lastName}</span>
+                                {selectedMemberId === member.id && (
+                                  <Check size={16} className="text-brand-gold" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {showMemberDropdown && memberSearchText.trim() && filteredMembers.length === 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-black border border-gray-700 rounded p-2 text-center text-gray-400 text-sm">
+                            No se encontraron socios
+                          </div>
+                        )}
                     </div>
                     <div>
                         <label className="text-gray-400 text-xs block mb-1">Nombre Rutina</label>
