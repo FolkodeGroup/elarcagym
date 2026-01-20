@@ -300,161 +300,63 @@ const Reservas: React.FC = () => {
         </div>
       </div>
 
-      {/* Slots Grid */}
+      {/* Grilla tipo Google Calendar */}
       <div className="bg-[#1a1a1a] p-6 rounded-lg border border-gray-800">
         <h3 className="text-lg font-bold text-white mb-4">
           {(() => {
-            // Mostrar la fecha seleccionada correctamente en local
             const dateObj = new Date(selectedDate + 'T00:00:00');
             return `Turnos - ${dateObj.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
           })()}
         </h3>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {dateSlots.length === 0 ? (
-            <p className="text-gray-500 col-span-full text-center py-8">No hay turnos para esta fecha</p>
-          ) : (
-            dateSlots.map(slot => {
-              const slotReservations = reservations.filter(r => r.slotId === slot.id);
-              const isFull = slotReservations.length >= 10;
-              const canAddMore = !isFull;
+        <div className="overflow-x-auto">
+          <div className="min-w-[400px]">
+            <div className="grid grid-cols-12 border-b border-gray-700 text-gray-400 text-xs">
+              <div className="col-span-2 py-2 px-2">Hora</div>
+              <div className="col-span-10 py-2 px-2">Franja / Reservas</div>
+            </div>
+            {Array.from({ length: 16 }, (_, i) => 6 + i).map(hour => {
+              const hourStr = hour.toString().padStart(2, '0') + ':00';
+              const slot = dateSlots.find(s => s.time === hourStr);
               return (
-                <div
-                  key={slot.id}
-                  className={`p-4 rounded-xl border-2 shadow-sm transition-all flex flex-col gap-2
-                    ${isFull ? 'bg-red-900/40 border-red-700' :
-                      slotReservations.length > 0 ? 'bg-blue-900/30 border-blue-700' : 'bg-green-900/30 border-green-700 hover:bg-green-900/50 cursor-pointer'}
-                  `}
-                  style={slot.color ? { borderColor: slot.color } : {}}
-                  onClick={() => canAddMore && handleReserveSlot(slot)}
-                >
-                  <div className="flex items-center gap-2 mb-1 justify-between">
-                    <div className="flex items-center gap-2">
-                      <Clock size={18} className={
-                        isFull ? 'text-red-400' :
-                        slotReservations.length > 0 ? 'text-blue-400' : 'text-green-400'
-                      } />
-                      <span className="font-bold text-white text-lg">{slot.time}</span>
-                      <span className="text-xs bg-gray-700/70 px-2 py-1 rounded font-bold">
-                        {slotReservations.length}/10
-                      </span>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm('¿Deseas eliminar este turno? Se eliminarán todas las reservas asociadas.')) {
-                          db.deleteSlot(slot.id);
-                          loadData();
-                          setToast({ message: 'Turno eliminado.', type: 'info' });
-                        }
-                      }}
-                      className="p-1 bg-red-900/40 hover:bg-red-900/70 rounded transition text-red-300"
-                      title="Eliminar turno"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-gray-400">Duración: <b>{slot.duration} min</b></span>
-                    {slot.target && <span className="text-xs text-brand-gold font-semibold">{slot.target}</span>}
-                  </div>
-                  {slotReservations.length > 0 ? (
-                    <div className="space-y-2 flex-1 mb-2">
-                      <div className="max-h-32 overflow-y-auto space-y-1">
-                        {slotReservations.map(reservation => (
-                          <div key={reservation.id} className={`bg-black/40 p-2 rounded text-xs border ${
-                            reservation.attended === false ? 'border-red-600 bg-red-900/20' : 'border-gray-700'
-                          }`}>
-                            <div className="flex items-start justify-between gap-1">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1">
-                                  <p className={`font-semibold truncate ${
-                                    reservation.attended === false ? 'text-red-400 line-through' : 'text-white'
-                                  }`}>{reservation.clientName}</p>
-                                  {reservation.attended === false && (
-                                    <span className="text-xs bg-red-900/50 px-1 rounded text-red-300 whitespace-nowrap">No asistió</span>
-                                  )}
-                                </div>
-                                {reservation.clientPhone && <p className="text-gray-400 text-xs truncate">{reservation.clientPhone}</p>}
-                              </div>
-                              <div className="flex gap-1 flex-shrink-0">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const newAttended = reservation.attended === false ? true : false;
-                                    db.updateReservationAttendance(reservation.id, newAttended);
-                                    setReservations(prevReservations =>
-                                      prevReservations.map(r =>
-                                        r.id === reservation.id ? { ...r, attended: newAttended } : r
-                                      )
-                                    );
-                                  }}
-                                  className={`p-1 rounded transition text-xs px-2 ${
-                                    reservation.attended === false
-                                      ? 'bg-red-900/50 hover:bg-red-900/70 text-red-300'
-                                      : 'bg-green-900/30 hover:bg-green-900/50 text-green-400'
-                                  }`}
-                                  title={reservation.attended === false ? 'Marcar como asistió' : 'Marcar como no asistió'}
-                                >
-                                  {reservation.attended === false ? '✓' : '✗'}
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditReservation(reservation);
-                                  }}
-                                  className="p-1 bg-gray-700 hover:bg-gray-600 rounded transition"
-                                  title="Editar"
-                                >
-                                  <Edit2 size={12} />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteReservation(reservation);
-                                  }}
-                                  className="p-1 bg-red-900/50 hover:bg-red-800/50 rounded transition"
-                                  title="Eliminar"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {/* Botón para agregar más clientes */}
-                      {canAddMore && (
-                        <button
-                          onClick={() => handleReserveSlot(slot)}
-                          className="w-full py-2 bg-brand-gold/20 hover:bg-brand-gold/40 border border-brand-gold/50 rounded text-xs font-semibold text-brand-gold transition"
-                        >
-                          + Agregar Cliente
-                        </button>
-                      )}
-                      
-                      {isFull && (
-                        <div className="text-xs text-red-400 bg-red-900/20 border border-red-800/30 p-2 rounded text-center">
-                          Turno lleno
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center mb-3">
-                      <p className="text-xs text-gray-500 mb-3">Disponible</p>
+                <div key={hourStr} className="grid grid-cols-12 border-b border-gray-800 hover:bg-gray-900 transition">
+                  <div className="col-span-2 py-3 px-2 font-mono text-gray-400 text-sm flex items-center">{hourStr}</div>
+                  <div className="col-span-10 py-2 px-2">
+                    {slot ? (
                       <button
+                        className={`w-full text-left rounded-lg p-3 flex flex-col gap-1 shadow-md border-2 transition-all
+                          ${reservations.filter(r => r.slotId === slot.id).length >= 10 ? 'bg-red-900/40 border-red-700 text-red-200' :
+                            reservations.filter(r => r.slotId === slot.id).length > 0 ? 'bg-blue-900/30 border-blue-700 text-blue-200' : 'bg-green-900/30 border-green-700 text-green-200 hover:bg-green-900/50'}
+                        `}
                         onClick={() => handleReserveSlot(slot)}
-                        className="w-full py-2 bg-green-600/30 hover:bg-green-600/50 border border-green-600/50 rounded text-xs font-semibold text-green-400 transition"
                       >
-                        Agregar Cliente
+                        <div className="flex items-center gap-2">
+                          <Clock size={16} />
+                          <span className="font-bold text-lg">{slot.time}</span>
+                          <span className="text-xs bg-gray-700/70 px-2 py-1 rounded font-bold">
+                            {reservations.filter(r => r.slotId === slot.id).length}/10
+                          </span>
+                          <span className="ml-2 text-xs text-gray-400">Duración: {slot.duration} min</span>
+                          {slot.target && <span className="ml-2 text-xs text-brand-gold font-semibold">{slot.target}</span>}
+                        </div>
+                        {reservations.filter(r => r.slotId === slot.id).length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {reservations.filter(r => r.slotId === slot.id).slice(0, 3).map(r => (
+                              <span key={r.id} className="bg-black/40 px-2 py-1 rounded text-xs text-white truncate max-w-[120px]">{r.clientName}</span>
+                            ))}
+                            {reservations.filter(r => r.slotId === slot.id).length > 3 && (
+                              <span className="text-xs text-gray-400">+{reservations.filter(r => r.slotId === slot.id).length - 3} más</span>
+                            )}
+                          </div>
+                        )}
                       </button>
-                    </div>
-                  )}
+                    ) : (
+                      <span className="text-gray-700 italic">Sin franja</span>
+                    )}
+                  </div>
                 </div>
               );
-            })
-          )}
+            })}
+          </div>
         </div>
       </div>
 
