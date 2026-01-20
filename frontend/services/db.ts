@@ -1,12 +1,19 @@
 
 import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine, Reminder, Slot, Reservation } from '../types';
 
+// Helper function to generate fake DNI
+const generateFakeDNI = (index: number): string => {
+  const base = 20000000 + (index * 123456);
+  return base.toString();
+};
+
 // Mock Data Initialization
 const INITIAL_MEMBERS: Member[] = [
   {
     id: '1',
     firstName: 'Juan',
     lastName: 'Pérez',
+    dni: generateFakeDNI(1),
     email: 'juan@example.com',
     phone: '555-0101',
     joinDate: '2023-01-15',
@@ -27,6 +34,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '2',
     firstName: 'Maria',
     lastName: 'Gomez',
+    dni: generateFakeDNI(2),
     email: 'maria@example.com',
     phone: '555-0202',
     joinDate: '2023-03-10',
@@ -45,6 +53,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '3',
     firstName: 'Carlos',
     lastName: 'López',
+    dni: generateFakeDNI(3),
     email: 'carlos@example.com',
     phone: '5491123456789',
     joinDate: '2023-06-20',
@@ -65,6 +74,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '4',
     firstName: 'Ana',
     lastName: 'Rodríguez',
+    dni: generateFakeDNI(4),
     email: 'ana@example.com',
     phone: '5491234567890',
     joinDate: '2024-01-10',
@@ -81,6 +91,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '5',
     firstName: 'Diego',
     lastName: 'Martínez',
+    dni: generateFakeDNI(5),
     email: 'diego@example.com',
     phone: '5491987654321',
     joinDate: '2024-02-15',
@@ -99,6 +110,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '6',
     firstName: 'Sofia',
     lastName: 'García',
+    dni: generateFakeDNI(6),
     email: 'sofia@example.com',
     phone: '5491122334455',
     joinDate: '2024-03-20',
@@ -115,6 +127,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '7',
     firstName: 'Luis',
     lastName: 'Fernández',
+    dni: generateFakeDNI(7),
     email: 'luis@example.com',
     phone: '5491556677889',
     joinDate: '2024-04-05',
@@ -132,6 +145,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '8',
     firstName: 'Miguel',
     lastName: 'Sánchez',
+    dni: generateFakeDNI(8),
     email: 'miguel@example.com',
     phone: '5491998776655',
     joinDate: '2024-05-12',
@@ -148,6 +162,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '9',
     firstName: 'Patricia',
     lastName: 'Torres',
+    dni: generateFakeDNI(9),
     email: 'patricia@example.com',
     phone: '5491334455667',
     joinDate: '2024-06-08',
@@ -165,6 +180,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '10',
     firstName: 'Roberto',
     lastName: 'Díaz',
+    dni: generateFakeDNI(10),
     email: 'roberto@example.com',
     phone: '5491776655443',
     joinDate: '2023-08-30',
@@ -182,6 +198,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '11',
     firstName: 'Gabriela',
     lastName: 'Ruiz',
+    dni: generateFakeDNI(11),
     email: 'gabriela@example.com',
     phone: '5491667788990',
     joinDate: '2024-07-14',
@@ -199,6 +216,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '12',
     firstName: 'Fernando',
     lastName: 'Castillo',
+    dni: generateFakeDNI(12),
     email: 'fernando@example.com',
     phone: '5491445566778',
     joinDate: '2024-08-22',
@@ -327,10 +345,18 @@ class MockDB {
 
   // Members
   getMembers() {
-    return this.state.members;
+    // Return a copy sorted by lastName then firstName (case-insensitive, accent-insensitive)
+    return [...this.state.members].sort((a, b) => {
+      const lastCompare = a.lastName.localeCompare(b.lastName, 'es', { sensitivity: 'base' });
+      if (lastCompare !== 0) return lastCompare;
+      return a.firstName.localeCompare(b.firstName, 'es', { sensitivity: 'base' });
+    });
   }
 
   addMember(member: Omit<Member, 'id' | 'joinDate' | 'biometrics' | 'routines' | 'diets' | 'payments'>) {
+    if (!member.dni || member.dni.trim() === '') {
+      throw new Error('El DNI es requerido');
+    }
     const newMember: Member = {
       ...member,
       id: Math.random().toString(36).substr(2, 9),
@@ -353,11 +379,12 @@ class MockDB {
     }
   }
 
-  updateMember(id: string, data: { firstName: string; lastName: string; email: string; phone: string; status: UserStatus }) {
+  updateMember(id: string, data: { firstName: string; lastName: string; dni: string; email: string; phone: string; status: UserStatus }) {
     const member = this.state.members.find(m => m.id === id);
     if (member) {
       member.firstName = data.firstName;
       member.lastName = data.lastName;
+      member.dni = data.dni;
       member.email = data.email;
       member.phone = data.phone;
       member.status = data.status;
@@ -589,6 +616,16 @@ class MockDB {
     return this.state.slots;
   }
 
+  addSlot(data: Omit<Slot, 'id'>) {
+    const newSlot: Slot = {
+      ...data,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    this.state.slots.push(newSlot);
+    this.save();
+    return newSlot;
+  }
+
   getSlotsByDate(date: string) {
     return this.state.slots.filter(s => s.date === date);
   }
@@ -603,12 +640,31 @@ class MockDB {
     return null;
   }
 
+  deleteSlot(slotId: string) {
+    // Delete all reservations associated with this slot
+    this.state.reservations = this.state.reservations.filter(r => r.slotId !== slotId);
+    // Delete the slot
+    this.state.slots = this.state.slots.filter(s => s.id !== slotId);
+    this.save();
+  }
+
   // Reservations
   getReservations() {
     return this.state.reservations;
   }
 
   addReservation(data: Omit<Reservation, 'id' | 'createdAt'>) {
+    // Check if member is already assigned to this slot
+    if (data.memberId) {
+      const alreadyExists = this.state.reservations.some(
+        r => r.slotId === data.slotId && r.memberId === data.memberId
+      );
+      if (alreadyExists) {
+        console.warn(`Member ${data.memberId} is already assigned to slot ${data.slotId}`);
+        return null; // Return null to indicate failure
+      }
+    }
+
     const newReservation: Reservation = {
       ...data,
       id: Math.random().toString(36).substr(2, 9),
@@ -642,6 +698,16 @@ class MockDB {
     }
     this.state.reservations = this.state.reservations.filter(r => r.id !== reservationId);
     this.save();
+  }
+
+  updateReservationAttendance(reservationId: string, attended: boolean) {
+    const idx = this.state.reservations.findIndex(r => r.id === reservationId);
+    if (idx !== -1) {
+      this.state.reservations[idx].attended = attended;
+      this.save();
+      return this.state.reservations[idx];
+    }
+    return null;
   }
 
   getReservationBySlotId(slotId: string) {

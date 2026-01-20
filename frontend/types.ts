@@ -59,6 +59,7 @@ export interface Member {
   id: string;
   firstName: string;
   lastName: string;
+  dni?: string;
   email: string;
   phone: string;
   joinDate: string;
@@ -105,15 +106,19 @@ export interface Slot {
   time: string; // HH:MM (24h format)
   duration: number; // minutes
   status: 'available' | 'reserved' | 'occupied';
+  color?: string;
+  target?: string;
 }
 
 export interface Reservation {
   id: string;
   slotId: string;
+  memberId?: string;  // Link to member for proper assignment
   clientName: string;
   clientPhone?: string;
   clientEmail?: string;
   notes?: string;
+  attended?: boolean; // Track if member attended
   createdAt: string;
 }
 
