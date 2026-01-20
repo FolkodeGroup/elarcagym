@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Reminder, Slot, Reservation } from '../types';
+import { isCurrentOnPayment, isDebtorByPayment } from '../services/membershipUtils';
 import { Users, AlertCircle, TrendingUp, DollarSign, Plus, Edit2, Trash2, CreditCard, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useNavigation } from '../contexts/NavigationContext';
@@ -42,23 +43,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setCanNavigate(!isDirty);
   }, [isDirty, setCanNavigate]);
 
+
+  // Usar lógica consistente con Members.tsx
   const activeMembers = members.filter(m => m.status === UserStatus.ACTIVE).length;
-  const debtors = members.filter(m => m.status === UserStatus.DEBTOR).length;
-
-  // Helper: Check if member is current (paid recently - within last 30 days)
-  const isCurrentOnPayment = (member: Member): boolean => {
-    if (member.status !== UserStatus.ACTIVE) return false;
-    if (!member.payments || member.payments.length === 0) return false;
-
-    // If any payment within last 30 days, consider current
-    const today = new Date();
-    return member.payments.some(p => {
-      const pd = new Date(p.date);
-      const days = (today.getTime() - pd.getTime()) / (1000 * 60 * 60 * 24);
-      return days < 30;
-    });
-  };
-
+  const debtors = members.filter(m => isDebtorByPayment(m)).length;
   const currentMembers = members.filter(m => isCurrentOnPayment(m)).length;
 
   // Obtener turnos de hoy con reservaciones
