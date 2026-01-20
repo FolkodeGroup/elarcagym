@@ -197,9 +197,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <BarChart data={data} layout="vertical">
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" stroke="#9ca3af" width={100} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                  cursor={{fill: 'transparent'}}
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#111', border: '1px solid #333', color: '#fff' }}
+                  cursor={{ fill: 'transparent' }}
+                  formatter={(value) => [`${value}`, 'Cantidad:']}
+                  labelStyle={{ color: '#fff' }}
+                  itemStyle={{ color: '#fff' }}
                 />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={32}>
                   {data.map((entry, index) => (
