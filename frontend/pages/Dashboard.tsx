@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
-import { Member, UserStatus, Reminder } from '../types';
-import { Users, AlertCircle, TrendingUp, DollarSign, Plus, Edit2, Trash2, CreditCard } from 'lucide-react';
+import { Member, UserStatus, Reminder, Slot, Reservation } from '../types';
+import { Users, AlertCircle, TrendingUp, DollarSign, Plus, Edit2, Trash2, CreditCard, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
@@ -13,6 +13,8 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [members, setMembers] = useState<Member[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isDirty, setIsDirty] = useState(false);
   const [showAddReminderModal, setShowAddReminderModal] = useState(false);
   const [showEditReminderModal, setShowEditReminderModal] = useState(false);
@@ -29,6 +31,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setMembers(allMembers);
     const list = db.getReminders();
     setReminders(list);
+    const allSlots = db.getSlots();
+    setSlots(allSlots);
+    const allReservations = db.getReservations();
+    setReservations(allReservations);
   }, []);
 
   // Block navigation when there are unsaved changes
@@ -54,6 +60,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   };
 
   const currentMembers = members.filter(m => isCurrentOnPayment(m)).length;
+
+  // Obtener turnos de hoy con reservaciones
+  const getTodaySlots = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return slots
+      .filter(s => s.date === today)
+      .filter(s => reservations.some(r => r.slotId === s.id))
+      .sort((a, b) => a.time.localeCompare(b.time));
+  };
 
   // Calcular ingresos de hoy
   const getTodayIncome = () => {
@@ -206,6 +221,46 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </div>
+
+        {/* Turnos Reservados para Hoy - Movido aqui */}
+        <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
+          <h3 className="text-lg font-display font-bold text-white mb-4 flex items-center gap-2">
+            <Clock size={20} className="text-brand-gold" /> Turnos Hoy
+          </h3>
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {getTodaySlots().length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-8">Sin turnos hoy</p>
+            ) : (
+              getTodaySlots().map(slot => {
+                const slotReservations = reservations.filter(r => r.slotId === slot.id);
+                return (
+                  <div key={slot.id} className="bg-black/40 p-2 rounded border border-brand-gold/30 hover:border-brand-gold/60 transition">
+                    <p className="font-bold text-white text-sm flex items-center gap-2">
+                      <Clock size={14} className="text-brand-gold" />
+                      {slot.time} 
+                      <span className="text-xs bg-gray-700/50 px-2 py-0.5 rounded">
+                        {slotReservations.length}
+                      </span>
+                    </p>
+                    {slot.target && <p className="text-xs text-gray-400 mt-0.5">📌 {slot.target}</p>}
+                    <div className="mt-1 flex flex-wrap gap-0.5">
+                      {slotReservations.slice(0, 2).map(r => (
+                        <span key={r.id} className="text-xs bg-brand-gold/20 border border-brand-gold/40 px-1.5 py-0.5 rounded text-brand-gold truncate max-w-24">
+                          {r.clientName}
+                        </span>
+                      ))}
+                      {slotReservations.length > 2 && (
+                        <span className="text-xs bg-gray-700/40 px-1.5 py-0.5 rounded text-gray-400">
+                          +{slotReservations.length - 2}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
