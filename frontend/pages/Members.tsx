@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
-import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, MessageCircle, Mail, Download, Edit2 } from 'lucide-react';
+import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, Download, Edit2 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
+import { SiGmail } from 'react-icons/si';
 import Toast from '../components/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -461,11 +462,18 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
               {/* Header Profile Card */}
               <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-gray-900 to-black"></div>
-                  <button 
+                  <button
                     onClick={() => setSelectedMember(null)}
-                    className="absolute top-4 left-4 z-10 bg-black/50 hover:bg-black text-white p-2 rounded-full transition-colors"
+                    className="fixed md:absolute z-50 bg-black/70 hover:bg-black text-white w-12 h-12 flex items-center justify-center rounded-full transition-colors shadow-lg cursor-pointer"
+                    style={{
+                      top: '24px',
+                      left: '24px',
+                      pointerEvents: 'auto',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
+                    }}
+                    aria-label="Volver"
                   >
-                      <ArrowLeft size={20} />
+                    <ArrowLeft size={28} />
                   </button>
 
                   <div className="relative z-10 flex flex-col md:flex-row items-center md:items-end gap-6 pt-8">
@@ -521,12 +529,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                           {(selectedMember.status === UserStatus.DEBTOR || selectedMember.status === UserStatus.INACTIVE) && (
                               <div className="flex items-center gap-1">
                                   <span className="text-xs text-gray-500 mr-1">Recordar pago:</span>
-                                  <button onClick={() => sendPaymentReminder('wa')} className="p-2 bg-green-900/40 text-green-400 rounded-full hover:bg-green-800 transition-colors" title="Enviar WhatsApp">
-                                      <MessageCircle size={16} />
-                                  </button>
-                                  <button onClick={() => sendPaymentReminder('email')} className="p-2 bg-blue-900/40 text-blue-400 rounded-full hover:bg-blue-800 transition-colors" title="Enviar Email">
-                                      <Mail size={16} />
-                                  </button>
+                                    <button onClick={() => sendPaymentReminder('wa')} className="p-2 bg-green-900/40 text-green-400 rounded-full hover:bg-green-800 transition-colors" title="Enviar WhatsApp">
+                                      <FaWhatsapp size={16} />
+                                    </button>
+                                    <button onClick={() => sendPaymentReminder('email')} className="p-2 bg-red-900/40 text-red-400 rounded-full hover:bg-red-800 transition-colors" title="Enviar Gmail">
+                                      <SiGmail size={16} />
+                                    </button>
                               </div>
                           )}
                       </div>
@@ -561,14 +569,14 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                                     className="p-2 text-green-500 hover:bg-green-900/30 rounded-full transition-colors" 
                                                     title="Enviar PDF por WhatsApp"
                                                   >
-                                                      <MessageCircle size={18} />
+                                                      <FaWhatsapp size={18} />
                                                   </button>
                                                   <button 
                                                     onClick={(e) => handleShareRoutine(e, 'email', routine)}
-                                                    className="p-2 text-blue-500 hover:bg-blue-900/30 rounded-full transition-colors" 
-                                                    title="Enviar PDF por Email"
+                                                    className="p-2 text-red-500 hover:bg-red-900/30 rounded-full transition-colors" 
+                                                    title="Enviar PDF por Gmail"
                                                   >
-                                                      <Mail size={18} />
+                                                      <SiGmail size={18} />
                                                   </button>
                                                   <button onClick={() => setExpandedRoutineId(expandedRoutineId === routine.id ? null : routine.id)} className="text-gray-400 p-2">
                                                       {expandedRoutineId === routine.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
