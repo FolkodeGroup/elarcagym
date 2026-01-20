@@ -83,7 +83,7 @@ const Admin: React.FC = () => {
           case 'SUPPLEMENT': return 'Suplementos';
           case 'DRINK': return 'Bebidas';
           case 'MERCHANDISE': return 'Indumentaria';
-          case 'OTHER': return 'Otros';
+          case 'OTHER': return 'Categoría';
           default: return cat;
       }
   };
@@ -164,16 +164,7 @@ const Admin: React.FC = () => {
                     >
                         Indumentaria
                     </button>
-                    <button
-                        onClick={() => setCategoryFilter('OTHER')}
-                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                            categoryFilter === 'OTHER'
-                                ? 'bg-brand-gold text-black'
-                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                        }`}
-                    >
-                        Otros
-                    </button>
+                    
                 </div>
             </div>
 
@@ -274,7 +265,7 @@ const Admin: React.FC = () => {
                                 <option value="SUPPLEMENT">Suplementos</option>
                                 <option value="DRINK">Bebidas</option>
                                 <option value="MERCHANDISE">Indumentaria</option>
-                                <option value="OTHER">Otros</option>
+                                <option value="OTHER">Categoría</option>
                             </select>
                             <div className="flex justify-end gap-2 mt-4">
                                 <button className="px-4 py-2 rounded bg-gray-700" onClick={() => setShowAddModal(false)}>Cancelar</button>
@@ -306,7 +297,7 @@ const Admin: React.FC = () => {
                                 <option value="SUPPLEMENT">Suplementos</option>
                                 <option value="DRINK">Bebidas</option>
                                 <option value="MERCHANDISE">Indumentaria</option>
-                                <option value="OTHER">Otros</option>
+                                <option value="OTHER">Categoría</option>
                             </select>
                             <div className="flex justify-end gap-2 mt-4">
                                 <button className="px-4 py-2 rounded bg-gray-700" onClick={() => setShowEditModal(false)}>Cancelar</button>
