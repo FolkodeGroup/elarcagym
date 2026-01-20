@@ -158,18 +158,6 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                  </div>
 
                  <div className="py-2">
-                   {/* Configuración */}
-                   <button
-                     onClick={() => { setShowSettings(true); setAdminMenuOpen(false); }}
-                     className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
-                   >
-                     <Settings size={18} className="text-brand-gold group-hover:scale-110 transition" />
-                     <div className="flex-1 text-left">
-                       <p className="text-sm font-semibold">{t('ajustes')}</p>
-                       <p className="text-xs text-gray-400">{t('ajustesApp')}</p>
-                     </div>
-                   </button>
-
                    {/* Preferencias */}
                    <button
                      onClick={() => { setShowPreferences(true); setAdminMenuOpen(false); }}
@@ -227,17 +215,6 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                      <div className="flex-1 text-left">
                        <p className="text-sm font-semibold">{t('sobreApp')}</p>
                        <p className="text-xs text-gray-400">{t('versionInfo')}</p>
-                     </div>
-                   </button>
-
-                   {/* Cerrar Sesión */}
-                   <button
-                     onClick={() => { onLogout(); setAdminMenuOpen(false); }}
-                     className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-red-900/20 transition text-red-400 group border-t border-gray-700"
-                   >
-                     <LogOut size={18} className="group-hover:scale-110 transition" />
-                     <div className="flex-1 text-left">
-                       <p className="text-sm font-semibold">{t('cerrarSesion')}</p>
                      </div>
                    </button>
                  </div>
