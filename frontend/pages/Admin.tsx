@@ -177,14 +177,15 @@ const Admin: React.FC = () => {
       {/* Product Grid */}
       <div className="lg:col-span-2 overflow-auto pr-2">
                 <div className="mb-6">
-                        <div className="flex justify-between items-center mb-2">
-                                <h2 className="text-2xl font-display font-bold text-white">Productos</h2>
-                                <button
-                                    className="text-xs bg-gray-800 text-gray-200 px-3 py-1 rounded hover:bg-brand-gold hover:text-black transition"
-                                    onClick={() => setShowCategoryManager(true)}
-                                >
-                                    Gestionar categorías
-                                </button>
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-2">
+                            <h2 className="text-2xl font-display font-bold text-white">Productos</h2>
+                            <button
+                                className="px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-gray-800 text-gray-200 hover:bg-brand-gold hover:text-black"
+                                style={{ minWidth: '160px' }}
+                                onClick={() => setShowCategoryManager(true)}
+                            >
+                                Gestionar categorías
+                            </button>
                         </div>
                         {/* Modal de gestión de categorías */}
                         {showCategoryManager && !editingCategory && !categoryToDelete && (
@@ -265,7 +266,7 @@ const Admin: React.FC = () => {
                                 );
                             }
                         })()}
-            <h2 className="text-2xl font-display font-bold text-white mb-4">Productos</h2>
+            {/* Eliminado título repetido de Productos */}
             
             {/* Search and Filter Controls */}
                                 <div className="flex gap-2 flex-wrap">
@@ -316,7 +317,11 @@ const Admin: React.FC = () => {
                         <span className="text-sm font-bold text-brand-gold">${product.price}</span>
                     </div>
                     <h3 className="font-bold text-white group-hover:text-brand-gold transition-colors">{product.name}</h3>
-                    <p className="text-xs text-gray-500 mt-1">Stock: {product.stock}</p>
+                    <p className="text-xs text-gray-500 mt-1">Stock: {product.stock}
+                        {product.stock <= 10 && (
+                            <span className="ml-2 text-xs font-bold text-red-500">Bajo stock</span>
+                        )}
+                    </p>
                     <div className="mt-3 flex gap-2">
                         <button type="button" onClick={(e) => { e.stopPropagation(); setEditingProduct(product); setEditProductForm({ name: product.name, price: String(product.price), category: product.category, stock: String(product.stock) }); setShowEditModal(true); }} className="text-gray-300 bg-gray-800 p-2 rounded hover:bg-gray-700"><Edit2 size={14} /></button>
                     </div>
