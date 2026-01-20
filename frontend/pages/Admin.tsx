@@ -296,7 +296,7 @@ const Admin: React.FC = () => {
             </div>
 
             {/* Add Product Button */}
-            <button onClick={() => setShowAddModal(true)} className="bg-brand-gold text-black px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-yellow-500 transition"> 
+            <button onClick={() => setShowAddModal(true)} className="bg-brand-gold text-black px-2 py-2 mt-2 rounded-lg font-bold flex items-center gap-2 hover:bg-yellow-500 transition"> 
                 <Plus size={18} /> Nuevo Producto
             </button>
         </div>
@@ -307,10 +307,10 @@ const Admin: React.FC = () => {
         {/* Products Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {filteredInventory.map(product => (
-                <button 
+                <div 
                     key={product.id}
+                    className="bg-[#1a1a1a] border border-gray-800 p-4 rounded-xl text-left hover:border-brand-gold transition group cursor-pointer"
                     onClick={() => addToCart(product)}
-                    className="bg-[#1a1a1a] border border-gray-800 p-4 rounded-xl text-left hover:border-brand-gold transition group"
                 >
                     <div className="flex justify-between items-start mb-2">
                         <span className="text-xs font-bold text-gray-500 bg-black px-2 py-1 rounded">{translateCategory(product.category)}</span>
@@ -325,7 +325,7 @@ const Admin: React.FC = () => {
                     <div className="mt-3 flex gap-2">
                         <button type="button" onClick={(e) => { e.stopPropagation(); setEditingProduct(product); setEditProductForm({ name: product.name, price: String(product.price), category: product.category, stock: String(product.stock) }); setShowEditModal(true); }} className="text-gray-300 bg-gray-800 p-2 rounded hover:bg-gray-700"><Edit2 size={14} /></button>
                     </div>
-                </button>
+                </div>
             ))}
         </div>
       </div>
