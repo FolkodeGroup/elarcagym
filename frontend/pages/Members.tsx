@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
 import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, MessageCircle, Mail, Download, Edit2 } from 'lucide-react';
+import { FaWhatsapp } from 'react-icons/fa';
 import Toast from '../components/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -964,10 +965,21 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                     >
                         <Clock size={16} />
                     </button>
-                    {member.status === UserStatus.DEBTOR && (
-                        <button className="p-2 text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 rounded transition" title="Notificar Deuda">
-                            <UserX size={16} />
-                        </button>
+                    {isDebtorByPayment(member) && (
+                      <button
+                        className="p-2 text-green-400 hover:text-green-300 bg-green-900/20 hover:bg-green-900/40 rounded transition"
+                        title="Notificar Deuda por WhatsApp"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const msgText = `Hola ${member.firstName}, te recordamos que tu cuota en El Arca Gym está vencida o próxima a vencer. Por favor acércate a regularizar tu situación. Gracias! 💪`;
+                          const phone = member.phone.replace(/\D/g, '').replace(/^0/, '');
+                          const waPhone = phone.startsWith('54') ? phone : `549${phone}`;
+                          const url = `https://wa.me/${waPhone}?text=${encodeURIComponent(msgText)}`;
+                          window.open(url, '_blank');
+                        }}
+                      >
+                        <FaWhatsapp size={16} />
+                      </button>
                     )}
                   </td>
                 </tr>
