@@ -14,7 +14,9 @@ const Ingresos = () => {
     const [totalHoy, setTotalHoy] = useState(0);
     const [totalGeneral, setTotalGeneral] = useState(0);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-    const [filtroFecha, setFiltroFecha] = useState<string>('');
+    const [filtroFecha, setFiltroFecha] = useState<string>(() => {
+        return new Date().toISOString().split('T')[0];
+    });
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [ventaAEliminar, setVentaAEliminar] = useState<Sale | null>(null);
 
