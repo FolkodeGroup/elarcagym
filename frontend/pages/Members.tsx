@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
-import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, Download, Edit2 } from 'lucide-react';
+import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
+import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { SiGmail } from 'react-icons/si';
 import Toast from '../components/Toast';
@@ -207,44 +208,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     });
   };
 
-  // Helper: Check if member is debtor by payment logic (no payment in current month, and last payment not between 1-10 of current month)
-  const isDebtorByPayment = (member: Member): boolean => {
-    if (!member.payments || member.payments.length === 0) return true;
-
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-
-    // Pagos en el mes y año actual
-    const paymentsThisMonth = member.payments.filter(p => {
-      const pd = new Date(p.date);
-      return pd.getMonth() === currentMonth && pd.getFullYear() === currentYear;
-    });
-
-    if (paymentsThisMonth.length > 0) {
-      // Si hay pagos este mes, no es moroso
-      return false;
-    }
-
-    // Buscar el último pago
-    const paymentDates = member.payments.map(p => new Date(p.date));
-    const lastPaymentDate = paymentDates.reduce((a, b) => (a > b ? a : b));
-
-    // Si el último pago fue en el mes actual, pero fuera del 1-10, igual no es moroso (ya está cubierto arriba)
-    // Si el último pago fue en el mes anterior o anterior, revisar si fue entre el 1 y 10 del mes actual
-    if (
-      lastPaymentDate.getFullYear() === currentYear &&
-      lastPaymentDate.getMonth() === currentMonth &&
-      lastPaymentDate.getDate() >= 1 &&
-      lastPaymentDate.getDate() <= 10
-    ) {
-      // Si el último pago fue entre el 1 y 10 del mes en curso, no es moroso
-      return false;
-    }
-
-    // Si no cumple ninguna de las condiciones anteriores, es moroso
-    return true;
-  };
 
   // --- FUNCIÓN PARA NORMALIZAR TEXTO (QUITAR TILDES) ---
   const normalizeText = (text: string) => {
