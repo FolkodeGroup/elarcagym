@@ -1,3 +1,9 @@
+  // ...existing code...
+  // ...existing code...
+
+  // Obtener ausencias recientes (no asistió en los últimos 7 días)
+  // Esta línea debe ir justo antes del return para evitar ReferenceError
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Reminder, Slot, Reservation } from '../types';
@@ -51,9 +57,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   // Obtener turnos de hoy con reservaciones
   const getTodaySlots = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const todayLocal = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     return slots
-      .filter(s => s.date === today)
+      .filter(s => s.date === todayLocal)
       .filter(s => reservations.some(r => r.slotId === s.id))
       .sort((a, b) => a.time.localeCompare(b.time));
   };
@@ -140,6 +147,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     onNavigate('Ingresos');
   };
 
+  const ausenciasRecientes = reservations.filter(r => r.attended === false && r.slotId && slots.find(s => s.id === r.slotId && new Date(s.date) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)));
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
@@ -188,6 +196,53 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Tarjeta de Ausencias Recientes */}
+                <div className="bg-[#1a1a1a] p-6 rounded-xl border border-red-800">
+                  <h3 className="text-lg font-display font-bold text-red-400 mb-4 flex items-center gap-2">
+                    <AlertCircle size={20} className="text-red-400" /> Ausencias recientes
+                  </h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {ausenciasRecientes.length === 0 ? (
+                      <p className="text-gray-500 text-sm text-center py-4">Sin ausencias registradas</p>
+                    ) : (
+                      ausenciasRecientes.map(r => {
+                        const slot = slots.find(s => s.id === r.slotId);
+                        // Buscar el número actualizado del socio
+                        const socio = members.find(m => m.id === r.memberId);
+                        const phone = socio?.phone || r.clientPhone || '';
+                        return (
+                          <div key={r.id} className="bg-black/40 p-2 rounded border border-red-700 flex items-center justify-between gap-2">
+                            <div>
+                              <p className="text-xs text-white font-bold">{r.clientName}</p>
+                              <p className="text-xs text-gray-400">{slot ? `${slot.date} ${slot.time}` : ''}</p>
+                              {phone && <p className="text-xs text-gray-500">{phone}</p>}
+                            </div>
+                            <button
+                              className="p-1 rounded bg-brand-gold text-black hover:bg-yellow-500 text-xs font-bold"
+                              title="Notificar socio"
+                              onClick={() => {
+                                // Normalizar número para WhatsApp
+                                let wpp = phone.replace(/\D/g, '');
+                                if (wpp.startsWith('549')) {
+                                  // OK
+                                } else if (wpp.startsWith('54')) {
+                                  wpp = '549' + wpp.substring(2);
+                                } else if (wpp.startsWith('0')) {
+                                  wpp = '549' + wpp.substring(1);
+                                } else {
+                                  wpp = '549' + wpp;
+                                }
+                                window.open(`https://wa.me/${wpp}`, '_blank');
+                              }}
+                            >
+                              Notificar
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
         {/* Main Chart */}
         <div className="lg:col-span-2 bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
           <h3 className="text-lg font-display font-bold text-white mb-6">Estado de la Membresía</h3>
