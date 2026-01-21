@@ -21,6 +21,7 @@ import {
   ShoppingCart
 } from 'lucide-react';
 import { db } from '../services/db';
+import Toast from './Toast';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { UserStatus } from '../types';
@@ -161,7 +162,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                  <div className="py-2">
                    {/* Preferencias */}
                    <button
-                     onClick={() => { setShowPreferences(true); setAdminMenuOpen(false); }}
+                     onClick={() => {
+                       setShowPreferences(true);
+                       setShowSettings(false);
+                       setShowBackup(false);
+                       setShowReports(false);
+                       setShowAudit(false);
+                       setShowAbout(false);
+                       setAdminMenuOpen(false);
+                     }}
                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
                    >
                      <ChevronDown size={18} className="text-blue-400 group-hover:scale-110 transition" />
@@ -173,7 +182,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
                    {/* Respaldos */}
                    <button
-                     onClick={() => { setShowBackup(true); setAdminMenuOpen(false); }}
+                     onClick={() => {
+                       setShowBackup(true);
+                       setShowSettings(false);
+                       setShowPreferences(false);
+                       setShowReports(false);
+                       setShowAudit(false);
+                       setShowAbout(false);
+                       setAdminMenuOpen(false);
+                     }}
                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
                    >
                      <Download size={18} className="text-green-400 group-hover:scale-110 transition" />
@@ -185,7 +202,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
                    {/* Reportes */}
                    <button
-                     onClick={() => { setShowReports(true); setAdminMenuOpen(false); }}
+                     onClick={() => {
+                       setShowReports(true);
+                       setShowSettings(false);
+                       setShowPreferences(false);
+                       setShowBackup(false);
+                       setShowAudit(false);
+                       setShowAbout(false);
+                       setAdminMenuOpen(false);
+                     }}
                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
                    >
                      <BarChart3 size={18} className="text-purple-400 group-hover:scale-110 transition" />
@@ -197,7 +222,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
                    {/* Auditoría */}
                    <button
-                     onClick={() => { setShowAudit(true); setAdminMenuOpen(false); }}
+                     onClick={() => {
+                       setShowAudit(true);
+                       setShowSettings(false);
+                       setShowPreferences(false);
+                       setShowBackup(false);
+                       setShowReports(false);
+                       setShowAbout(false);
+                       setAdminMenuOpen(false);
+                     }}
                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
                    >
                      <Shield size={18} className="text-red-400 group-hover:scale-110 transition" />
@@ -209,7 +242,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
                    {/* Sobre la App */}
                    <button
-                     onClick={() => { setShowAbout(true); setAdminMenuOpen(false); }}
+                     onClick={() => {
+                       setShowAbout(true);
+                       setShowSettings(false);
+                       setShowPreferences(false);
+                       setShowBackup(false);
+                       setShowReports(false);
+                       setShowAudit(false);
+                       setAdminMenuOpen(false);
+                     }}
                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group border-t border-gray-700"
                    >
                      <FileText size={18} className="text-cyan-400 group-hover:scale-110 transition" />
@@ -528,6 +569,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
           </div>
         )}
       </div>
+      {toast && (
+        <Toast message={toast.message} type={toast.type} duration={2500} onClose={() => setToast(null)} />
+      )}
     </div>
   );
 };
