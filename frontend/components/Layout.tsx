@@ -43,6 +43,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
   const [showPreferences, setShowPreferences] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null);
   const user = db.getUser();
 
   const menuItems = [
@@ -237,7 +238,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-white flex items-center gap-2">
                   <Settings className="text-brand-gold" />
-                  Configuración de la App
+                  {t('ajustesApp')}
                 </h3>
                 <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white">
                   <X size={24} />
@@ -246,31 +247,37 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
               <div className="space-y-4">
                 <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <label className="block text-white font-semibold mb-2">Nombre del Gimnasio</label>
+                  <label className="block text-white font-semibold mb-2">{t('nombreGimnasio')}</label>
                   <input type="text" defaultValue="El Arca" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2" />
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <label className="block text-white font-semibold mb-2">Correo de Contacto</label>
+                  <label className="block text-white font-semibold mb-2">{t('correoContacto')}</label>
                   <input type="email" placeholder="info@elarcagym.com" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2" />
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <label className="block text-white font-semibold mb-2">Teléfono</label>
+                  <label className="block text-white font-semibold mb-2">{t('telefono')}</label>
                   <input type="tel" placeholder="+54 9 (xxx) xxx-xxxx" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2" />
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <label className="block text-white font-semibold mb-2">Horario de Atención</label>
+                  <label className="block text-white font-semibold mb-2">{t('horarioAtencion')}</label>
                   <div className="flex gap-2">
                     <input type="time" defaultValue="06:00" className="flex-1 bg-black text-white border border-gray-700 rounded px-3 py-2" />
-                    <span className="text-white flex items-center">a</span>
+                    <span className="text-white flex items-center">{t('a')}</span>
                     <input type="time" defaultValue="22:00" className="flex-1 bg-black text-white border border-gray-700 rounded px-3 py-2" />
                   </div>
                 </div>
 
-                <button className="w-full bg-brand-gold text-black py-2 rounded-lg font-bold hover:bg-yellow-400 transition">
-                  Guardar Cambios
+                <button
+                  className="w-full bg-brand-gold text-black py-2 rounded-lg font-bold hover:bg-yellow-400 transition"
+                  onClick={() => {
+                    setShowSettings(false);
+                    setToast({ message: t('cambiosGuardados'), type: 'success' });
+                  }}
+                >
+                  {t('guardarCambios')}
                 </button>
               </div>
             </div>
@@ -340,9 +347,18 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                   </label>
                 </div>
 
-                <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition">
+                <button
+                  className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition"
+                  onClick={() => {
+                    setShowPreferences(false);
+                    setToast({ message: t('preferenciasAplicadas'), type: 'success' });
+                  }}
+                >
                   {t('aplicarPreferencias')}
                 </button>
+                    {toast && (
+                      <Toast message={toast.message} type={toast.type} duration={2500} onClose={() => setToast(null)} />
+                    )}
               </div>
             </div>
           </div>
