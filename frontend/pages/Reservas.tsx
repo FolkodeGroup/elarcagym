@@ -1,20 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { Slot, Reservation, Member } from '../types';
-import { Plus, Edit2, Trash2, Clock, Calendar, Search, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Clock, Search, X } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
 
 const Reservas: React.FC = () => {
+    // Handler para marcar ausencia
+    const handleMarkAbsence = (reservation: Reservation) => {
+      db.updateReservationAttendance(reservation.id, false);
+      loadData();
+      setToast({ message: `Socio marcado como ausente.`, type: 'info' });
+    };
   const [slots, setSlots] = useState<Slot[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // Obtener fecha local en formato YYYY-MM-DD
+  const getLocalDateString = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [isDirty, setIsDirty] = useState(false);
-  const [showReservationModal, setShowReservationModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showNewSlotModal, setShowNewSlotModal] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -35,13 +47,6 @@ const Reservas: React.FC = () => {
     target: ''
   });
 
-  const [formData, setFormData] = useState({
-    clientName: '',
-    clientPhone: '',
-    clientEmail: '',
-    notes: ''
-  });
-
   const [editFormData, setEditFormData] = useState({
     clientName: '',
     clientPhone: '',
@@ -59,13 +64,13 @@ const Reservas: React.FC = () => {
 
   // Buscar socios cuando el usuario escribe
   useEffect(() => {
-    const s = searchMemberForSlot.trim().toLowerCase();
+    const s: string = searchMemberForSlot.trim().toLowerCase();
     if (!s) {
       setMemberResultsForSlot([]);
       return;
     }
-    const allMembers = db.getMembers();
-    const results = allMembers.filter(m => {
+    const allMembers: Member[] = db.getMembers();
+    const results: Member[] = allMembers.filter((m: Member) => {
       const fullInfo = (m.firstName + ' ' + m.lastName + ' ' + (m.dni || '') + ' ' + m.email).toLowerCase();
       return fullInfo.includes(s);
     });
@@ -73,14 +78,14 @@ const Reservas: React.FC = () => {
   }, [searchMemberForSlot]);
 
   const loadData = () => {
-    const allSlots = db.getSlots();
+    const allSlots: Slot[] = db.getSlots();
     setSlots(allSlots);
-    const allReservations = db.getReservations();
+    const allReservations: Reservation[] = db.getReservations();
     setReservations(allReservations);
   };
 
-  const getDateSlots = () => {
-    return slots.filter(s => s.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time));
+  const getDateSlots = (): Slot[] => {
+    return slots.filter((s: Slot) => s.date === selectedDate).sort((a: Slot, b: Slot) => a.time.localeCompare(b.time));
   };
 
   const handleCreateSlot = (e: React.FormEvent) => {
@@ -107,14 +112,14 @@ const Reservas: React.FC = () => {
     if (!slotToAssign) return;
 
     // Count existing reservations for this slot
-    const slotReservations = reservations.filter(r => r.slotId === slotToAssign.id);
+    const slotReservations: Reservation[] = reservations.filter((r: Reservation) => r.slotId === slotToAssign.id);
     if (slotReservations.length >= 10) {
       setToast({ message: 'Este horario ya tiene el máximo de 10 socios asignados.', type: 'error' });
       return;
     }
 
     // Check if this member is already assigned to this slot
-    const alreadyAssigned = slotReservations.some(r => r.memberId === member.id);
+    const alreadyAssigned: boolean = slotReservations.some((r: Reservation) => r.memberId === member.id);
     if (alreadyAssigned) {
       setToast({ message: `${member.firstName} ${member.lastName} ya está asignado a este horario.`, type: 'error' });
       return;
@@ -139,7 +144,7 @@ const Reservas: React.FC = () => {
     
     // Re-update slotToAssign with fresh data to keep modal accurate
     if (slotToAssign) {
-      const updatedSlot = db.getSlots().find(s => s.id === slotToAssign.id);
+      const updatedSlot = db.getSlots().find((s: Slot) => s.id === slotToAssign.id);
       if (updatedSlot) {
         setSlotToAssign(updatedSlot);
       }
@@ -156,7 +161,7 @@ const Reservas: React.FC = () => {
 
   const handleReserveSlot = (slot: Slot) => {
     // Check if slot is full
-    const slotReservations = reservations.filter(r => r.slotId === slot.id);
+    const slotReservations: Reservation[] = reservations.filter((r: Reservation) => r.slotId === slot.id);
     if (slotReservations.length >= 10) {
       setToast({ message: 'Este turno está lleno. No se pueden agregar más clientes.', type: 'error' });
       return;
@@ -168,9 +173,9 @@ const Reservas: React.FC = () => {
     setShowAssignMemberModal(true);
   };
 
-  const handleConfirmReservation = () => {
-    // This function is no longer used with new flow
-  };
+  // const handleConfirmReservation = () => {
+  //   // This function is no longer used with new flow
+  // };
 
   const handleEditReservation = (reservation: Reservation) => {
     setEditingReservation(reservation);
@@ -217,41 +222,17 @@ const Reservas: React.FC = () => {
     }
   };
 
-  const dateSlots = getDateSlots();
-  const availableCount = dateSlots.filter(s => {
-    const hasReservations = reservations.some(r => r.slotId === s.id);
+  const dateSlots: Slot[] = getDateSlots();
+  const availableCount: number = dateSlots.filter((s: Slot) => {
+    const hasReservations: boolean = reservations.some((r: Reservation) => r.slotId === s.id);
     return !hasReservations;
   }).length;
-  const reservedCount = dateSlots.filter(s => {
-    const hasReservations = reservations.some(r => r.slotId === s.id);
+  const reservedCount: number = dateSlots.filter((s: Slot) => {
+    const hasReservations: boolean = reservations.some((r: Reservation) => r.slotId === s.id);
     return hasReservations;
   }).length;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'available':
-        return 'bg-green-900/30 border-green-800 hover:bg-green-900/50 cursor-pointer';
-      case 'reserved':
-        return 'bg-blue-900/30 border-blue-800 cursor-default';
-      case 'occupied':
-        return 'bg-red-900/30 border-red-800 cursor-default';
-      default:
-        return 'bg-gray-800 border-gray-700';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'available':
-        return 'Disponible';
-      case 'reserved':
-        return 'Reservado';
-      case 'occupied':
-        return 'Ocupado';
-      default:
-        return status;
-    }
-  };
+  // getStatusColor and getStatusLabel are not used, so they are removed.
 
   return (
     <div className="space-y-6">
@@ -266,7 +247,7 @@ const Reservas: React.FC = () => {
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedDate(e.target.value)}
               className="bg-black border border-gray-700 text-white rounded px-4 py-2 focus:outline-none focus:border-brand-gold"
             />
             <button
@@ -314,9 +295,9 @@ const Reservas: React.FC = () => {
               <div className="col-span-2 py-2 px-2">Hora</div>
               <div className="col-span-10 py-2 px-2">Franja / Reservas</div>
             </div>
-            {Array.from({ length: 16 }, (_, i) => 6 + i).map(hour => {
-              const hourStr = hour.toString().padStart(2, '0') + ':00';
-              const slot = dateSlots.find(s => s.time === hourStr);
+            {Array.from({ length: 16 }, (_, i: number) => 6 + i).map((hour: number) => {
+              const hourStr: string = hour.toString().padStart(2, '0') + ':00';
+              const slot: Slot | undefined = dateSlots.find((s: Slot) => s.time === hourStr);
               return (
                 <div key={hourStr} className="grid grid-cols-12 border-b border-gray-800 hover:bg-gray-900 transition">
                   <div className="col-span-2 py-3 px-2 font-mono text-gray-400 text-sm flex items-center">{hourStr}</div>
@@ -324,8 +305,8 @@ const Reservas: React.FC = () => {
                     {slot ? (
                       <button
                         className={`w-full text-left rounded-lg p-3 flex flex-col gap-1 shadow-md border-2 transition-all
-                          ${reservations.filter(r => r.slotId === slot.id).length >= 10 ? 'bg-red-900/40 border-red-700 text-red-200' :
-                            reservations.filter(r => r.slotId === slot.id).length > 0 ? 'bg-blue-900/30 border-blue-700 text-blue-200' : 'bg-green-900/30 border-green-700 text-green-200 hover:bg-green-900/50'}
+                          ${reservations.filter((r: Reservation) => r.slotId === slot.id).length >= 10 ? 'bg-red-900/40 border-red-700 text-red-200' :
+                            reservations.filter((r: Reservation) => r.slotId === slot.id).length > 0 ? 'bg-blue-900/30 border-blue-700 text-blue-200' : 'bg-green-900/30 border-green-700 text-green-200 hover:bg-green-900/50'}
                         `}
                         onClick={() => handleReserveSlot(slot)}
                       >
@@ -333,20 +314,31 @@ const Reservas: React.FC = () => {
                           <Clock size={16} />
                           <span className="font-bold text-lg">{slot.time}</span>
                           <span className="text-xs bg-gray-700/70 px-2 py-1 rounded font-bold">
-                            {reservations.filter(r => r.slotId === slot.id).length}/10
+                            {reservations.filter((r: Reservation) => r.slotId === slot.id).length}/10
                           </span>
                           <span className="ml-2 text-xs text-gray-400">Duración: {slot.duration} min</span>
                           {slot.target && <span className="ml-2 text-xs text-brand-gold font-semibold">{slot.target}</span>}
                         </div>
-                        {reservations.filter(r => r.slotId === slot.id).length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {reservations.filter(r => r.slotId === slot.id).slice(0, 3).map(r => (
-                              <span key={r.id} className="bg-black/40 px-2 py-1 rounded text-xs text-white truncate max-w-[120px]">{r.clientName}</span>
-                            ))}
-                            {reservations.filter(r => r.slotId === slot.id).length > 3 && (
-                              <span className="text-xs text-gray-400">+{reservations.filter(r => r.slotId === slot.id).length - 3} más</span>
-                            )}
-                          </div>
+                        {reservations.filter((r: Reservation) => r.slotId === slot.id).length > 0 && (
+                                          <div className="flex flex-wrap gap-2 mt-2">
+                                            {reservations.filter((r: Reservation) => r.slotId === slot.id).map((r: Reservation) => (
+                                              <div key={r.id} className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded text-xs text-white max-w-[220px]">
+                                                <span className={`truncate max-w-[120px] ${r.attended === false ? 'text-yellow-400 line-through' : ''}`}>{r.clientName}</span>
+                                                <button title="Editar" className="text-blue-400 hover:text-blue-200" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); handleEditReservation(r); }}>
+                                                  <Edit2 size={14} />
+                                                </button>
+                                                <button title="Eliminar" className="text-red-400 hover:text-red-200" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); handleDeleteReservation(r); }}>
+                                                  <Trash2 size={14} />
+                                                </button>
+                                                <button title="Marcar ausencia" className="text-yellow-400 hover:text-yellow-200" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); handleMarkAbsence(r); }}>
+                                                  <Clock size={14} />
+                                                </button>
+                                              </div>
+                                            ))}
+                                            {reservations.filter((r: Reservation) => r.slotId === slot.id).length > 3 && (
+                                              <span className="text-xs text-gray-400">+{reservations.filter((r: Reservation) => r.slotId === slot.id).length - 3} más</span>
+                                            )}
+                                          </div>
                         )}
                       </button>
                     ) : (
@@ -379,7 +371,7 @@ const Reservas: React.FC = () => {
                   type="date"
                   required
                   value={newSlotForm.date}
-                  onChange={(e) => setNewSlotForm({ ...newSlotForm, date: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewSlotForm({ ...newSlotForm, date: e.target.value })}
                   className="w-full bg-black border border-gray-700 p-2 rounded text-white"
                 />
               </div>
@@ -390,7 +382,7 @@ const Reservas: React.FC = () => {
                   type="time"
                   required
                   value={newSlotForm.time}
-                  onChange={(e) => setNewSlotForm({ ...newSlotForm, time: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewSlotForm({ ...newSlotForm, time: e.target.value })}
                   className="w-full bg-black border border-gray-700 p-2 rounded text-white"
                 />
               </div>
@@ -403,7 +395,7 @@ const Reservas: React.FC = () => {
                   min="15"
                   step="15"
                   value={newSlotForm.duration}
-                  onChange={(e) => setNewSlotForm({ ...newSlotForm, duration: Number(e.target.value) })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewSlotForm({ ...newSlotForm, duration: Number(e.target.value) })}
                   className="w-full bg-black border border-gray-700 p-2 rounded text-white"
                 />
               </div>
@@ -413,7 +405,7 @@ const Reservas: React.FC = () => {
                 <input
                   type="color"
                   value={newSlotForm.color}
-                  onChange={(e) => setNewSlotForm({ ...newSlotForm, color: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewSlotForm({ ...newSlotForm, color: e.target.value })}
                   className="w-full bg-black border border-gray-700 p-2 rounded cursor-pointer"
                 />
               </div>
@@ -423,7 +415,7 @@ const Reservas: React.FC = () => {
                 <input
                   type="text"
                   value={newSlotForm.target}
-                  onChange={(e) => setNewSlotForm({ ...newSlotForm, target: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewSlotForm({ ...newSlotForm, target: e.target.value })}
                   placeholder="Deja vacío si es de uso libre"
                   className="w-full bg-black border border-gray-700 p-2 rounded text-white"
                 />
@@ -449,138 +441,120 @@ const Reservas: React.FC = () => {
         </div>
       )}
 
-      {/* Assign Member to Slot Modal */}
-      {showAssignMemberModal && slotToAssign && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => {
-            setShowAssignMemberModal(false);
-            setSlotToAssign(null);
-            setSearchMemberForSlot('');
-            setMemberResultsForSlot([]);
-          }} />
-          <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-lg font-bold text-white">Asignar Socio</h4>
-              <button
-                onClick={() => {
-                  setShowAssignMemberModal(false);
-                  setSlotToAssign(null);
-                  setSearchMemberForSlot('');
-                  setMemberResultsForSlot([]);
-                }}
-                className="text-gray-400 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
+{/* Assign Member to Slot Modal */}
+{showAssignMemberModal && slotToAssign && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="absolute inset-0 bg-black/60" onClick={() => {
+      setShowAssignMemberModal(false);
+      setSlotToAssign(null);
+      setSearchMemberForSlot('');
+      setMemberResultsForSlot([]);
+    }} />
+    <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md">
+      <div className="flex justify-between items-center mb-4">
+        <h4 className="text-lg font-bold text-white">Asignar Socio</h4>
+        <button onClick={() => {
+          setShowAssignMemberModal(false);
+          setSlotToAssign(null);
+          setSearchMemberForSlot('');
+          setMemberResultsForSlot([]);
+        }} className="text-gray-400 hover:text-white"><X size={20} /></button>
+      </div>
+      <p className="text-gray-400 text-sm mb-2">
+        Turno: <span className="text-brand-gold font-bold">{slotToAssign.time}</span> - {new Date(slotToAssign.date).toLocaleDateString('es-ES')}
+      </p>
+      <p className="text-sm mb-2 text-gray-400">
+        Socios asignados: <span>{reservations.filter((r: Reservation) => r.slotId === slotToAssign.id).length}/10</span>
+      </p>
 
-            <p className="text-gray-400 text-sm mb-2">
-              Turno: <span className="text-brand-gold font-bold">{slotToAssign.time}</span> - {new Date(slotToAssign.date).toLocaleDateString('es-ES')}
-            </p>
-
-            {(() => {
-              const slotReservations = reservations.filter(r => r.slotId === slotToAssign.id);
-              const isFull = slotReservations.length >= 10;
-              return (
-                <>
-                  <p className={`text-sm mb-2 ${isFull ? 'text-red-400' : 'text-gray-400'}`}>
-                    Socios asignados: <span className={isFull ? 'font-bold' : ''}>{slotReservations.length}/10</span>
-                  </p>
-                  
-                  {slotReservations.length > 0 && (
-                    <div className="bg-gray-900/40 p-3 rounded-lg mb-3 border border-gray-700 max-h-28 overflow-y-auto">
-                      <p className="text-xs text-gray-400 mb-2">Socios ya asignados:</p>
-                      <div className="space-y-1">
-                        {slotReservations.map(r => (
-                          <div key={r.id} className="text-xs text-gray-300 bg-black/30 px-2 py-1 rounded flex justify-between items-center">
-                            <span>✓ {r.clientName}</span>
-                            {r.clientPhone && <span className="text-gray-500 text-xs">{r.clientPhone}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-
-            {reservations.filter(r => r.slotId === slotToAssign.id).length >= 10 && (
-              <div className="bg-red-900/30 border border-red-800 p-3 rounded-lg mb-4 text-red-200 text-sm">
-                ❌ Este horario ya tiene el máximo de socios (10)
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-gray-400 block mb-2">Busca un socio:</label>
-                <div className="relative mb-2">
-                  <Search className="absolute left-3 top-3 text-gray-500" size={18} />
-                  <input
-                    type="text"
-                    placeholder="Nombre, apellido, DNI o correo..."
-                    value={searchMemberForSlot}
-                    onChange={(e) => setSearchMemberForSlot(e.target.value)}
-                    autoFocus
-                    className="w-full bg-black border border-gray-700 p-2 pl-10 rounded text-white focus:outline-none focus:border-brand-gold"
-                  />
-                </div>
-              </div>
-
-              {memberResultsForSlot.length > 0 ? (
-                <div className="bg-black/40 p-3 rounded border border-gray-700 space-y-2 max-h-48 overflow-y-auto">
-                  {memberResultsForSlot.map(m => {
-                    const alreadyAssigned = reservations.filter(r => r.slotId === slotToAssign.id).some(r => r.memberId === m.id);
-                    const slotFull = reservations.filter(r => r.slotId === slotToAssign.id).length >= 10;
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => !alreadyAssigned && selectMemberForSlot(m)}
-                        disabled={slotFull || alreadyAssigned}
-                        className={`w-full text-left p-3 rounded border transition text-white ${
-                          alreadyAssigned
-                            ? 'bg-gray-700/30 border-gray-600/30 cursor-not-allowed opacity-60'
-                            : slotFull
-                            ? 'bg-gray-800/30 border-gray-700/30 cursor-not-allowed opacity-50'
-                            : 'bg-gray-800/50 hover:bg-gray-700/50 border-gray-600 cursor-pointer'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-semibold flex items-center gap-2">
-                              {m.firstName} {m.lastName}
-                              {alreadyAssigned && <span className="text-xs bg-green-900/50 px-2 py-1 rounded text-green-300">✓ Ya asignado</span>}
-                            </div>
-                            <div className="text-xs text-gray-400">{m.phone} • {m.email}</div>
-                            {m.dni && <div className="text-xs text-gray-500">DNI: {m.dni}</div>}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : searchMemberForSlot.trim() ? (
-                <p className="text-center text-gray-500 text-sm py-4">No se encontraron socios</p>
-              ) : (
-                <p className="text-center text-gray-600 text-sm py-4">Escribe para buscar un socio</p>
-              )}
-
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white"
-                  onClick={() => {
-                    setShowAssignMemberModal(false);
-                    setSlotToAssign(null);
-                    setSearchMemberForSlot('');
-                    setMemberResultsForSlot([]);
-                  }}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
+      {reservations.filter((r: Reservation) => r.slotId === slotToAssign.id).length >= 10 && (
+        <div className="bg-red-900/30 border border-red-800 p-3 rounded-lg mb-4 text-red-200 text-sm">
+          ❌ Este horario ya tiene el máximo de socios (10)
         </div>
       )}
+
+      <div className="space-y-3">
+        <div>
+          <label className="text-sm text-gray-400 block mb-2">Busca un socio:</label>
+          <div className="relative mb-2">
+            <Search className="absolute left-3 top-3 text-gray-500" size={18} />
+            <input
+              type="text"
+              placeholder="Nombre, apellido, DNI o correo..."
+              value={searchMemberForSlot}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchMemberForSlot(e.target.value)}
+              autoFocus
+              className="w-full bg-black border border-gray-700 p-2 pl-10 rounded text-white focus:outline-none focus:border-brand-gold"
+            />
+          </div>
+        </div>
+
+        {memberResultsForSlot.length > 0 ? (
+          <div className="bg-black/40 p-3 rounded border border-gray-700 space-y-2 max-h-48 overflow-y-auto">
+            {memberResultsForSlot.map((m: Member) => {
+              const alreadyAssigned: boolean = reservations.filter((r: Reservation) => r.slotId === slotToAssign.id).some((r: Reservation) => r.memberId === m.id);
+              const slotFull: boolean = reservations.filter((r: Reservation) => r.slotId === slotToAssign.id).length >= 10;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => !alreadyAssigned && selectMemberForSlot(m)}
+                  disabled={slotFull || alreadyAssigned}
+                  className={`w-full text-left p-3 rounded border transition text-white ${
+                    alreadyAssigned
+                      ? 'bg-gray-700/30 border-gray-600/30 cursor-not-allowed opacity-60'
+                      : slotFull
+                      ? 'bg-gray-800/30 border-gray-700/30 cursor-not-allowed opacity-50'
+                      : 'bg-gray-800/50 hover:bg-gray-700/50 border-gray-600 cursor-pointer'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-semibold flex items-center gap-2">
+                        {m.firstName} {m.lastName}
+                        {alreadyAssigned && <span className="text-xs bg-green-900/50 px-2 py-1 rounded text-green-300">✓ Ya asignado</span>}
+                      </div>
+                      <div className="text-xs text-gray-400">{m.phone} • {m.email}</div>
+                      {m.dni && <div className="text-xs text-gray-500">DNI: {m.dni}</div>}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : searchMemberForSlot.trim() ? (
+          <p className="text-center text-gray-500 text-sm py-4">No se encontraron socios</p>
+        ) : (
+          <p className="text-center text-gray-600 text-sm py-4">Escribe para buscar un socio</p>
+        )}
+
+        <div className="flex justify-end gap-2 mt-4">
+          <button
+            className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white"
+            onClick={() => {
+              setShowAssignMemberModal(false);
+              setSlotToAssign(null);
+              setSearchMemberForSlot('');
+              setMemberResultsForSlot([]);
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            className="px-4 py-2 rounded bg-brand-gold text-black font-bold hover:bg-yellow-500"
+            onClick={() => {
+              setShowAssignMemberModal(false);
+              setSlotToAssign(null);
+              setSearchMemberForSlot('');
+              setMemberResultsForSlot([]);
+            }}
+          >
+            Aceptar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Edit Reservation Modal */}
       {showEditModal && editingReservation && (
@@ -600,7 +574,7 @@ const Reservas: React.FC = () => {
                   type="text"
                   className="w-full bg-black border border-gray-700 p-2 rounded text-white"
                   value={editFormData.clientName}
-                  onChange={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     setEditFormData({ ...editFormData, clientName: e.target.value });
                     setIsDirty(true);
                   }}
@@ -613,7 +587,7 @@ const Reservas: React.FC = () => {
                   type="tel"
                   className="w-full bg-black border border-gray-700 p-2 rounded text-white"
                   value={editFormData.clientPhone}
-                  onChange={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     setEditFormData({ ...editFormData, clientPhone: e.target.value });
                     setIsDirty(true);
                   }}
@@ -626,7 +600,7 @@ const Reservas: React.FC = () => {
                   type="email"
                   className="w-full bg-black border border-gray-700 p-2 rounded text-white"
                   value={editFormData.clientEmail}
-                  onChange={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     setEditFormData({ ...editFormData, clientEmail: e.target.value });
                     setIsDirty(true);
                   }}
@@ -639,7 +613,7 @@ const Reservas: React.FC = () => {
                   className="w-full bg-black border border-gray-700 p-2 rounded text-white"
                   rows={3}
                   value={editFormData.notes}
-                  onChange={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
                     setEditFormData({ ...editFormData, notes: e.target.value });
                     setIsDirty(true);
                   }}
