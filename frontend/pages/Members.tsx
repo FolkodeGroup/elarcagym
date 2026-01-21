@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
-import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, MessageCircle, Mail, Download, Edit2, X, Phone } from 'lucide-react';
+import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
+import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X } from 'lucide-react';
+import { FaWhatsapp } from 'react-icons/fa';
+import { SiGmail } from 'react-icons/si';
 import Toast from '../components/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -190,6 +193,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     return daysWithoutPayment >= 30 && daysWithoutPayment < 60;
   };
 
+
   // Helper: Check if member is current (paid recently - within last 30 days)
   const isCurrentOnPayment = (member: Member): boolean => {
     if (member.status !== UserStatus.ACTIVE) return false;
@@ -203,6 +207,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       return days < 30;
     });
   };
+
 
   // --- FUNCIÓN PARA NORMALIZAR TEXTO (QUITAR TILDES) ---
   const normalizeText = (text: string) => {
@@ -222,19 +227,19 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                           memberFirstName.includes(searchTerm);
                           
     const matchesStatus = !statusFilter || 
-                         (statusFilter === 'active' && m.status === UserStatus.ACTIVE) ||
-                         (statusFilter === 'debtor' && m.status === UserStatus.DEBTOR) ||
-                         (statusFilter === 'inactive' && m.status === UserStatus.INACTIVE) ||
-                         (statusFilter === 'current' && isCurrentOnPayment(m)) ||
-                         (statusFilter === 'dueSoon' && isPaymentDueSoon(m)) ||
-                         (statusFilter === 'all' && true);
+               (statusFilter === 'active' && m.status === UserStatus.ACTIVE) ||
+               (statusFilter === 'debtor' && isDebtorByPayment(m)) ||
+               (statusFilter === 'inactive' && m.status === UserStatus.INACTIVE) ||
+               (statusFilter === 'current' && isCurrentOnPayment(m)) ||
+               (statusFilter === 'dueSoon' && isPaymentDueSoon(m)) ||
+               (statusFilter === 'all' && true);
     return matchesSearch && matchesStatus;
   });
 
   // Counts for dashboard cards
   const totalCount = members.length;
   const alDiaCount = members.filter(m => isCurrentOnPayment(m)).length;
-  const debtorsCount = members.filter(m => m.status === UserStatus.DEBTOR).length;
+  const debtorsCount = members.filter(m => isDebtorByPayment(m)).length;
   const dueSoonCount = members.filter(m => isPaymentDueSoon(m)).length;
   const inactiveCount = members.filter(m => m.status === UserStatus.INACTIVE).length;
 
@@ -473,11 +478,18 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
               {/* Header Profile Card */}
               <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-gray-900 to-black"></div>
-                  <button 
+                  <button
                     onClick={() => setSelectedMember(null)}
-                    className="absolute top-4 left-4 z-10 bg-black/50 hover:bg-black text-white p-2 rounded-full transition-colors"
+                    className="fixed md:absolute z-50 bg-black/70 hover:bg-black text-white w-12 h-12 flex items-center justify-center rounded-full transition-colors shadow-lg cursor-pointer"
+                    style={{
+                      top: '24px',
+                      left: '24px',
+                      pointerEvents: 'auto',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
+                    }}
+                    aria-label="Volver"
                   >
-                      <ArrowLeft size={20} />
+                    <ArrowLeft size={28} />
                   </button>
 
                   <div className="relative z-10 flex flex-col md:flex-row items-center md:items-end gap-6 pt-8">
@@ -549,12 +561,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                           {(selectedMember.status === UserStatus.DEBTOR || selectedMember.status === UserStatus.INACTIVE) && (
                               <div className="flex items-center gap-1">
                                   <span className="text-xs text-gray-500 mr-1">Recordar pago:</span>
-                                  <button onClick={() => sendPaymentReminder('wa')} className="p-2 bg-green-900/40 text-green-400 rounded-full hover:bg-green-800 transition-colors" title="Enviar WhatsApp">
-                                      <MessageCircle size={16} />
-                                  </button>
-                                  <button onClick={() => sendPaymentReminder('email')} className="p-2 bg-blue-900/40 text-blue-400 rounded-full hover:bg-blue-800 transition-colors" title="Enviar Email">
-                                      <Mail size={16} />
-                                  </button>
+                                    <button onClick={() => sendPaymentReminder('wa')} className="p-2 bg-green-900/40 text-green-400 rounded-full hover:bg-green-800 transition-colors" title="Enviar WhatsApp">
+                                      <FaWhatsapp size={16} />
+                                    </button>
+                                    <button onClick={() => sendPaymentReminder('email')} className="p-2 bg-red-900/40 text-red-400 rounded-full hover:bg-red-800 transition-colors" title="Enviar Gmail">
+                                      <SiGmail size={16} />
+                                    </button>
                               </div>
                           )}
                       </div>
@@ -589,14 +601,14 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                                     className="p-2 text-green-500 hover:bg-green-900/30 rounded-full transition-colors" 
                                                     title="Enviar PDF por WhatsApp"
                                                   >
-                                                      <MessageCircle size={18} />
+                                                      <FaWhatsapp size={18} />
                                                   </button>
                                                   <button 
                                                     onClick={(e) => handleShareRoutine(e, 'email', routine)}
-                                                    className="p-2 text-blue-500 hover:bg-blue-900/30 rounded-full transition-colors" 
-                                                    title="Enviar PDF por Email"
+                                                    className="p-2 text-red-500 hover:bg-red-900/30 rounded-full transition-colors" 
+                                                    title="Enviar PDF por Gmail"
                                                   >
-                                                      <Mail size={18} />
+                                                      <SiGmail size={18} />
                                                   </button>
                                                   <button onClick={() => setExpandedRoutineId(expandedRoutineId === routine.id ? null : routine.id)} className="text-gray-400 p-2">
                                                       {expandedRoutineId === routine.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -990,10 +1002,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                      ${member.status === UserStatus.ACTIVE ? 'bg-green-900 text-green-200' : 
-                        member.status === UserStatus.DEBTOR ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-300'}`}>
-                      {member.status === UserStatus.ACTIVE ? 'Al Día' : 
-                       member.status === UserStatus.DEBTOR ? 'Moroso' : 'Inactivo'}
+                      ${isCurrentOnPayment(member) ? 'bg-green-900 text-green-200' : 
+                        isDebtorByPayment(member) ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-300'}`}>
+                      {isCurrentOnPayment(member) ? 'Al Día' : 
+                       isDebtorByPayment(member) ? 'Moroso' : 'Inactivo'}
                     </span>
                   </td>
                   <td className="p-4 text-right space-x-2" onClick={e => e.stopPropagation()}>
@@ -1004,10 +1016,21 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                     >
                         <Clock size={16} />
                     </button>
-                    {member.status === UserStatus.DEBTOR && (
-                        <button className="p-2 text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 rounded transition" title="Notificar Deuda">
-                            <UserX size={16} />
-                        </button>
+                    {isDebtorByPayment(member) && (
+                      <button
+                        className="p-2 text-green-400 hover:text-green-300 bg-green-900/20 hover:bg-green-900/40 rounded transition"
+                        title="Notificar Deuda por WhatsApp"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const msgText = `Hola ${member.firstName}, te recordamos que tu cuota en El Arca Gym está vencida o próxima a vencer. Por favor acércate a regularizar tu situación. Gracias! 💪`;
+                          const phone = member.phone.replace(/\D/g, '').replace(/^0/, '');
+                          const waPhone = phone.startsWith('54') ? phone : `549${phone}`;
+                          const url = `https://wa.me/${waPhone}?text=${encodeURIComponent(msgText)}`;
+                          window.open(url, '_blank');
+                        }}
+                      >
+                        <FaWhatsapp size={16} />
+                      </button>
                     )}
                   </td>
                 </tr>
