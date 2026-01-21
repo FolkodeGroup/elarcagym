@@ -21,6 +21,7 @@ import {
   ShoppingCart
 } from 'lucide-react';
 import { db } from '../services/db';
+import Toast from './Toast';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { UserStatus } from '../types';
@@ -43,6 +44,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
   const [showPreferences, setShowPreferences] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null);
   const user = db.getUser();
 
   const menuItems = [
@@ -160,7 +162,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                  <div className="py-2">
                    {/* Preferencias */}
                    <button
-                     onClick={() => { setShowPreferences(true); setAdminMenuOpen(false); }}
+                     onClick={() => {
+                       setShowPreferences(true);
+                       setShowSettings(false);
+                       setShowBackup(false);
+                       setShowReports(false);
+                       setShowAudit(false);
+                       setShowAbout(false);
+                       setAdminMenuOpen(false);
+                     }}
                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
                    >
                      <ChevronDown size={18} className="text-blue-400 group-hover:scale-110 transition" />
@@ -172,7 +182,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
                    {/* Respaldos */}
                    <button
-                     onClick={() => { setShowBackup(true); setAdminMenuOpen(false); }}
+                     onClick={() => {
+                       setShowBackup(true);
+                       setShowSettings(false);
+                       setShowPreferences(false);
+                       setShowReports(false);
+                       setShowAudit(false);
+                       setShowAbout(false);
+                       setAdminMenuOpen(false);
+                     }}
                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
                    >
                      <Download size={18} className="text-green-400 group-hover:scale-110 transition" />
@@ -184,7 +202,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
                    {/* Reportes */}
                    <button
-                     onClick={() => { setShowReports(true); setAdminMenuOpen(false); }}
+                     onClick={() => {
+                       setShowReports(true);
+                       setShowSettings(false);
+                       setShowPreferences(false);
+                       setShowBackup(false);
+                       setShowAudit(false);
+                       setShowAbout(false);
+                       setAdminMenuOpen(false);
+                     }}
                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
                    >
                      <BarChart3 size={18} className="text-purple-400 group-hover:scale-110 transition" />
@@ -196,7 +222,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
                    {/* Auditoría */}
                    <button
-                     onClick={() => { setShowAudit(true); setAdminMenuOpen(false); }}
+                     onClick={() => {
+                       setShowAudit(true);
+                       setShowSettings(false);
+                       setShowPreferences(false);
+                       setShowBackup(false);
+                       setShowReports(false);
+                       setShowAbout(false);
+                       setAdminMenuOpen(false);
+                     }}
                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
                    >
                      <Shield size={18} className="text-red-400 group-hover:scale-110 transition" />
@@ -208,7 +242,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
                    {/* Sobre la App */}
                    <button
-                     onClick={() => { setShowAbout(true); setAdminMenuOpen(false); }}
+                     onClick={() => {
+                       setShowAbout(true);
+                       setShowSettings(false);
+                       setShowPreferences(false);
+                       setShowBackup(false);
+                       setShowReports(false);
+                       setShowAudit(false);
+                       setAdminMenuOpen(false);
+                     }}
                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group border-t border-gray-700"
                    >
                      <FileText size={18} className="text-cyan-400 group-hover:scale-110 transition" />
@@ -237,7 +279,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-white flex items-center gap-2">
                   <Settings className="text-brand-gold" />
-                  Configuración de la App
+                  {t('ajustesApp')}
                 </h3>
                 <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white">
                   <X size={24} />
@@ -246,31 +288,37 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
               <div className="space-y-4">
                 <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <label className="block text-white font-semibold mb-2">Nombre del Gimnasio</label>
+                  <label className="block text-white font-semibold mb-2">{t('nombreGimnasio')}</label>
                   <input type="text" defaultValue="El Arca" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2" />
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <label className="block text-white font-semibold mb-2">Correo de Contacto</label>
+                  <label className="block text-white font-semibold mb-2">{t('correoContacto')}</label>
                   <input type="email" placeholder="info@elarcagym.com" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2" />
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <label className="block text-white font-semibold mb-2">Teléfono</label>
+                  <label className="block text-white font-semibold mb-2">{t('telefono')}</label>
                   <input type="tel" placeholder="+54 9 (xxx) xxx-xxxx" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2" />
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <label className="block text-white font-semibold mb-2">Horario de Atención</label>
+                  <label className="block text-white font-semibold mb-2">{t('horarioAtencion')}</label>
                   <div className="flex gap-2">
                     <input type="time" defaultValue="06:00" className="flex-1 bg-black text-white border border-gray-700 rounded px-3 py-2" />
-                    <span className="text-white flex items-center">a</span>
+                    <span className="text-white flex items-center">{t('a')}</span>
                     <input type="time" defaultValue="22:00" className="flex-1 bg-black text-white border border-gray-700 rounded px-3 py-2" />
                   </div>
                 </div>
 
-                <button className="w-full bg-brand-gold text-black py-2 rounded-lg font-bold hover:bg-yellow-400 transition">
-                  Guardar Cambios
+                <button
+                  className="w-full bg-brand-gold text-black py-2 rounded-lg font-bold hover:bg-yellow-400 transition"
+                  onClick={() => {
+                    setShowSettings(false);
+                    setToast({ message: t('cambiosGuardados'), type: 'success' });
+                  }}
+                >
+                  {t('guardarCambios')}
                 </button>
               </div>
             </div>
@@ -340,9 +388,18 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                   </label>
                 </div>
 
-                <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition">
+                <button
+                  className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition"
+                  onClick={() => {
+                    setShowPreferences(false);
+                    setToast({ message: t('preferenciasAplicadas'), type: 'success' });
+                  }}
+                >
                   {t('aplicarPreferencias')}
                 </button>
+                    {toast && (
+                      <Toast message={toast.message} type={toast.type} duration={2500} onClose={() => setToast(null)} />
+                    )}
               </div>
             </div>
           </div>
@@ -512,6 +569,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
           </div>
         )}
       </div>
+      {toast && (
+        <Toast message={toast.message} type={toast.type} duration={2500} onClose={() => setToast(null)} />
+      )}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
 import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
@@ -16,6 +17,7 @@ interface MembersProps {
 
 const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const [members, setMembers] = useState<Member[]>([]);
+  const { t } = useLanguage();
   const [statusFilter, setStatusFilter] = useState<string | null>(initialFilter || null);
   const [filter, setFilter] = useState('');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -47,7 +49,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentConcept, setPaymentConcept] = useState('Cuota Mensual');
+  const [paymentConcept, setPaymentConcept] = useState(t('cuotaMensual'));
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
@@ -75,6 +77,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     setShowAddModal(false);
     setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE });
     refreshMembers();
+    alert(t('cambiosGuardados'));
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,7 +105,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       }
     } catch (err) {
       console.error('Error accessing camera:', err);
-      setToast({ message: 'No se pudo acceder a la cámara.', type: 'error' });
+      setToast({ message: t('noCamara'), type: 'error' });
     }
   };
 
@@ -127,7 +130,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     stopCamera();
     setShowCameraModal(false);
     refreshMembers();
-    setToast({ message: 'Foto capturada exitosamente.', type: 'success' });
+    setToast({ message: t('fotoCapturada'), type: 'success' });
   };
 
   // Cleanup camera on unmount
@@ -1004,25 +1007,25 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                       ${isCurrentOnPayment(member) ? 'bg-green-900 text-green-200' : 
                         isDebtorByPayment(member) ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-300'}`}>
-                      {isCurrentOnPayment(member) ? 'Al Día' : 
-                       isDebtorByPayment(member) ? 'Moroso' : 'Inactivo'}
+                      {isCurrentOnPayment(member) ? t('alDia') : 
+                       isDebtorByPayment(member) ? t('moroso') : t('inactivo')}
                     </span>
                   </td>
                   <td className="p-4 text-right space-x-2" onClick={e => e.stopPropagation()}>
                     <button 
                         onClick={(e) => toggleStatus(e, member.id, member.status)}
                         className="p-2 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded transition" 
-                        title="Cambiar Estado"
+                        title={t('cambiarEstado')}
                     >
                         <Clock size={16} />
                     </button>
                     {isDebtorByPayment(member) && (
                       <button
                         className="p-2 text-green-400 hover:text-green-300 bg-green-900/20 hover:bg-green-900/40 rounded transition"
-                        title="Notificar Deuda por WhatsApp"
+                        title={t('notificarDeuda')}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const msgText = `Hola ${member.firstName}, te recordamos que tu cuota en El Arca Gym está vencida o próxima a vencer. Por favor acércate a regularizar tu situación. Gracias! 💪`;
+                          const msgText = t('mensajeWhatsapp', { nombre: member.firstName });
                           const phone = member.phone.replace(/\D/g, '').replace(/^0/, '');
                           const waPhone = phone.startsWith('54') ? phone : `549${phone}`;
                           const url = `https://wa.me/${waPhone}?text=${encodeURIComponent(msgText)}`;
@@ -1038,7 +1041,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
             </tbody>
           </table>
           {filteredMembers.length === 0 && (
-            <div className="p-8 text-center text-gray-500">No se encontraron socios.</div>
+            <div className="p-8 text-center text-gray-500">{t('noSocios')}</div>
           )}
         </div>
       </div>
@@ -1047,19 +1050,19 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-lg border border-gray-700">
-            <h3 className="text-xl font-bold text-white mb-4">Registrar Nuevo Socio</h3>
+            <h3 className="text-xl font-bold text-white mb-4">{t('registrarSocio')}</h3>
             <form onSubmit={handleAddMember} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <input 
                   required
-                  placeholder="Nombre" 
+                  placeholder={t('nombre')} 
                   value={newMember.firstName}
                   onChange={e => setNewMember({...newMember, firstName: e.target.value})}
                   className="bg-black border border-gray-700 p-3 rounded text-white"
                 />
                 <input 
                   required
-                  placeholder="Apellido" 
+                  placeholder={t('apellido')} 
                   value={newMember.lastName}
                   onChange={e => setNewMember({...newMember, lastName: e.target.value})}
                   className="bg-black border border-gray-700 p-3 rounded text-white"
@@ -1068,27 +1071,27 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
               <input 
                 type="text"
                 required
-                placeholder="DNI (requerido)" 
+                placeholder={t('dniRequerido')} 
                 value={newMember.dni}
                 onChange={e => setNewMember({...newMember, dni: e.target.value})}
                 className="w-full bg-black border border-gray-700 p-3 rounded text-white"
               />
               <input 
                 type="email"
-                placeholder="Email" 
+                placeholder={t('email')} 
                 value={newMember.email}
                 onChange={e => setNewMember({...newMember, email: e.target.value})}
                 className="w-full bg-black border border-gray-700 p-3 rounded text-white"
               />
               <input 
-                placeholder="Teléfono (Ej: 221 555 0101)" 
+                placeholder={t('telefonoEjemplo')} 
                 value={newMember.phone}
                 onChange={e => setNewMember({...newMember, phone: e.target.value})}
                 className="w-full bg-black border border-gray-700 p-3 rounded text-white"
               />
               <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-gray-400 hover:text-white">Cancelar</button>
-                <button type="submit" className="px-6 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500">Guardar</button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-gray-400 hover:text-white">{t('cancelar')}</button>
+                <button type="submit" className="px-6 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500">{t('guardar')}</button>
               </div>
             </form>
           </div>
@@ -1100,7 +1103,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-[#0b0b0b] p-6 rounded-xl border border-gray-800 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-white">Capturar Foto</h3>
+              <h3 className="text-lg font-bold text-white">{t('capturarFoto')}</h3>
               <button 
                 onClick={() => { setShowCameraModal(false); stopCamera(); }} 
                 className="text-gray-400 hover:text-white"
@@ -1122,13 +1125,13 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                 onClick={() => { setShowCameraModal(false); stopCamera(); }}
                 className="flex-1 px-4 py-2 text-gray-400 hover:text-white border border-gray-700 rounded"
               >
-                Cancelar
+                {t('cancelar')}
               </button>
               <button
                 onClick={capturePhoto}
                 className="flex-1 px-4 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500"
               >
-                <Camera size={18} className="inline mr-2" /> Capturar
+                <Camera size={18} className="inline mr-2" /> {t('capturar')}
               </button>
             </div>
           </div>
