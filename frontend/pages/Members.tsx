@@ -39,12 +39,26 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   // New Member Form State
   const [newMember, setNewMember] = useState({
-    firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE
+    firstName: '',
+    lastName: '',
+    dni: '',
+    email: '',
+    phone: '',
+    status: UserStatus.ACTIVE,
+    phase: 'volumen',
+    habitualSchedules: [] as { day: string; start: string; end: string }[]
   });
 
   // Edit Member Form State
   const [editMember, setEditMember] = useState({
-    firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE
+    firstName: '',
+    lastName: '',
+    dni: '',
+    email: '',
+    phone: '',
+    status: UserStatus.ACTIVE,
+    phase: 'volumen',
+    habitualSchedules: [] as { day: string; start: string; end: string }[]
   });
 
   // Payment Form State
@@ -73,9 +87,13 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
-    db.addMember(newMember);
+    db.addMember({
+      ...newMember,
+      phase: newMember.phase,
+      habitualSchedules: newMember.habitualSchedules
+    });
     setShowAddModal(false);
-    setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE });
+    setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
     refreshMembers();
     alert(t('cambiosGuardados'));
   };
@@ -152,14 +170,16 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   const handleOpenEditModal = () => {
       if(selectedMember) {
-          setEditMember({
+            setEditMember({
               firstName: selectedMember.firstName,
               lastName: selectedMember.lastName,
               dni: selectedMember.dni || '',
               email: selectedMember.email,
               phone: selectedMember.phone,
-              status: selectedMember.status
-          });
+              status: selectedMember.status,
+              phase: selectedMember.phase || 'volumen',
+              habitualSchedules: selectedMember.habitualSchedules ? [...selectedMember.habitualSchedules] : []
+            });
           setShowEditModal(true);
       }
   };
@@ -167,7 +187,11 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const handleSaveEditMember = (e: React.FormEvent) => {
       e.preventDefault();
       if(selectedMember) {
-          db.updateMember(selectedMember.id, editMember);
+          db.updateMember(selectedMember.id, {
+            ...editMember,
+            phase: editMember.phase,
+            habitualSchedules: editMember.habitualSchedules
+          });
           setShowEditModal(false);
           refreshMembers();
       }
@@ -538,6 +562,31 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                 </div>
                               )}
                               <span className="text-xs text-gray-500">Miembro desde {new Date(selectedMember.joinDate).toLocaleDateString('es-ES')}</span>
+
+                              {/* Fase de objetivo */}
+                              <div className="mt-2">
+                                <span className="text-xs text-gray-400 mr-2">Fase/Objetivo:</span>
+                                <span className="font-bold text-brand-gold text-sm">
+                                  {selectedMember.phase === 'volumen' && 'Volumen'}
+                                  {selectedMember.phase === 'deficit' && 'Déficit'}
+                                  {selectedMember.phase === 'recomposicion' && 'Recomposición corporal'}
+                                  {selectedMember.phase === 'transicion' && 'Transición (volumen-défict)'}
+                                </span>
+                              </div>
+
+                              {/* Horarios habituales */}
+                              {selectedMember.habitualSchedules && selectedMember.habitualSchedules.length > 0 && (
+                                <div className="mt-2">
+                                  <span className="text-xs text-gray-400 block mb-1">Horarios habituales:</span>
+                                  <ul className="text-sm text-white">
+                                    {selectedMember.habitualSchedules.map((sch, idx) => (
+                                      <li key={idx} className="mb-1">
+                                        <span className="font-semibold text-brand-gold">{sch.day}:</span> {sch.start} - {sch.end}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                           </div>
                       </div>
 
@@ -771,6 +820,66 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
                     <h3 className="text-lg font-bold text-white mb-4">Editar Cliente</h3>
                     <form onSubmit={handleSaveEditMember} className="space-y-4">
+                                  {/* Fase de objetivo */}
+                                  <div>
+                                    <label className="text-xs text-gray-400 block mb-1">Fase/Objetivo</label>
+                                    <select
+                                      value={editMember.phase}
+                                      onChange={e => setEditMember({ ...editMember, phase: e.target.value as any })}
+                                      className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                                    >
+                                      <option value="volumen">Volumen</option>
+                                      <option value="deficit">Déficit</option>
+                                      <option value="recomposicion">Recomposición corporal</option>
+                                      <option value="transicion">Transición (volumen-défict)</option>
+                                    </select>
+                                  </div>
+
+                                  {/* Horarios habituales */}
+                                  <div>
+                                    <label className="text-xs text-gray-400 block mb-1">Horarios habituales de entrenamiento</label>
+                                    {(editMember.habitualSchedules || []).map((sch, idx) => (
+                                      <div key={idx} className="flex gap-2 mb-2">
+                                        <input
+                                          type="text"
+                                          placeholder="Día (ej: Lunes)"
+                                          value={sch.day}
+                                          onChange={e => {
+                                            const arr = [...editMember.habitualSchedules];
+                                            arr[idx].day = e.target.value;
+                                            setEditMember({ ...editMember, habitualSchedules: arr });
+                                          }}
+                                          className="bg-black border border-gray-600 text-white p-2 rounded w-1/3"
+                                        />
+                                        <input
+                                          type="time"
+                                          value={sch.start}
+                                          onChange={e => {
+                                            const arr = [...editMember.habitualSchedules];
+                                            arr[idx].start = e.target.value;
+                                            setEditMember({ ...editMember, habitualSchedules: arr });
+                                          }}
+                                          className="bg-black border border-gray-600 text-white p-2 rounded w-1/3"
+                                        />
+                                        <input
+                                          type="time"
+                                          value={sch.end}
+                                          onChange={e => {
+                                            const arr = [...editMember.habitualSchedules];
+                                            arr[idx].end = e.target.value;
+                                            setEditMember({ ...editMember, habitualSchedules: arr });
+                                          }}
+                                          className="bg-black border border-gray-600 text-white p-2 rounded w-1/3"
+                                        />
+                                        <button type="button" onClick={() => {
+                                          const arr = [...editMember.habitualSchedules];
+                                          arr.splice(idx, 1);
+                                          setEditMember({ ...editMember, habitualSchedules: arr });
+                                        }} className="text-red-400">Eliminar</button>
+                                      </div>
+                                    ))}
+                                    <button type="button" onClick={() => setEditMember({ ...editMember, habitualSchedules: [...(editMember.habitualSchedules || []), { day: '', start: '', end: '' }] })} className="text-xs text-brand-gold mt-1">Agregar horario</button>
+                                  </div>
                       <div>
                           <label className="text-xs text-gray-400 block mb-1">Nombre</label>
                           <input 
@@ -1052,6 +1161,66 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
           <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-lg border border-gray-700">
             <h3 className="text-xl font-bold text-white mb-4">{t('registrarSocio')}</h3>
             <form onSubmit={handleAddMember} className="space-y-4">
+                            {/* Fase de objetivo */}
+                            <div>
+                              <label className="text-xs text-gray-400 block mb-1">Fase/Objetivo</label>
+                              <select
+                                value={newMember.phase}
+                                onChange={e => setNewMember({ ...newMember, phase: e.target.value as any })}
+                                className="w-full bg-black border border-gray-700 text-white p-2 rounded"
+                              >
+                                <option value="volumen">Volumen</option>
+                                <option value="deficit">Déficit</option>
+                                <option value="recomposicion">Recomposición corporal</option>
+                                <option value="transicion">Transición (volumen-défict)</option>
+                              </select>
+                            </div>
+
+                            {/* Horarios habituales */}
+                            <div>
+                              <label className="text-xs text-gray-400 block mb-1">Horarios habituales de entrenamiento</label>
+                              {(newMember.habitualSchedules || []).map((sch, idx) => (
+                                <div key={idx} className="flex gap-2 mb-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Día (ej: Lunes)"
+                                    value={sch.day}
+                                    onChange={e => {
+                                      const arr = [...newMember.habitualSchedules];
+                                      arr[idx].day = e.target.value;
+                                      setNewMember({ ...newMember, habitualSchedules: arr });
+                                    }}
+                                    className="bg-black border border-gray-700 text-white p-2 rounded w-1/3"
+                                  />
+                                  <input
+                                    type="time"
+                                    value={sch.start}
+                                    onChange={e => {
+                                      const arr = [...newMember.habitualSchedules];
+                                      arr[idx].start = e.target.value;
+                                      setNewMember({ ...newMember, habitualSchedules: arr });
+                                    }}
+                                    className="bg-black border border-gray-700 text-white p-2 rounded w-1/3"
+                                  />
+                                  <input
+                                    type="time"
+                                    value={sch.end}
+                                    onChange={e => {
+                                      const arr = [...newMember.habitualSchedules];
+                                      arr[idx].end = e.target.value;
+                                      setNewMember({ ...newMember, habitualSchedules: arr });
+                                    }}
+                                    className="bg-black border border-gray-700 text-white p-2 rounded w-1/3"
+                                  />
+                                  <button type="button" onClick={() => {
+                                    const arr = [...newMember.habitualSchedules];
+                                    arr.splice(idx, 1);
+                                    setNewMember({ ...newMember, habitualSchedules: arr });
+                                  }} className="text-red-400">Eliminar</button>
+                                </div>
+                              ))}
+                              <button type="button" onClick={() => setNewMember({ ...newMember, habitualSchedules: [...(newMember.habitualSchedules || []), { day: '', start: '', end: '' }] })} className="text-xs text-brand-gold mt-1">Agregar horario</button>
+                            </div>
               <div className="grid grid-cols-2 gap-4">
                 <input 
                   required
