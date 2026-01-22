@@ -364,7 +364,9 @@ class MockDB {
       biometrics: [],
       routines: [],
       diets: [],
-      payments: []
+      payments: [],
+      phase: member.phase,
+      habitualSchedules: member.habitualSchedules || []
     };
     this.state.members.push(newMember);
     this.save();
@@ -379,7 +381,7 @@ class MockDB {
     }
   }
 
-  updateMember(id: string, data: { firstName: string; lastName: string; dni: string; email: string; phone: string; status: UserStatus }) {
+  updateMember(id: string, data: { firstName: string; lastName: string; dni: string; email: string; phone: string; status: UserStatus; phase?: 'volumen' | 'deficit' | 'recomposicion' | 'transicion'; habitualSchedules?: Array<{ day: string; start: string; end: string }> }) {
     const member = this.state.members.find(m => m.id === id);
     if (member) {
       member.firstName = data.firstName;
@@ -388,6 +390,8 @@ class MockDB {
       member.email = data.email;
       member.phone = data.phone;
       member.status = data.status;
+      if (data.phase) member.phase = data.phase;
+      if (data.habitualSchedules) member.habitualSchedules = data.habitualSchedules;
       this.save();
     }
   }
