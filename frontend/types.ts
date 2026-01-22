@@ -70,6 +70,14 @@ export interface Member {
   diets: Diet[];
   payments: PaymentLog[]; // New field for gym fee history
   lastAttendance?: string;
+  // Nueva funcionalidad
+  phase?: 'volumen' | 'deficit' | 'recomposicion' | 'transicion';
+  // Horarios habituales de entrenamiento
+  habitualSchedules?: Array<{
+    day: string; // Ej: 'Lunes'
+    start: string; // Ej: '08:00'
+    end: string;   // Ej: '09:30'
+  }>;
 }
 
 export interface Product {
