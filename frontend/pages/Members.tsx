@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
-import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, MessageCircle, Mail, Download, Edit2 } from 'lucide-react';
+import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
+import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X } from 'lucide-react';
+import { FaWhatsapp } from 'react-icons/fa';
+import { SiGmail } from 'react-icons/si';
 import Toast from '../components/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -13,6 +17,7 @@ interface MembersProps {
 
 const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const [members, setMembers] = useState<Member[]>([]);
+  const { t } = useLanguage();
   const [statusFilter, setStatusFilter] = useState<string | null>(initialFilter || null);
   const [filter, setFilter] = useState('');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -21,6 +26,11 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+
+  // Camera refs
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Data for selected member
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
@@ -29,21 +39,31 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   // New Member Form State
   const [newMember, setNewMember] = useState({
-    firstName: '', lastName: '', email: '', phone: '', status: UserStatus.ACTIVE
+    firstName: '',
+    lastName: '',
+    dni: '',
+    email: '',
+    phone: '',
+    status: UserStatus.ACTIVE,
+    phase: 'volumen',
+    habitualSchedules: [] as { day: string; start: string; end: string }[]
   });
 
   // Edit Member Form State
   const [editMember, setEditMember] = useState({
-    firstName: '', lastName: '', email: '', phone: '', status: UserStatus.ACTIVE
+    firstName: '',
+    lastName: '',
+    dni: '',
+    email: '',
+    phone: '',
+    status: UserStatus.ACTIVE,
+    phase: 'volumen',
+    habitualSchedules: [] as { day: string; start: string; end: string }[]
   });
 
   // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentConcept, setPaymentConcept] = useState('Cuota Mensual');
-  // Assign slot modal
-  const [showAssignSlotModal, setShowAssignSlotModal] = useState(false);
-  const [assignDate, setAssignDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [assignTime, setAssignTime] = useState<string>('08:00');
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
@@ -67,10 +87,15 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
-    db.addMember(newMember);
+    db.addMember({
+      ...newMember,
+      phase: newMember.phase,
+      habitualSchedules: newMember.habitualSchedules
+    });
     setShowAddModal(false);
-    setNewMember({ firstName: '', lastName: '', email: '', phone: '', status: UserStatus.ACTIVE });
+    setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
     refreshMembers();
+    alert(t('cambiosGuardados'));
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,6 +111,53 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       }
   };
 
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      setToast({ message: t('noCamara'), type: 'error' });
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !selectedMember) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    db.updateMemberPhoto(selectedMember.id, dataUrl);
+    stopCamera();
+    setShowCameraModal(false);
+    refreshMembers();
+    setToast({ message: t('fotoCapturada'), type: 'success' });
+  };
+
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
   const handleRegisterPayment = (e: React.FormEvent) => {
       e.preventDefault();
       if(selectedMember) {
@@ -98,13 +170,16 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   const handleOpenEditModal = () => {
       if(selectedMember) {
-          setEditMember({
+            setEditMember({
               firstName: selectedMember.firstName,
               lastName: selectedMember.lastName,
+              dni: selectedMember.dni || '',
               email: selectedMember.email,
               phone: selectedMember.phone,
-              status: selectedMember.status
-          });
+              status: selectedMember.status,
+              phase: selectedMember.phase || 'volumen',
+              habitualSchedules: selectedMember.habitualSchedules ? [...selectedMember.habitualSchedules] : []
+            });
           setShowEditModal(true);
       }
   };
@@ -112,7 +187,11 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const handleSaveEditMember = (e: React.FormEvent) => {
       e.preventDefault();
       if(selectedMember) {
-          db.updateMember(selectedMember.id, editMember);
+          db.updateMember(selectedMember.id, {
+            ...editMember,
+            phase: editMember.phase,
+            habitualSchedules: editMember.habitualSchedules
+          });
           setShowEditModal(false);
           refreshMembers();
       }
@@ -141,6 +220,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     return daysWithoutPayment >= 30 && daysWithoutPayment < 60;
   };
 
+
   // Helper: Check if member is current (paid recently - within last 30 days)
   const isCurrentOnPayment = (member: Member): boolean => {
     if (member.status !== UserStatus.ACTIVE) return false;
@@ -154,6 +234,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       return days < 30;
     });
   };
+
 
   // --- FUNCIÓN PARA NORMALIZAR TEXTO (QUITAR TILDES) ---
   const normalizeText = (text: string) => {
@@ -173,19 +254,19 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                           memberFirstName.includes(searchTerm);
                           
     const matchesStatus = !statusFilter || 
-                         (statusFilter === 'active' && m.status === UserStatus.ACTIVE) ||
-                         (statusFilter === 'debtor' && m.status === UserStatus.DEBTOR) ||
-                         (statusFilter === 'inactive' && m.status === UserStatus.INACTIVE) ||
-                         (statusFilter === 'current' && isCurrentOnPayment(m)) ||
-                         (statusFilter === 'dueSoon' && isPaymentDueSoon(m)) ||
-                         (statusFilter === 'all' && true);
+               (statusFilter === 'active' && m.status === UserStatus.ACTIVE) ||
+               (statusFilter === 'debtor' && isDebtorByPayment(m)) ||
+               (statusFilter === 'inactive' && m.status === UserStatus.INACTIVE) ||
+               (statusFilter === 'current' && isCurrentOnPayment(m)) ||
+               (statusFilter === 'dueSoon' && isPaymentDueSoon(m)) ||
+               (statusFilter === 'all' && true);
     return matchesSearch && matchesStatus;
   });
 
   // Counts for dashboard cards
   const totalCount = members.length;
   const alDiaCount = members.filter(m => isCurrentOnPayment(m)).length;
-  const debtorsCount = members.filter(m => m.status === UserStatus.DEBTOR).length;
+  const debtorsCount = members.filter(m => isDebtorByPayment(m)).length;
   const dueSoonCount = members.filter(m => isPaymentDueSoon(m)).length;
   const inactiveCount = members.filter(m => m.status === UserStatus.INACTIVE).length;
 
@@ -424,11 +505,18 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
               {/* Header Profile Card */}
               <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-gray-900 to-black"></div>
-                  <button 
+                  <button
                     onClick={() => setSelectedMember(null)}
-                    className="absolute top-4 left-4 z-10 bg-black/50 hover:bg-black text-white p-2 rounded-full transition-colors"
+                    className="fixed md:absolute z-50 bg-black/70 hover:bg-black text-white w-12 h-12 flex items-center justify-center rounded-full transition-colors shadow-lg cursor-pointer"
+                    style={{
+                      top: '24px',
+                      left: '24px',
+                      pointerEvents: 'auto',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
+                    }}
+                    aria-label="Volver"
                   >
-                      <ArrowLeft size={20} />
+                    <ArrowLeft size={28} />
                   </button>
 
                   <div className="relative z-10 flex flex-col md:flex-row items-center md:items-end gap-6 pt-8">
@@ -441,23 +529,64 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                   <div className="w-full h-full flex items-center justify-center text-4xl">🦁</div>
                               )}
                           </div>
-                          <label className="absolute bottom-0 right-0 bg-brand-gold text-black p-2 rounded-full cursor-pointer hover:bg-yellow-500 transition-colors shadow-lg">
-                              <Camera size={18} />
-                              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                          </label>
+                          <div className="absolute bottom-0 right-0 flex gap-1">
+                              <label className="bg-brand-gold text-black p-2 rounded-full cursor-pointer hover:bg-yellow-500 transition-colors shadow-lg">
+                                  <Camera size={18} title="Subir foto" />
+                                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                              </label>
+                              <button 
+                                onClick={() => { setShowCameraModal(true); startCamera(); }}
+                                className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+                                title="Tomar foto con cámara"
+                              >
+                                  <Camera size={18} />
+                              </button>
+                          </div>
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 text-center md:text-left mb-2">
                           <h2 className="text-3xl font-display font-bold text-white uppercase tracking-wider">
-                              {selectedMember.lastName}, {selectedMember.firstName}
+                              {selectedMember.firstName} {selectedMember.lastName}
                           </h2>
-                          <div className="flex items-center justify-center md:justify-start gap-4 text-gray-400 mt-2">
-                              <span>{selectedMember.email}</span>
-                              <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-                              <span>{selectedMember.phone}</span>
-                              <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-                              <span>Miembro desde {new Date(selectedMember.joinDate).getFullYear()}</span>
+                          <div className="flex flex-col gap-3 mt-3">
+                              <div className="flex items-center justify-center md:justify-start gap-2 text-gray-400 text-sm flex-wrap">
+                                  <span className="flex items-center gap-1"><Mail size={14} /> {selectedMember.email}</span>
+                                  <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
+                                  <span className="flex items-center gap-1"><Phone size={14} /> {selectedMember.phone}</span>
+                              </div>
+                              {selectedMember.dni && (
+                                <div className="bg-brand-gold/10 border border-brand-gold/30 px-3 py-2 rounded inline-block w-fit">
+                                  <span className="text-xs text-gray-400">DNI: </span>
+                                  <span className="text-brand-gold font-bold text-sm">{selectedMember.dni}</span>
+                                </div>
+                              )}
+                              <span className="text-xs text-gray-500">Miembro desde {new Date(selectedMember.joinDate).toLocaleDateString('es-ES')}</span>
+
+                              {/* Fase de objetivo */}
+                              <div className="mt-2">
+                                <span className="text-xs text-gray-400 mr-2">Fase/Objetivo:</span>
+                                <span className="font-bold text-brand-gold text-sm">
+                                  {selectedMember.phase === 'volumen' && 'Volumen'}
+                                  {selectedMember.phase === 'deficit' && 'Déficit'}
+                                  {selectedMember.phase === 'recomposicion' && 'Recomposición corporal'}
+                                  {selectedMember.phase === 'transicion' && 'Transición (volumen-défict)'}
+                                </span>
+                              </div>
+
+                              {/* Horarios habituales */}
+                              {selectedMember.habitualSchedules && selectedMember.habitualSchedules.length > 0 && (
+                                <div className="mt-2">
+                                  <span className="text-xs text-gray-400 block mb-1">Horarios habituales:</span>
+                                  <ul className="text-sm text-white">
+                                    {selectedMember.habitualSchedules.map((sch, idx) => (
+                                      <li key={idx} className="mb-1">
+                                        <span className="font-semibold text-brand-gold">{sch.day}:</span> {sch.start} - {sch.end}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                           </div>
                       </div>
 
@@ -491,12 +620,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                           {(selectedMember.status === UserStatus.DEBTOR || selectedMember.status === UserStatus.INACTIVE) && (
                               <div className="flex items-center gap-1">
                                   <span className="text-xs text-gray-500 mr-1">Recordar pago:</span>
-                                  <button onClick={() => sendPaymentReminder('wa')} className="p-2 bg-green-900/40 text-green-400 rounded-full hover:bg-green-800 transition-colors" title="Enviar WhatsApp">
-                                      <MessageCircle size={16} />
-                                  </button>
-                                  <button onClick={() => sendPaymentReminder('email')} className="p-2 bg-blue-900/40 text-blue-400 rounded-full hover:bg-blue-800 transition-colors" title="Enviar Email">
-                                      <Mail size={16} />
-                                  </button>
+                                    <button onClick={() => sendPaymentReminder('wa')} className="p-2 bg-green-900/40 text-green-400 rounded-full hover:bg-green-800 transition-colors" title="Enviar WhatsApp">
+                                      <FaWhatsapp size={16} />
+                                    </button>
+                                    <button onClick={() => sendPaymentReminder('email')} className="p-2 bg-red-900/40 text-red-400 rounded-full hover:bg-red-800 transition-colors" title="Enviar Gmail">
+                                      <SiGmail size={16} />
+                                    </button>
                               </div>
                           )}
                       </div>
@@ -531,14 +660,14 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                                     className="p-2 text-green-500 hover:bg-green-900/30 rounded-full transition-colors" 
                                                     title="Enviar PDF por WhatsApp"
                                                   >
-                                                      <MessageCircle size={18} />
+                                                      <FaWhatsapp size={18} />
                                                   </button>
                                                   <button 
                                                     onClick={(e) => handleShareRoutine(e, 'email', routine)}
-                                                    className="p-2 text-blue-500 hover:bg-blue-900/30 rounded-full transition-colors" 
-                                                    title="Enviar PDF por Email"
+                                                    className="p-2 text-red-500 hover:bg-red-900/30 rounded-full transition-colors" 
+                                                    title="Enviar PDF por Gmail"
                                                   >
-                                                      <Mail size={18} />
+                                                      <SiGmail size={18} />
                                                   </button>
                                                   <button onClick={() => setExpandedRoutineId(expandedRoutineId === routine.id ? null : routine.id)} className="text-gray-400 p-2">
                                                       {expandedRoutineId === routine.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -698,6 +827,66 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
                     <h3 className="text-lg font-bold text-white mb-4">Editar Cliente</h3>
                     <form onSubmit={handleSaveEditMember} className="space-y-4">
+                                  {/* Fase de objetivo */}
+                                  <div>
+                                    <label className="text-xs text-gray-400 block mb-1">Fase/Objetivo</label>
+                                    <select
+                                      value={editMember.phase}
+                                      onChange={e => setEditMember({ ...editMember, phase: e.target.value as any })}
+                                      className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                                    >
+                                      <option value="volumen">Volumen</option>
+                                      <option value="deficit">Déficit</option>
+                                      <option value="recomposicion">Recomposición corporal</option>
+                                      <option value="transicion">Transición (volumen-défict)</option>
+                                    </select>
+                                  </div>
+
+                                  {/* Horarios habituales */}
+                                  <div>
+                                    <label className="text-xs text-gray-400 block mb-1">Horarios habituales de entrenamiento</label>
+                                    {(editMember.habitualSchedules || []).map((sch, idx) => (
+                                      <div key={idx} className="flex gap-2 mb-2">
+                                        <input
+                                          type="text"
+                                          placeholder="Día (ej: Lunes)"
+                                          value={sch.day}
+                                          onChange={e => {
+                                            const arr = [...editMember.habitualSchedules];
+                                            arr[idx].day = e.target.value;
+                                            setEditMember({ ...editMember, habitualSchedules: arr });
+                                          }}
+                                          className="bg-black border border-gray-600 text-white p-2 rounded w-1/3"
+                                        />
+                                        <input
+                                          type="time"
+                                          value={sch.start}
+                                          onChange={e => {
+                                            const arr = [...editMember.habitualSchedules];
+                                            arr[idx].start = e.target.value;
+                                            setEditMember({ ...editMember, habitualSchedules: arr });
+                                          }}
+                                          className="bg-black border border-gray-600 text-white p-2 rounded w-1/3"
+                                        />
+                                        <input
+                                          type="time"
+                                          value={sch.end}
+                                          onChange={e => {
+                                            const arr = [...editMember.habitualSchedules];
+                                            arr[idx].end = e.target.value;
+                                            setEditMember({ ...editMember, habitualSchedules: arr });
+                                          }}
+                                          className="bg-black border border-gray-600 text-white p-2 rounded w-1/3"
+                                        />
+                                        <button type="button" onClick={() => {
+                                          const arr = [...editMember.habitualSchedules];
+                                          arr.splice(idx, 1);
+                                          setEditMember({ ...editMember, habitualSchedules: arr });
+                                        }} className="text-red-400">Eliminar</button>
+                                      </div>
+                                    ))}
+                                    <button type="button" onClick={() => setEditMember({ ...editMember, habitualSchedules: [...(editMember.habitualSchedules || []), { day: '', start: '', end: '' }] })} className="text-xs text-brand-gold mt-1">Agregar horario</button>
+                                  </div>
                       <div>
                           <label className="text-xs text-gray-400 block mb-1">Nombre</label>
                           <input 
@@ -718,6 +907,17 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                               onChange={e => setEditMember({...editMember, lastName: e.target.value})}
                               className="w-full bg-black border border-gray-600 text-white p-2 rounded"
                               placeholder="Apellido"
+                          />
+                      </div>
+                      <div>
+                          <label className="text-xs text-gray-400 block mb-1">DNI</label>
+                          <input 
+                              type="text"
+                              required
+                              value={editMember.dni}
+                              onChange={e => setEditMember({...editMember, dni: e.target.value})}
+                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                              placeholder="DNI"
                           />
                       </div>
                       <div>
@@ -960,7 +1160,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                             <Toast message={toast.message} type={toast.type} duration={3500} onClose={() => setToast(null)} />
                         )}
                         <div>
-                            <div className="font-bold text-white group-hover:text-brand-gold transition-colors">{member.lastName}, {member.firstName}</div>
+                            <div className="font-bold text-white group-hover:text-brand-gold transition-colors">{member.firstName} {member.lastName}</div>
                             <div className="text-xs text-gray-500">Desde: {new Date(member.joinDate).toLocaleDateString()}</div>
                         </div>
                     </div>
@@ -971,24 +1171,35 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                      ${member.status === UserStatus.ACTIVE ? 'bg-green-900 text-green-200' : 
-                        member.status === UserStatus.DEBTOR ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-300'}`}>
-                      {member.status === UserStatus.ACTIVE ? 'Al Día' : 
-                       member.status === UserStatus.DEBTOR ? 'Moroso' : 'Inactivo'}
+                      ${isCurrentOnPayment(member) ? 'bg-green-900 text-green-200' : 
+                        isDebtorByPayment(member) ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-300'}`}>
+                      {isCurrentOnPayment(member) ? t('alDia') : 
+                       isDebtorByPayment(member) ? t('moroso') : t('inactivo')}
                     </span>
                   </td>
                   <td className="p-4 text-right space-x-2" onClick={e => e.stopPropagation()}>
                     <button 
                         onClick={(e) => toggleStatus(e, member.id, member.status)}
                         className="p-2 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded transition" 
-                        title="Cambiar Estado"
+                        title={t('cambiarEstado')}
                     >
                         <Clock size={16} />
                     </button>
-                    {member.status === UserStatus.DEBTOR && (
-                        <button className="p-2 text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 rounded transition" title="Notificar Deuda">
-                            <UserX size={16} />
-                        </button>
+                    {isDebtorByPayment(member) && (
+                      <button
+                        className="p-2 text-green-400 hover:text-green-300 bg-green-900/20 hover:bg-green-900/40 rounded transition"
+                        title={t('notificarDeuda')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const msgText = t('mensajeWhatsapp', { nombre: member.firstName });
+                          const phone = member.phone.replace(/\D/g, '').replace(/^0/, '');
+                          const waPhone = phone.startsWith('54') ? phone : `549${phone}`;
+                          const url = `https://wa.me/${waPhone}?text=${encodeURIComponent(msgText)}`;
+                          window.open(url, '_blank');
+                        }}
+                      >
+                        <FaWhatsapp size={16} />
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -996,7 +1207,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
             </tbody>
           </table>
           {filteredMembers.length === 0 && (
-            <div className="p-8 text-center text-gray-500">No se encontraron socios.</div>
+            <div className="p-8 text-center text-gray-500">{t('noSocios')}</div>
           )}
         </div>
       </div>
@@ -1005,42 +1216,150 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-lg border border-gray-700">
-            <h3 className="text-xl font-bold text-white mb-4">Registrar Nuevo Socio</h3>
+            <h3 className="text-xl font-bold text-white mb-4">{t('registrarSocio')}</h3>
             <form onSubmit={handleAddMember} className="space-y-4">
+                            {/* Fase de objetivo */}
+                            <div>
+                              <label className="text-xs text-gray-400 block mb-1">Fase/Objetivo</label>
+                              <select
+                                value={newMember.phase}
+                                onChange={e => setNewMember({ ...newMember, phase: e.target.value as any })}
+                                className="w-full bg-black border border-gray-700 text-white p-2 rounded"
+                              >
+                                <option value="volumen">Volumen</option>
+                                <option value="deficit">Déficit</option>
+                                <option value="recomposicion">Recomposición corporal</option>
+                                <option value="transicion">Transición (volumen-défict)</option>
+                              </select>
+                            </div>
+
+                            {/* Horarios habituales */}
+                            <div>
+                              <label className="text-xs text-gray-400 block mb-1">Horarios habituales de entrenamiento</label>
+                              {(newMember.habitualSchedules || []).map((sch, idx) => (
+                                <div key={idx} className="flex gap-2 mb-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Día (ej: Lunes)"
+                                    value={sch.day}
+                                    onChange={e => {
+                                      const arr = [...newMember.habitualSchedules];
+                                      arr[idx].day = e.target.value;
+                                      setNewMember({ ...newMember, habitualSchedules: arr });
+                                    }}
+                                    className="bg-black border border-gray-700 text-white p-2 rounded w-1/3"
+                                  />
+                                  <input
+                                    type="time"
+                                    value={sch.start}
+                                    onChange={e => {
+                                      const arr = [...newMember.habitualSchedules];
+                                      arr[idx].start = e.target.value;
+                                      setNewMember({ ...newMember, habitualSchedules: arr });
+                                    }}
+                                    className="bg-black border border-gray-700 text-white p-2 rounded w-1/3"
+                                  />
+                                  <input
+                                    type="time"
+                                    value={sch.end}
+                                    onChange={e => {
+                                      const arr = [...newMember.habitualSchedules];
+                                      arr[idx].end = e.target.value;
+                                      setNewMember({ ...newMember, habitualSchedules: arr });
+                                    }}
+                                    className="bg-black border border-gray-700 text-white p-2 rounded w-1/3"
+                                  />
+                                  <button type="button" onClick={() => {
+                                    const arr = [...newMember.habitualSchedules];
+                                    arr.splice(idx, 1);
+                                    setNewMember({ ...newMember, habitualSchedules: arr });
+                                  }} className="text-red-400">Eliminar</button>
+                                </div>
+                              ))}
+                              <button type="button" onClick={() => setNewMember({ ...newMember, habitualSchedules: [...(newMember.habitualSchedules || []), { day: '', start: '', end: '' }] })} className="text-xs text-brand-gold mt-1">Agregar horario</button>
+                            </div>
               <div className="grid grid-cols-2 gap-4">
                 <input 
                   required
-                  placeholder="Nombre" 
+                  placeholder={t('nombre')} 
                   value={newMember.firstName}
                   onChange={e => setNewMember({...newMember, firstName: e.target.value})}
                   className="bg-black border border-gray-700 p-3 rounded text-white"
                 />
                 <input 
                   required
-                  placeholder="Apellido" 
+                  placeholder={t('apellido')} 
                   value={newMember.lastName}
                   onChange={e => setNewMember({...newMember, lastName: e.target.value})}
                   className="bg-black border border-gray-700 p-3 rounded text-white"
                 />
               </div>
               <input 
+                type="text"
+                required
+                placeholder={t('dniRequerido')} 
+                value={newMember.dni}
+                onChange={e => setNewMember({...newMember, dni: e.target.value})}
+                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
+              />
+              <input 
                 type="email"
-                placeholder="Email" 
+                placeholder={t('email')} 
                 value={newMember.email}
                 onChange={e => setNewMember({...newMember, email: e.target.value})}
                 className="w-full bg-black border border-gray-700 p-3 rounded text-white"
               />
               <input 
-                placeholder="Teléfono (Ej: 221 555 0101)" 
+                placeholder={t('telefonoEjemplo')} 
                 value={newMember.phone}
                 onChange={e => setNewMember({...newMember, phone: e.target.value})}
                 className="w-full bg-black border border-gray-700 p-3 rounded text-white"
               />
               <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-gray-400 hover:text-white">Cancelar</button>
-                <button type="submit" className="px-6 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500">Guardar</button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-gray-400 hover:text-white">{t('cancelar')}</button>
+                <button type="submit" className="px-6 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500">{t('guardar')}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Camera Modal */}
+      {showCameraModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0b0b0b] p-6 rounded-xl border border-gray-800 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-white">{t('capturarFoto')}</h3>
+              <button 
+                onClick={() => { setShowCameraModal(false); stopCamera(); }} 
+                className="text-gray-400 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="bg-black rounded-lg overflow-hidden mb-4">
+              <video 
+                ref={videoRef} 
+                className="w-full aspect-video object-cover"
+                playsInline
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowCameraModal(false); stopCamera(); }}
+                className="flex-1 px-4 py-2 text-gray-400 hover:text-white border border-gray-700 rounded"
+              >
+                {t('cancelar')}
+              </button>
+              <button
+                onClick={capturePhoto}
+                className="flex-1 px-4 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500"
+              >
+                <Camera size={18} className="inline mr-2" /> {t('capturar')}
+              </button>
+            </div>
           </div>
         </div>
       )}

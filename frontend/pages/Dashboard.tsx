@@ -1,7 +1,14 @@
+  // ...existing code...
+  // ...existing code...
+
+  // Obtener ausencias recientes (no asistió en los últimos 7 días)
+  // Esta línea debe ir justo antes del return para evitar ReferenceError
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
-import { Member, UserStatus, Reminder } from '../types';
-import { Users, AlertCircle, TrendingUp, DollarSign, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Member, UserStatus, Reminder, Slot, Reservation } from '../types';
+import { isCurrentOnPayment, isDebtorByPayment } from '../services/membershipUtils';
+import { Users, AlertCircle, TrendingUp, DollarSign, Plus, Edit2, Trash2, CreditCard, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
@@ -13,6 +20,8 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [members, setMembers] = useState<Member[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isDirty, setIsDirty] = useState(false);
   const [showAddReminderModal, setShowAddReminderModal] = useState(false);
   const [showEditReminderModal, setShowEditReminderModal] = useState(false);
@@ -29,6 +38,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setMembers(allMembers);
     const list = db.getReminders();
     setReminders(list);
+    const allSlots = db.getSlots();
+    setSlots(allSlots);
+    const allReservations = db.getReservations();
+    setReservations(allReservations);
   }, []);
 
   // Block navigation when there are unsaved changes
@@ -36,13 +49,39 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setCanNavigate(!isDirty);
   }, [isDirty, setCanNavigate]);
 
-  const activeMembers = members.filter(m => m.status === UserStatus.ACTIVE).length;
-  const debtors = members.filter(m => m.status === UserStatus.DEBTOR).length;
 
+  // Usar lógica consistente con Members.tsx
+  const activeMembers = members.filter(m => m.status === UserStatus.ACTIVE).length;
+  const debtors = members.filter(m => isDebtorByPayment(m)).length;
+  const currentMembers = members.filter(m => isCurrentOnPayment(m)).length;
+
+  // Obtener turnos de hoy con reservaciones
+  const getTodaySlots = () => {
+    const now = new Date();
+    const todayLocal = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    return slots
+      .filter(s => s.date === todayLocal)
+      .filter(s => reservations.some(r => r.slotId === s.id))
+      .sort((a, b) => a.time.localeCompare(b.time));
+  };
+
+  // Calcular ingresos de hoy
+  const getTodayIncome = () => {
+    const hoy = new Date().toISOString().split('T')[0];
+    const ventasHoy = db.getAllSales().filter(venta => {
+      const fechaVenta = new Date(venta.date).toISOString().split('T')[0];
+      return fechaVenta === hoy;
+    });
+    return ventasHoy.reduce((acc, venta) => acc + venta.total, 0);
+  };
+
+  const todayIncome = getTodayIncome();
+
+  const inactiveMembers = members.filter(m => m.status === UserStatus.INACTIVE).length;
   const data = [
     { name: 'Activos', value: activeMembers, color: '#4ade80' },
     { name: 'Morosos', value: debtors, color: '#ef4444' },
-    { name: 'Inactivos', value: members.length - activeMembers - debtors, color: '#9ca3af' },
+    { name: 'Inactivos', value: inactiveMembers, color: '#9ca3af' },
   ];
 
   const handleAddReminder = () => {
@@ -104,10 +143,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleNavigateToIngresos = () => {
+    onNavigate('Ingresos');
+  };
+
+  const ausenciasRecientes = reservations.filter(r => r.attended === false && r.slotId && slots.find(s => s.id === r.slotId && new Date(s.date) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)));
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <button onClick={() => onNavigate('members')} className="text-left hover:opacity-80 transition">
           <StatCard 
             title="Socios Totales" 
@@ -124,6 +168,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             color="text-green-500" 
           />
         </button>
+        <button onClick={() => onNavigate('members', 'current')} className="text-left hover:opacity-80 transition">
+          <StatCard 
+            title="Al Día" 
+            value={currentMembers} 
+            icon={CreditCard} 
+            color="text-blue-500" 
+          />
+        </button>
         <button onClick={() => onNavigate('members', 'debtor')} className="text-left hover:opacity-80 transition">
           <StatCard 
             title="Morosos" 
@@ -133,10 +185,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             bg="bg-red-500/10"
           />
         </button>
-        <button onClick={() => onNavigate('admin')} className="text-left hover:opacity-80 transition">
+        <button onClick={handleNavigateToIngresos} className="text-left hover:opacity-80 transition">
           <StatCard 
             title="Ingresos (Hoy)" 
-            value={`$0`} 
+            value={`$${todayIncome.toFixed(2)}`} 
             icon={DollarSign} 
             color="text-brand-gold" 
           />
@@ -144,6 +196,53 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Tarjeta de Ausencias Recientes */}
+                <div className="bg-[#1a1a1a] p-6 rounded-xl border border-red-800">
+                  <h3 className="text-lg font-display font-bold text-red-400 mb-4 flex items-center gap-2">
+                    <AlertCircle size={20} className="text-red-400" /> Ausencias recientes
+                  </h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {ausenciasRecientes.length === 0 ? (
+                      <p className="text-gray-500 text-sm text-center py-4">Sin ausencias registradas</p>
+                    ) : (
+                      ausenciasRecientes.map(r => {
+                        const slot = slots.find(s => s.id === r.slotId);
+                        // Buscar el número actualizado del socio
+                        const socio = members.find(m => m.id === r.memberId);
+                        const phone = socio?.phone || r.clientPhone || '';
+                        return (
+                          <div key={r.id} className="bg-black/40 p-2 rounded border border-red-700 flex items-center justify-between gap-2">
+                            <div>
+                              <p className="text-xs text-white font-bold">{r.clientName}</p>
+                              <p className="text-xs text-gray-400">{slot ? `${slot.date} ${slot.time}` : ''}</p>
+                              {phone && <p className="text-xs text-gray-500">{phone}</p>}
+                            </div>
+                            <button
+                              className="p-1 rounded bg-brand-gold text-black hover:bg-yellow-500 text-xs font-bold"
+                              title="Notificar socio"
+                              onClick={() => {
+                                // Normalizar número para WhatsApp
+                                let wpp = phone.replace(/\D/g, '');
+                                if (wpp.startsWith('549')) {
+                                  // OK
+                                } else if (wpp.startsWith('54')) {
+                                  wpp = '549' + wpp.substring(2);
+                                } else if (wpp.startsWith('0')) {
+                                  wpp = '549' + wpp.substring(1);
+                                } else {
+                                  wpp = '549' + wpp;
+                                }
+                                window.open(`https://wa.me/${wpp}`, '_blank');
+                              }}
+                            >
+                              Notificar
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
         {/* Main Chart */}
         <div className="lg:col-span-2 bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
           <h3 className="text-lg font-display font-bold text-white mb-6">Estado de la Membresía</h3>
@@ -154,9 +253,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <BarChart data={data} layout="vertical">
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" stroke="#9ca3af" width={100} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                  cursor={{fill: 'transparent'}}
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#111', border: '1px solid #333', color: '#fff' }}
+                  cursor={{ fill: 'transparent' }}
+                  formatter={(value) => [`${value}`, 'Cantidad:']}
+                  labelStyle={{ color: '#fff' }}
+                  itemStyle={{ color: '#fff' }}
                 />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={32}>
                   {data.map((entry, index) => (
@@ -166,6 +268,46 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </div>
+
+        {/* Turnos Reservados para Hoy - Movido aqui */}
+        <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
+          <h3 className="text-lg font-display font-bold text-white mb-4 flex items-center gap-2">
+            <Clock size={20} className="text-brand-gold" /> Turnos Hoy
+          </h3>
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {getTodaySlots().length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-8">Sin turnos hoy</p>
+            ) : (
+              getTodaySlots().map(slot => {
+                const slotReservations = reservations.filter(r => r.slotId === slot.id);
+                return (
+                  <div key={slot.id} className="bg-black/40 p-2 rounded border border-brand-gold/30 hover:border-brand-gold/60 transition">
+                    <p className="font-bold text-white text-sm flex items-center gap-2">
+                      <Clock size={14} className="text-brand-gold" />
+                      {slot.time} 
+                      <span className="text-xs bg-gray-700/50 px-2 py-0.5 rounded">
+                        {slotReservations.length}
+                      </span>
+                    </p>
+                    {slot.target && <p className="text-xs text-gray-400 mt-0.5">📌 {slot.target}</p>}
+                    <div className="mt-1 flex flex-wrap gap-0.5">
+                      {slotReservations.slice(0, 2).map(r => (
+                        <span key={r.id} className="text-xs bg-brand-gold/20 border border-brand-gold/40 px-1.5 py-0.5 rounded text-brand-gold truncate max-w-24">
+                          {r.clientName}
+                        </span>
+                      ))}
+                      {slotReservations.length > 2 && (
+                        <span className="text-xs bg-gray-700/40 px-1.5 py-0.5 rounded text-gray-400">
+                          +{slotReservations.length - 2}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
