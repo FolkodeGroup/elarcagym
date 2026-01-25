@@ -1,12 +1,19 @@
 
 import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine, Reminder, Slot, Reservation } from '../types';
 
+// Helper function to generate fake DNI
+const generateFakeDNI = (index: number): string => {
+  const base = 20000000 + (index * 123456);
+  return base.toString();
+};
+
 // Mock Data Initialization
 const INITIAL_MEMBERS: Member[] = [
   {
     id: '1',
     firstName: 'Juan',
     lastName: 'Pérez',
+    dni: generateFakeDNI(1),
     email: 'juan@example.com',
     phone: '555-0101',
     joinDate: '2023-01-15',
@@ -27,6 +34,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '2',
     firstName: 'Maria',
     lastName: 'Gomez',
+    dni: generateFakeDNI(2),
     email: 'maria@example.com',
     phone: '555-0202',
     joinDate: '2023-03-10',
@@ -45,6 +53,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '3',
     firstName: 'Carlos',
     lastName: 'López',
+    dni: generateFakeDNI(3),
     email: 'carlos@example.com',
     phone: '5491123456789',
     joinDate: '2023-06-20',
@@ -65,6 +74,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '4',
     firstName: 'Ana',
     lastName: 'Rodríguez',
+    dni: generateFakeDNI(4),
     email: 'ana@example.com',
     phone: '5491234567890',
     joinDate: '2024-01-10',
@@ -81,6 +91,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '5',
     firstName: 'Diego',
     lastName: 'Martínez',
+    dni: generateFakeDNI(5),
     email: 'diego@example.com',
     phone: '5491987654321',
     joinDate: '2024-02-15',
@@ -99,6 +110,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '6',
     firstName: 'Sofia',
     lastName: 'García',
+    dni: generateFakeDNI(6),
     email: 'sofia@example.com',
     phone: '5491122334455',
     joinDate: '2024-03-20',
@@ -115,6 +127,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '7',
     firstName: 'Luis',
     lastName: 'Fernández',
+    dni: generateFakeDNI(7),
     email: 'luis@example.com',
     phone: '5491556677889',
     joinDate: '2024-04-05',
@@ -132,6 +145,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '8',
     firstName: 'Miguel',
     lastName: 'Sánchez',
+    dni: generateFakeDNI(8),
     email: 'miguel@example.com',
     phone: '5491998776655',
     joinDate: '2024-05-12',
@@ -148,6 +162,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '9',
     firstName: 'Patricia',
     lastName: 'Torres',
+    dni: generateFakeDNI(9),
     email: 'patricia@example.com',
     phone: '5491334455667',
     joinDate: '2024-06-08',
@@ -165,6 +180,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '10',
     firstName: 'Roberto',
     lastName: 'Díaz',
+    dni: generateFakeDNI(10),
     email: 'roberto@example.com',
     phone: '5491776655443',
     joinDate: '2023-08-30',
@@ -182,6 +198,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '11',
     firstName: 'Gabriela',
     lastName: 'Ruiz',
+    dni: generateFakeDNI(11),
     email: 'gabriela@example.com',
     phone: '5491667788990',
     joinDate: '2024-07-14',
@@ -199,6 +216,7 @@ const INITIAL_MEMBERS: Member[] = [
     id: '12',
     firstName: 'Fernando',
     lastName: 'Castillo',
+    dni: generateFakeDNI(12),
     email: 'fernando@example.com',
     phone: '5491445566778',
     joinDate: '2024-08-22',
@@ -232,16 +250,11 @@ const INITIAL_EXERCISES: ExerciseMaster[] = [
   { id: 'e10', name: 'Plancha Abdominal', category: 'Core' },
 ];
 
-// Helper: Generate initial slots for a week using the gym's schedule
-// Morning slots (90 min): 08:00-09:30, 09:00-10:30, 10:00-11:30
-// Afternoon slots (90 min): 13:00-14:30, 14:30-16:00, 16:00-17:30, 17:30-19:00, 19:00-20:30, 20:30-22:00
+// Helper: Generate initial slots for a week (8 slots per day, 1 hour each)
 const generateInitialSlots = (): Slot[] => {
   const slots: Slot[] = [];
   const today = new Date();
-  const times = [
-    '08:00', '09:00', '10:00',
-    '13:00', '14:30', '16:00', '17:30', '19:00', '20:30'
-  ];
+  const times = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00'];
   
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
     const date = new Date(today);
@@ -253,7 +266,7 @@ const generateInitialSlots = (): Slot[] => {
         id: Math.random().toString(36).substr(2, 9),
         date: dateStr,
         time,
-        duration: 90,
+        duration: 60,
         status: 'available'
       });
     });
@@ -269,14 +282,13 @@ class MockDB {
     const stored = localStorage.getItem('el_arca_db');
     if (stored) {
       this.state = JSON.parse(stored);
-
-      // Ensure core arrays exist
+      // Migration: ensure core arrays exist
       if (!this.state.exercises) this.state.exercises = INITIAL_EXERCISES;
       if (!this.state.reminders) this.state.reminders = [];
       if (!this.state.slots) this.state.slots = generateInitialSlots();
       if (!this.state.reservations) this.state.reservations = [];
 
-      // Merge initial members (avoid duplicates)
+      // Migration: ensure members array contains any new initial members (merge, avoid duplicates)
       const existingIds = new Set(this.state.members.map(m => m.id));
       let added = false;
       INITIAL_MEMBERS.forEach(initM => {
@@ -286,73 +298,11 @@ class MockDB {
         }
       });
 
-      // Ensure members fields exist
+      // Migration: Check if members have payments and photoUrl fields
       this.state.members.forEach(m => {
           if (!m.payments) m.payments = [];
           if (!m.photoUrl) m.photoUrl = '';
       });
-
-      // Automatic migration to schemaVersion 1: update slots to new schedule (90min)
-      const currentVersion = (this.state as any).schemaVersion || 0;
-      if (currentVersion < 1) {
-        try {
-          // Backup current DB
-          const backupKey = `el_arca_db_backup_${Date.now()}`;
-          localStorage.setItem(backupKey, stored);
-          console.log('[MockDB] Backup created:', backupKey);
-
-          const oldSlots: Slot[] = this.state.slots || [];
-          const oldSlotsById = new Map(oldSlots.map(s => [s.id, s] as [string, Slot]));
-          const newSlots = generateInitialSlots();
-
-          const timeToMinutes = (t: string) => {
-            const [hh, mm] = t.split(':').map(Number);
-            return hh * 60 + mm;
-          };
-
-          // For each reservation, map to a new slot (same date, same or nearest time).
-          this.state.reservations.forEach((res: Reservation) => {
-            const oldSlot = oldSlotsById.get(res.slotId);
-            if (!oldSlot) return;
-            const candidates = newSlots.filter(s => s.date === oldSlot.date);
-            if (candidates.length === 0) {
-              // No candidate on that date: preserve the old slot so reservation isn't lost
-              const preserved = { ...oldSlot };
-              newSlots.push(preserved);
-              res.slotId = preserved.id;
-              return;
-            }
-
-            // Try exact time match first
-            let match = candidates.find(s => s.time === oldSlot.time);
-            if (!match) {
-              // Find nearest by minutes difference
-              const oldM = timeToMinutes(oldSlot.time);
-              let best: Slot | null = null;
-              let bestDiff = Infinity;
-              candidates.forEach(c => {
-                const diff = Math.abs(timeToMinutes(c.time) - oldM);
-                if (diff < bestDiff) {
-                  bestDiff = diff;
-                  best = c;
-                }
-              });
-              match = best || null;
-            }
-
-            if (match) {
-              res.slotId = match.id;
-            }
-          });
-
-          // Replace slots with the new set and set schema version
-          this.state.slots = newSlots;
-          (this.state as any).schemaVersion = 1;
-          console.log('[MockDB] Migrated to schemaVersion 1 — slots updated.');
-        } catch (err) {
-          console.error('[MockDB] Migration to v1 failed:', err);
-        }
-      }
 
       if (added) this.save();
     } else {
@@ -395,10 +345,18 @@ class MockDB {
 
   // Members
   getMembers() {
-    return this.state.members;
+    // Return a copy sorted by lastName then firstName (case-insensitive, accent-insensitive)
+    return [...this.state.members].sort((a, b) => {
+      const lastCompare = a.lastName.localeCompare(b.lastName, 'es', { sensitivity: 'base' });
+      if (lastCompare !== 0) return lastCompare;
+      return a.firstName.localeCompare(b.firstName, 'es', { sensitivity: 'base' });
+    });
   }
 
   addMember(member: Omit<Member, 'id' | 'joinDate' | 'biometrics' | 'routines' | 'diets' | 'payments'>) {
+    if (!member.dni || member.dni.trim() === '') {
+      throw new Error('El DNI es requerido');
+    }
     const newMember: Member = {
       ...member,
       id: Math.random().toString(36).substr(2, 9),
@@ -406,7 +364,9 @@ class MockDB {
       biometrics: [],
       routines: [],
       diets: [],
-      payments: []
+      payments: [],
+      phase: member.phase,
+      habitualSchedules: member.habitualSchedules || []
     };
     this.state.members.push(newMember);
     this.save();
@@ -421,40 +381,19 @@ class MockDB {
     }
   }
 
-  updateMember(id: string, data: { firstName: string; lastName: string; email: string; phone: string; status: UserStatus }) {
+  updateMember(id: string, data: { firstName: string; lastName: string; dni: string; email: string; phone: string; status: UserStatus; phase?: 'volumen' | 'deficit' | 'recomposicion' | 'transicion'; habitualSchedules?: Array<{ day: string; start: string; end: string }> }) {
     const member = this.state.members.find(m => m.id === id);
     if (member) {
       member.firstName = data.firstName;
       member.lastName = data.lastName;
+      member.dni = data.dni;
       member.email = data.email;
       member.phone = data.phone;
       member.status = data.status;
+      if (data.phase) member.phase = data.phase;
+      if (data.habitualSchedules) member.habitualSchedules = data.habitualSchedules;
       this.save();
     }
-  }
-
-  updateMemberAvailability(id: string, availableTimes: string[]) {
-    const member = this.state.members.find(m => m.id === id);
-    if (member) {
-      (member as any).availableTimes = availableTimes;
-      this.save();
-      return member;
-    }
-    return null;
-  }
-
-  // Slots management: allow adding a slot dynamically
-  addSlot(date: string, time: string, duration: number = 90, status: 'available' | 'reserved' | 'occupied' = 'available') {
-    const newSlot: Slot = {
-      id: Math.random().toString(36).substr(2, 9),
-      date,
-      time,
-      duration,
-      status
-    };
-    this.state.slots.push(newSlot);
-    this.save();
-    return newSlot;
   }
 
   updateMemberPhoto(id: string, photoUrl: string) {
@@ -629,6 +568,20 @@ class MockDB {
       return this.state.sales.filter(s => s.memberId === memberId);
   }
 
+  getAllSales() {
+    return this.state.sales || [];
+  }
+
+  deleteSale(saleId: string) {
+    const index = this.state.sales.findIndex(s => s.id === saleId);
+    if (index !== -1) {
+      this.state.sales.splice(index, 1);
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
   // Reminders
   getReminders() {
     return this.state.reminders;
@@ -667,6 +620,16 @@ class MockDB {
     return this.state.slots;
   }
 
+  addSlot(data: Omit<Slot, 'id'>) {
+    const newSlot: Slot = {
+      ...data,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    this.state.slots.push(newSlot);
+    this.save();
+    return newSlot;
+  }
+
   getSlotsByDate(date: string) {
     return this.state.slots.filter(s => s.date === date);
   }
@@ -681,19 +644,39 @@ class MockDB {
     return null;
   }
 
+  deleteSlot(slotId: string) {
+    // Delete all reservations associated with this slot
+    this.state.reservations = this.state.reservations.filter(r => r.slotId !== slotId);
+    // Delete the slot
+    this.state.slots = this.state.slots.filter(s => s.id !== slotId);
+    this.save();
+  }
+
   // Reservations
   getReservations() {
     return this.state.reservations;
   }
 
   addReservation(data: Omit<Reservation, 'id' | 'createdAt'>) {
+    // Check if member is already assigned to this slot
+    if (data.memberId) {
+      const alreadyExists = this.state.reservations.some(
+        r => r.slotId === data.slotId && r.memberId === data.memberId
+      );
+      if (alreadyExists) {
+        console.warn(`Member ${data.memberId} is already assigned to slot ${data.slotId}`);
+        return null; // Return null to indicate failure
+      }
+    }
+
     const newReservation: Reservation = {
       ...data,
       id: Math.random().toString(36).substr(2, 9),
       createdAt: new Date().toISOString()
     };
     this.state.reservations.push(newReservation);
-    // Note: allow multiple reservations per slot — do not force slot status change here
+    // Update slot status to reserved
+    this.updateSlotStatus(data.slotId, 'reserved');
     this.save();
     return newReservation;
   }
@@ -714,18 +697,25 @@ class MockDB {
   deleteReservation(reservationId: string) {
     const reservation = this.state.reservations.find(r => r.id === reservationId);
     if (reservation) {
-      // Remove only the reservation; do not modify slot status to allow multiple occupants
+      // Update slot status back to available
+      this.updateSlotStatus(reservation.slotId, 'available');
     }
     this.state.reservations = this.state.reservations.filter(r => r.id !== reservationId);
     this.save();
   }
 
-  getReservationBySlotId(slotId: string) {
-    return this.state.reservations.find(r => r.slotId === slotId);
+  updateReservationAttendance(reservationId: string, attended: boolean) {
+    const idx = this.state.reservations.findIndex(r => r.id === reservationId);
+    if (idx !== -1) {
+      this.state.reservations[idx].attended = attended;
+      this.save();
+      return this.state.reservations[idx];
+    }
+    return null;
   }
 
-  getReservationsBySlotId(slotId: string) {
-    return this.state.reservations.filter(r => r.slotId === slotId);
+  getReservationBySlotId(slotId: string) {
+    return this.state.reservations.find(r => r.slotId === slotId);
   }
 }
 

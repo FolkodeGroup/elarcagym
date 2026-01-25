@@ -1,0 +1,184 @@
+/* Tema Claro - Light Theme */
+.light-theme {
+  --color-bg-dark: #f5f5f5;
+  --color-bg-light: #ffffff;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #666666;
+  --color-border: #e0e0e0;
+  --color-hover-bg: #eeeeee;
+}
+
+.light-theme {
+  /* Fondo general */
+  background-color: #f5f5f5 !important;
+  color: #1a1a1a !important;
+}
+
+.light-theme .bg-brand-dark {
+  background-color: #f5f5f5 !important;
+}
+
+.light-theme .bg-\[\#1a1a1a\],
+.light-theme .bg-\[\#0b0b0b\],
+.light-theme .bg-\[#111\],
+.light-theme .bg-black {
+  background-color: #ffffff !important;
+}
+
+.light-theme .text-white {
+  color: #1a1a1a !important;
+}
+
+.light-theme .text-gray-400 {
+  color: #999999 !important;
+}
+
+.light-theme .text-gray-300 {
+  color: #aaaaaa !important;
+}
+
+.light-theme .text-gray-500 {
+  color: #888888 !important;
+}
+
+.light-theme .border-gray-800 {
+  border-color: #e0e0e0 !important;
+}
+
+.light-theme .border-gray-700 {
+  border-color: #e8e8e8 !important;
+}
+
+.light-theme .bg-gray-800 {
+  background-color: #eeeeee !important;
+}
+
+.light-theme .bg-gray-700 {
+  background-color: #f0f0f0 !important;
+}
+
+.light-theme .bg-gray-800\/50 {
+  background-color: rgba(238, 238, 238, 0.5) !important;
+}
+
+.light-theme .bg-gray-800\/30 {
+  background-color: rgba(238, 238, 238, 0.3) !important;
+}
+
+.light-theme .hover\:bg-gray-800:hover {
+  background-color: #eeeeee !important;
+}
+
+.light-theme .hover\:bg-gray-700:hover {
+  background-color: #f0f0f0 !important;
+}
+
+.light-theme .hover\:bg-gray-600:hover {
+  background-color: #f8f8f8 !important;
+}
+
+/* Sidebar */
+.light-theme aside {
+  background-color: #ffffff !important;
+  border-color: #e0e0e0 !important;
+}
+
+/* Header */
+.light-theme header {
+  background-color: #ffffff !important;
+  border-color: #e0e0e0 !important;
+}
+
+/* Dropdown menus */
+.light-theme .bg-\[\#1a1a1a\] {
+  background-color: #ffffff !important;
+}
+
+.light-theme .bg-\[\#0b0b0b\] {
+  background-color: #f9f9f9 !important;
+}
+
+/* Inputs */
+.light-theme input,
+.light-theme select,
+.light-theme textarea {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border-color: #e0e0e0 !important;
+}
+
+/* Modal overlay */
+.light-theme .bg-black\/60 {
+  background-color: rgba(26, 26, 26, 0.4) !important;
+}
+
+/* Placeholder text */
+.light-theme input::placeholder {
+  color: #999999 !important;
+}
+
+/* Active items */
+.light-theme .bg-brand-gold {
+  background-color: #fbbf24 !important;
+  color: #1a1a1a !important;
+}
+
+.light-theme .hover\:bg-yellow-400:hover {
+  background-color: #fcd34d !important;
+}
+
+/* Tabla */
+.light-theme table tbody tr {
+  border-color: #e0e0e0 !important;
+}
+
+.light-theme table tbody tr:hover {
+  background-color: #f9f9f9 !important;
+}
+
+/* Cards */
+.light-theme .bg-\[#1a1a1a\] {
+  background-color: #ffffff !important;
+}
+
+/* Info boxes */
+.light-theme .bg-green-900\/20 {
+  background-color: rgba(220, 252, 231, 0.5) !important;
+}
+
+.light-theme .bg-blue-900\/20 {
+  background-color: rgba(219, 234, 254, 0.5) !important;
+}
+
+.light-theme .bg-red-900\/20 {
+  background-color: rgba(254, 226, 226, 0.5) !important;
+}
+
+.light-theme .bg-purple-600\/20 {
+  background-color: rgba(232, 212, 253, 0.3) !important;
+}
+
+.light-theme .bg-red-500\/10 {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Borders para info boxes */
+.light-theme .border-green-800 {
+  border-color: #22c55e !important;
+}
+
+.light-theme .border-blue-800 {
+  border-color: #3b82f6 !important;
+}
+
+.light-theme .border-red-500 {
+  border-color: #ef4444 !important;
+}
+
+.light-theme .border-purple-700 {
+  border-color: #a855f7 !important;
+}
+
+.light-theme .border-l-4 {
+  border-left-color: inherit;
+}
