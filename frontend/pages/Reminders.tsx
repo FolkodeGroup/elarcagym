@@ -3,7 +3,6 @@ import { db } from '../services/db';
 import { Reminder } from '../types';
 import { Plus, Edit2, Trash2, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
-import { useLanguage } from '../contexts/LanguageContext';
 import Toast from '../components/Toast';
 
 const Reminders: React.FC = () => {
@@ -14,7 +13,6 @@ const Reminders: React.FC = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const { setCanNavigate } = useNavigation();
-  const { t } = useLanguage();
 
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [reminderToDeleteId, setReminderToDeleteId] = useState<string | null>(null);
@@ -33,7 +31,7 @@ const Reminders: React.FC = () => {
 
   const handleAddReminder = () => {
     if (!newReminderForm.text.trim() || !newReminderForm.date) {
-      setToast({ message: t('completaCampos'), type: 'error' });
+      setToast({ message: 'Por favor completa todos los campos.', type: 'error' });
       return;
     }
     const reminder = db.addReminder({
@@ -42,7 +40,7 @@ const Reminders: React.FC = () => {
       priority: newReminderForm.priority
     });
     setReminders([...db.getReminders()]);
-    setToast({ message: t('recordatorioAgregado'), type: 'success' });
+    setToast({ message: 'Recordatorio agregado.', type: 'success' });
     setShowAddModal(false);
     setNewReminderForm({ text: '', date: '', priority: 'medium' });
     setIsDirty(false);
@@ -50,7 +48,7 @@ const Reminders: React.FC = () => {
 
   const handleEditReminder = () => {
     if (!editingReminder || !editReminderForm.text.trim() || !editReminderForm.date) {
-      setToast({ message: t('completaCampos'), type: 'error' });
+      setToast({ message: 'Por favor completa todos los campos.', type: 'error' });
       return;
     }
     const updated = db.updateReminder(editingReminder.id, {
@@ -59,7 +57,7 @@ const Reminders: React.FC = () => {
       priority: editReminderForm.priority
     });
     setReminders([...db.getReminders()]);
-    setToast({ message: t('recordatorioActualizado'), type: 'success' });
+    setToast({ message: 'Recordatorio actualizado.', type: 'success' });
     setShowEditModal(false);
     setEditingReminder(null);
     setIsDirty(false);
@@ -69,7 +67,7 @@ const Reminders: React.FC = () => {
     if (!reminderToDeleteId) return;
     db.deleteReminder(reminderToDeleteId);
     setReminders([...db.getReminders()]);
-    setToast({ message: t('recordatorioEliminado'), type: 'info' });
+    setToast({ message: 'Recordatorio eliminado.', type: 'info' });
     setShowDeleteConfirm(false);
     setReminderToDeleteId(null);
     setIsDirty(false);
@@ -97,7 +95,7 @@ const Reminders: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-display font-bold text-white">{t('recordatorios')}</h2>
+        <h2 className="text-2xl font-display font-bold text-white">Recordatorios</h2>
         <button
           onClick={() => {
             setShowAddModal(true);
@@ -106,13 +104,13 @@ const Reminders: React.FC = () => {
           }}
           className="bg-brand-gold text-black px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition flex items-center gap-2"
         >
-          <Plus size={20} /> {t('nuevoRecordatorio')}
+          <Plus size={20} /> Nuevo Recordatorio
         </button>
       </div>
 
       {reminders.length === 0 ? (
         <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-12 text-center">
-          <p className="text-gray-500 text-lg">{t('noHayRecordatorios')}</p>
+          <p className="text-gray-500 text-lg">No hay recordatorios aún.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -124,7 +122,7 @@ const Reminders: React.FC = () => {
                   <button
                     onClick={() => openEditModal(reminder)}
                     className="p-2 rounded bg-gray-800 hover:bg-gray-700"
-                    title={t('editar')}
+                    title="Editar"
                   >
                     <Edit2 size={16} />
                   </button>
@@ -134,7 +132,7 @@ const Reminders: React.FC = () => {
                       setShowDeleteConfirm(true);
                     }}
                     className="p-2 rounded bg-gray-800 hover:bg-gray-700"
-                    title={t('borrar')}
+                    title="Borrar"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -324,13 +322,13 @@ const Reminders: React.FC = () => {
                 className="px-4 py-2 rounded bg-gray-700"
                 onClick={() => setShowDeleteConfirm(false)}
               >
-                {t('cancelar')}
+                Cancelar
               </button>
               <button
                 className="px-4 py-2 rounded bg-red-700 text-white font-bold"
                 onClick={handleDeleteReminder}
               >
-                {t('borrar')}
+                Borrar
               </button>
             </div>
           </div>

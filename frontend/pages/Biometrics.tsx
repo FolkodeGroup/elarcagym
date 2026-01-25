@@ -7,53 +7,31 @@ import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
 
 const Biometrics: React.FC = () => {
-    // ========== STATE DECLARATIONS ==========
     const [members, setMembers] = useState<Member[]>([]);
     const [selectedMemberId, setSelectedMemberId] = useState<string>('');
-    const [searchMember, setSearchMember] = useState<string>('');
     const [formData, setFormData] = useState({ weight: '', height: '', bodyFat: '' });
     const [isDirty, setIsDirty] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [editingLog, setEditingLog] = useState<any | null>(null);
-    const [editForm, setEditForm] = useState({ weight: '', height: '', bodyFat: '', date: '' });
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [logToDeleteId, setLogToDeleteId] = useState<string | null>(null);
-    
     const { setCanNavigate } = useNavigation();
 
-    // ========== DERIVED STATES ==========
-    const selectedMember = members.find(m => m.id === selectedMemberId);
-    const chartData = selectedMember?.biometrics.map(b => ({
-        fecha: new Date(b.date).toLocaleDateString(),
-        peso: b.weight,
-        grasa: b.bodyFat
-    })) || [];
-
-    // ========== EFFECTS ==========
     useEffect(() => {
         const list = db.getMembers();
         setMembers(list);
         if (list.length > 0) setSelectedMemberId(list[0].id);
     }, []);
 
+    // Block navigation when there are unsaved biometric inputs
     useEffect(() => {
         setCanNavigate(!isDirty);
     }, [isDirty, setCanNavigate]);
 
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (isDirty && selectedMemberId) {
-                e.preventDefault();
-                e.returnValue = '';
-                return '';
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [isDirty, selectedMemberId]);
+    const selectedMember = members.find(m => m.id === selectedMemberId);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingLog, setEditingLog] = useState<any | null>(null);
+    const [editForm, setEditForm] = useState({ weight: '', height: '', bodyFat: '', date: '' });
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [logToDeleteId, setLogToDeleteId] = useState<string | null>(null);
 
-    // ========== HANDLERS ==========
     const handleAddLog = (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedMemberId) return;
@@ -64,129 +42,38 @@ const Biometrics: React.FC = () => {
             bodyFat: Number(formData.bodyFat) || 0
         });
 
+        // Refresh
         setMembers([...db.getMembers()]);
         setFormData({ weight: '', height: '', bodyFat: '' });
         setToast({ message: 'Control registrado correctamente.', type: 'success' });
         setIsDirty(false);
     };
 
-    const handleChangeSelection = () => {
-        if (isDirty) {
-            const confirm = window.confirm('Tienes cambios sin guardar. ¿Descartar y cambiar de socio?');
-            if (!confirm) return;
-            setIsDirty(false);
-        }
-        setSelectedMemberId('');
-        setFormData({ weight: '', height: '', bodyFat: '' });
-    };
+    const chartData = selectedMember?.biometrics.map(b => ({
+        fecha: new Date(b.date).toLocaleDateString(),
+        peso: b.weight,
+        grasa: b.bodyFat
+    })) || [];
 
-    const handleEditSave = () => {
-        if (!selectedMemberId || !editingLog) return;
-        const updated = {
-            id: editingLog.id,
-            weight: Number(editForm.weight),
-            height: Number(editForm.height),
-            bodyFat: Number(editForm.bodyFat) || 0,
-            date: editForm.date
-        };
-        db.updateBiometric(selectedMemberId, updated as any);
-        setMembers([...db.getMembers()]);
-        setToast({ message: 'Control actualizado correctamente.', type: 'success' });
-        setShowEditModal(false);
-        setEditingLog(null);
-    };
-
-    const handleDeleteConfirm = () => {
-        if (!selectedMemberId || !logToDeleteId) return;
-        db.deleteBiometric(selectedMemberId, logToDeleteId);
-        setMembers([...db.getMembers()]);
-        setToast({ message: 'Control eliminado.', type: 'info' });
-        setShowDeleteConfirm(false);
-        setLogToDeleteId(null);
-    };
-
-    // ========== RENDER ==========
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-display font-bold text-white">Seguimiento Biométrico</h2>
-                {selectedMemberId && selectedMember && (
-                    <div className="text-right">
-                        <p className="text-gray-400 text-sm">Socio seleccionado:</p>
-                        <p className="text-xl font-bold text-brand-gold">{selectedMember.firstName} {selectedMember.lastName}</p>
-                    </div>
-                )}
+                <select
+                    value={selectedMemberId}
+                    onChange={(e) => setSelectedMemberId(e.target.value)}
+                    className="bg-[#1a1a1a] border border-gray-700 text-white p-2 rounded-lg"
+                >
+                    {members.map(m => (
+                        <option key={m.id} value={m.id}>{m.lastName}, {m.firstName}</option>
+                    ))}
+                </select>
             </div>
-
-            {/* Buscador centrado */}
-            {!selectedMemberId && (
-                <div className="flex justify-center mb-8">
-                    <div className="w-full max-w-xl">
-                        <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
-                            <h3 className="text-lg font-bold text-white mb-4 text-center">Buscar Socio</h3>
-                            <input
-                                type="text"
-                                placeholder="Buscar por nombre, apellido, DNI o correo..."
-                                value={searchMember}
-                                onChange={(e) => setSearchMember(e.target.value)}
-                                className="w-full bg-black border border-gray-700 text-white p-3 rounded-lg focus:outline-none focus:border-brand-gold text-center"
-                                autoFocus
-                            />
-                            
-                            <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
-                                {members
-                                    .filter(m => {
-                                        const q = searchMember.trim().toLowerCase();
-                                        if (!q) return false;
-                                        const fullInfo = (m.firstName + ' ' + m.lastName + ' ' + (m.dni || '') + ' ' + m.email).toLowerCase();
-                                        return fullInfo.includes(q);
-                                    })
-                                    .map(m => (
-                                        <button
-                                            key={m.id}
-                                            onClick={() => { setSelectedMemberId(m.id); setSearchMember(''); setIsDirty(false); }}
-                                            className="w-full text-left p-3 bg-black/40 hover:bg-black/60 rounded border border-gray-700 transition text-white"
-                                        >
-                                            <div className="font-semibold">{m.firstName} {m.lastName}</div>
-                                            <div className="text-xs text-gray-400">{m.phone} • {m.email}</div>
-                                            {m.dni && <div className="text-xs text-gray-500">DNI: {m.dni}</div>}
-                                        </button>
-                                    ))}
-                            </div>
-
-                            {searchMember.trim() && members.filter(m => {
-                                const q = searchMember.trim().toLowerCase();
-                                const fullInfo = (m.firstName + ' ' + m.lastName + ' ' + (m.dni || '') + ' ' + m.email).toLowerCase();
-                                return fullInfo.includes(q);
-                            }).length === 0 && (
-                                <p className="text-center text-gray-500 mt-4">No se encontraron socios</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Input Form */}
                 <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800 h-fit">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold text-white">Nuevo Control</h3>
-                        {selectedMemberId && (
-                            <button
-                                onClick={handleChangeSelection}
-                                className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded"
-                            >
-                                Cambiar
-                            </button>
-                        )}
-                    </div>
-                    
-                    {isDirty && (
-                        <div className="bg-yellow-900/30 border border-yellow-800 p-3 rounded-lg mb-4 text-yellow-200 text-sm">
-                            ⚠️ Tienes cambios sin guardar
-                        </div>
-                    )}
-                    
+                    <h3 className="text-lg font-bold text-white mb-4">Nuevo Control</h3>
                     <form onSubmit={handleAddLog} className="space-y-4">
                         <div>
                             <label className="text-gray-400 text-sm block mb-1">Peso (kg)</label>
@@ -239,6 +126,7 @@ const Biometrics: React.FC = () => {
                         <h3 className="text-lg font-bold text-white mb-4">Evolución de Peso</h3>
                         <div className="h-64">
                             {chartData.length > 0 ? (
+                                // minWidth y minHeight agregados para evitar error de dimensiones en Recharts
                                 <div style={{ minWidth: 0, minHeight: 200, width: '100%', height: '100%' }}>
                                     <ResponsiveContainer width="100%" height={250}>
                                         <LineChart data={chartData}>
@@ -266,7 +154,6 @@ const Biometrics: React.FC = () => {
                                         <th className="p-3">Peso</th>
                                         <th className="p-3">Altura</th>
                                         <th className="p-3">IMC</th>
-                                        <th className="p-3">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-800">
@@ -274,26 +161,26 @@ const Biometrics: React.FC = () => {
                                         const bmi = (log.weight / ((log.height / 100) * (log.height / 100))).toFixed(1);
                                         return (
                                             <tr key={log.id}>
-                                                <td className="p-3">{new Date(log.date).toLocaleDateString()}</td>
-                                                <td className="p-3">{log.weight} kg</td>
-                                                <td className="p-3">{log.height} cm</td>
-                                                <td className="p-3">
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${Number(bmi) > 25 ? 'bg-orange-900 text-orange-200' : 'bg-green-900 text-green-200'}`}>
-                                                        {bmi}
-                                                    </span>
-                                                </td>
-                                                <td className="p-3 flex gap-2">
-                                                    <button type="button" title="Editar" onClick={() => {
-                                                        setEditingLog(log);
-                                                        setEditForm({ weight: String(log.weight), height: String(log.height), bodyFat: String(log.bodyFat || ''), date: log.date });
-                                                        setShowEditModal(true);
-                                                    }} className="p-2 rounded bg-gray-800 hover:bg-gray-700">
-                                                        <Pencil size={16} />
-                                                    </button>
-                                                    <button type="button" title="Borrar" onClick={() => { setLogToDeleteId(log.id); setShowDeleteConfirm(true); }} className="p-2 rounded bg-gray-800 hover:bg-gray-700">
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </td>
+                                                        <td className="p-3">{new Date(log.date).toLocaleDateString()}</td>
+                                                        <td className="p-3">{log.weight} kg</td>
+                                                        <td className="p-3">{log.height} cm</td>
+                                                        <td className="p-3">
+                                                            <span className={`px-2 py-1 rounded text-xs font-bold ${Number(bmi) > 25 ? 'bg-orange-900 text-orange-200' : 'bg-green-900 text-green-200'}`}>
+                                                                {bmi}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3 flex gap-2">
+                                                            <button type="button" title="Editar" onClick={() => {
+                                                                setEditingLog(log);
+                                                                setEditForm({ weight: String(log.weight), height: String(log.height), bodyFat: String(log.bodyFat || ''), date: log.date });
+                                                                setShowEditModal(true);
+                                                            }} className="p-2 rounded bg-gray-800 hover:bg-gray-700">
+                                                                <Pencil size={16} />
+                                                            </button>
+                                                            <button type="button" title="Borrar" onClick={() => { setLogToDeleteId(log.id); setShowDeleteConfirm(true); }} className="p-2 rounded bg-gray-800 hover:bg-gray-700">
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </td>
                                             </tr>
                                         );
                                     })}
@@ -304,7 +191,6 @@ const Biometrics: React.FC = () => {
                 </div>
             </div>
 
-            {/* Toast */}
             {toast && (
                 <Toast message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} />
             )}
@@ -330,7 +216,22 @@ const Biometrics: React.FC = () => {
                             </div>
                             <div className="flex justify-end gap-2 mt-4">
                                 <button className="px-4 py-2 rounded bg-gray-700" onClick={() => setShowEditModal(false)}>Cancelar</button>
-                                <button className="px-4 py-2 rounded bg-brand-gold text-black" onClick={handleEditSave}>Guardar</button>
+                                <button className="px-4 py-2 rounded bg-brand-gold text-black" onClick={() => {
+                                    // Save
+                                    if (!selectedMemberId || !editingLog) return;
+                                    const updated = {
+                                        id: editingLog.id,
+                                        weight: Number(editForm.weight),
+                                        height: Number(editForm.height),
+                                        bodyFat: Number(editForm.bodyFat) || 0,
+                                        date: editForm.date
+                                    };
+                                    db.updateBiometric(selectedMemberId, updated as any);
+                                    setMembers([...db.getMembers()]);
+                                    setToast({ message: 'Control actualizado correctamente.', type: 'success' });
+                                    setShowEditModal(false);
+                                    setEditingLog(null);
+                                }}>Guardar</button>
                             </div>
                         </div>
                     </div>
@@ -346,7 +247,14 @@ const Biometrics: React.FC = () => {
                         <p className="text-gray-400">¿Deseas borrar este control del histórico? Esta acción no se puede deshacer.</p>
                         <div className="flex justify-end gap-2 mt-4">
                             <button className="px-4 py-2 rounded bg-gray-700" onClick={() => setShowDeleteConfirm(false)}>Cancelar</button>
-                            <button className="px-4 py-2 rounded bg-red-700 text-white" onClick={handleDeleteConfirm}>Borrar</button>
+                            <button className="px-4 py-2 rounded bg-red-700 text-white" onClick={() => {
+                                if (!selectedMemberId) return;
+                                db.deleteBiometric(selectedMemberId, logToDeleteId);
+                                setMembers([...db.getMembers()]);
+                                setToast({ message: 'Control eliminado.', type: 'info' });
+                                setShowDeleteConfirm(false);
+                                setLogToDeleteId(null);
+                            }}>Borrar</button>
                         </div>
                     </div>
                 </div>
