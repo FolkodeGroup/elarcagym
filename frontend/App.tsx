@@ -6,12 +6,9 @@ import Members from './pages/Members';
 import Biometrics from './pages/Biometrics';
 import Operations from './pages/Operations';
 import Admin from './pages/Admin';
-import Ingresos from './pages/Ingresos';
 import Reservas from './pages/Reservas';
 import { db } from './services/db';
 import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { LanguageProvider } from './contexts/LanguageContext';
 
 const AppContent: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -80,7 +77,6 @@ const AppContent: React.FC = () => {
       case 'biometrics': return <Biometrics />;
       case 'operations': return <Operations />;
       case 'admin': return <Admin />;
-      case 'Ingresos': return <Ingresos />;
       case 'reservas': return <Reservas />;
       default: return <Dashboard onNavigate={handleNavigate} />;
     }
@@ -115,13 +111,9 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <NavigationProvider>
-          <AppContent />
-        </NavigationProvider>
-      </LanguageProvider>
-    </ThemeProvider>
+    <NavigationProvider>
+      <AppContent />
+    </NavigationProvider>
   );
 };
 

@@ -59,7 +59,6 @@ export interface Member {
   id: string;
   firstName: string;
   lastName: string;
-  dni?: string;
   email: string;
   phone: string;
   joinDate: string;
@@ -70,14 +69,6 @@ export interface Member {
   diets: Diet[];
   payments: PaymentLog[]; // New field for gym fee history
   lastAttendance?: string;
-  // Nueva funcionalidad
-  phase?: 'volumen' | 'deficit' | 'recomposicion' | 'transicion';
-  // Horarios habituales de entrenamiento
-  habitualSchedules?: Array<{
-    day: string; // Ej: 'Lunes'
-    start: string; // Ej: '08:00'
-    end: string;   // Ej: '09:30'
-  }>;
 }
 
 export interface Product {
@@ -114,19 +105,15 @@ export interface Slot {
   time: string; // HH:MM (24h format)
   duration: number; // minutes
   status: 'available' | 'reserved' | 'occupied';
-  color?: string;
-  target?: string;
 }
 
 export interface Reservation {
   id: string;
   slotId: string;
-  memberId?: string;  // Link to member for proper assignment
   clientName: string;
   clientPhone?: string;
   clientEmail?: string;
   notes?: string;
-  attended?: boolean; // Track if member attended
   createdAt: string;
 }
 
