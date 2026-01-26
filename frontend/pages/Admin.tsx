@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Product } from '../types';
-import { ShoppingCart, Plus, Minus, Trash2, Edit2, Search } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Edit2, Search, AlertTriangle } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
 
@@ -61,14 +61,18 @@ const Admin: React.FC = () => {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [newProductForm, setNewProductForm] = useState({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '' });
     const [editProductForm, setEditProductForm] = useState({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '' });
+    
+    // Estado para eliminar producto
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+
     // Categorías dinámicas
-        const DEFAULT_CATEGORIES = ["SUPPLEMENT", "DRINK", "MERCHANDISE", "OTHER"];
-        const [categories, setCategories] = useState<string[]>(() => {
-            const stored = localStorage.getItem('categories');
-            return stored ? JSON.parse(stored) : DEFAULT_CATEGORIES;
-        });
-        // Para saber si el usuario está agregando una nueva categoría
-        const [addingNewCategory, setAddingNewCategory] = useState(false);
+    const DEFAULT_CATEGORIES = ["SUPPLEMENT", "DRINK", "MERCHANDISE", "OTHER"];
+    const [categories, setCategories] = useState<string[]>(() => {
+        const stored = localStorage.getItem('categories');
+        return stored ? JSON.parse(stored) : DEFAULT_CATEGORIES;
+    });
+    // Para saber si el usuario está agregando una nueva categoría
+    const [addingNewCategory, setAddingNewCategory] = useState(false);
     const { setCanNavigate } = useNavigation();
 
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -130,6 +134,21 @@ const Admin: React.FC = () => {
       setCanNavigate(true);
       // Refresh inventory from DB after sale
       setInventory(db.getInventory());
+  };
+
+  const handleConfirmDeleteProduct = () => {
+      if (!productToDelete) return;
+      
+      const success = db.deleteProduct(productToDelete.id);
+      if (success) {
+          setInventory(db.getInventory()); // Recargar lista
+          setToast({ message: `Producto "${productToDelete.name}" eliminado correctamente.`, type: 'success' });
+          // Si el producto estaba en el carrito, lo quitamos
+          setCart(prev => prev.filter(item => item.product.id !== productToDelete.id));
+      } else {
+          setToast({ message: 'Error al eliminar el producto.', type: 'error' });
+      }
+      setProductToDelete(null); // Cerrar modal
   };
 
     const translateCategory = (cat: string) => {
@@ -323,7 +342,30 @@ const Admin: React.FC = () => {
                         )}
                     </p>
                     <div className="mt-3 flex gap-2">
-                        <button type="button" onClick={(e) => { e.stopPropagation(); setEditingProduct(product); setEditProductForm({ name: product.name, price: String(product.price), category: product.category, stock: String(product.stock) }); setShowEditModal(true); }} className="text-gray-300 bg-gray-800 p-2 rounded hover:bg-gray-700"><Edit2 size={14} /></button>
+                        <button 
+                            type="button" 
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setEditingProduct(product); 
+                                setEditProductForm({ name: product.name, price: String(product.price), category: product.category, stock: String(product.stock), newCategory: '' }); 
+                                setShowEditModal(true); 
+                            }} 
+                            className="text-gray-300 bg-gray-800 p-2 rounded hover:bg-gray-700"
+                            title="Editar producto"
+                        >
+                            <Edit2 size={14} />
+                        </button>
+                        <button 
+                            type="button" 
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setProductToDelete(product);
+                            }} 
+                            className="text-red-400 bg-gray-800 p-2 rounded hover:bg-gray-700 hover:text-red-300"
+                            title="Eliminar producto por completo"
+                        >
+                            <Trash2 size={14} />
+                        </button>
                     </div>
                 </div>
             ))}
@@ -500,6 +542,43 @@ const Admin: React.FC = () => {
                                                                     setEditingProduct(null);
                                                                 }}>Guardar</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {productToDelete && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/70" onClick={() => setProductToDelete(null)} />
+                    <div className="bg-[#111] p-6 rounded-lg border border-gray-800 z-20 w-full max-w-sm">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="bg-red-900/30 p-3 rounded-full">
+                                <AlertTriangle className="text-red-500" size={24} />
+                            </div>
+                            <h4 className="text-lg font-bold text-white">Eliminar Producto</h4>
+                        </div>
+                        
+                        <p className="text-gray-300 mb-2">
+                            ¿Estás seguro que deseas eliminar el producto <strong className="text-white">"{productToDelete.name}"</strong>?
+                        </p>
+                        <p className="text-sm text-red-400 mb-6">
+                            Esta acción no se puede deshacer y el stock actual ({productToDelete.stock}) se perderá.
+                        </p>
+                        
+                        <div className="flex gap-3 justify-end">
+                            <button 
+                                className="px-4 py-2 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition" 
+                                onClick={() => setProductToDelete(null)}
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition font-bold" 
+                                onClick={handleConfirmDeleteProduct}
+                            >
+                                Sí, Eliminar
+                            </button>
                         </div>
                     </div>
                 </div>
