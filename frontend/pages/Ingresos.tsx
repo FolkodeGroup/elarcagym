@@ -187,7 +187,7 @@ const Ingresos = () => {
         <div className="space-y-6">
             {/* Encabezado */}
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-display font-bold text-white">{t('ingresosyVentas')}</h1>
+                <h1 className="text-2xl font-display font-bold text-white">{t('Ingresos y Ventas')}</h1>
                 <button
                     onClick={imprimirMultiples}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-700 transition"
