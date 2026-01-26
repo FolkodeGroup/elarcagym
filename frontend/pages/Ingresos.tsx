@@ -253,7 +253,7 @@ const Ingresos = () => {
                         type="date"
                         value={filtroFecha}
                         onChange={(e) => setFiltroFecha(e.target.value)}
-                        className="px-3 py-2 rounded-lg bg-gray-900 text-white border border-gray-700 cursor-pointer hover:border-brand-gold transition"
+                        className="px-3 py-2 rounded-lg bg-gray-900 text-white border border-gray-700 cursor-pointer hover:border-brand-gold transition [color-scheme:dark]"
                     />
                 </div>
             </div>
@@ -273,7 +273,7 @@ const Ingresos = () => {
                                 <tr className="border-b border-gray-700 bg-black/50">
                                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-300">{t('fechayHora')}</th>
                                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-300">{t('productos')}</th>
-                                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-300">{t('total')}</th>
+                                    <th className="px-8 py-3 text-right text-xs font-bold text-gray-300">{t('total')}</th>
                                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-300">{t('acciones')}</th>
                                 </tr>
                             </thead>
