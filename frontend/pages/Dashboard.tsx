@@ -1,9 +1,3 @@
-  // ...existing code...
-  // ...existing code...
-
-  // Obtener ausencias recientes (no asistió en los últimos 7 días)
-  // Esta línea debe ir justo antes del return para evitar ReferenceError
-
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { Member, UserStatus, Reminder, Slot, Reservation } from '../types';
@@ -312,7 +306,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
 
         {/* Quick Actions / Reminders */}
-        <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
+        <div className="lg:col-span-2 bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-display font-bold text-white">Recordatorios</h3>
             <button 
