@@ -1,4 +1,3 @@
-
 import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine, Reminder, Slot, Reservation } from '../types';
 
 // Helper function to generate fake DNI
@@ -534,6 +533,16 @@ class MockDB {
       return this.state.inventory[idx];
     }
     return null;
+  }
+
+  deleteProduct(productId: string) {
+    const index = this.state.inventory.findIndex(p => p.id === productId);
+    if (index !== -1) {
+      this.state.inventory.splice(index, 1);
+      this.save();
+      return true;
+    }
+    return false;
   }
 
   recordSale(items: {productId: string, quantity: number}[], memberId?: string) {
