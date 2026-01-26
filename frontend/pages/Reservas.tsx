@@ -216,7 +216,7 @@ const Reservas: React.FC = () => {
       {/* HEADER */}
       <div className="flex justify-between items-center bg-[#1a1a1a] p-4 border border-gray-800 rounded-xl shadow-lg">
         <div className="flex items-center gap-6">
-          <h2 className="text-2xl font-display font-bold text-white tracking-tighter">Agenda Personalizada</h2>
+          <h2 className="text-2xl font-display font-bold text-white">Agenda Personalizada</h2>
           <div className="flex items-center gap-2 bg-black border border-gray-800 rounded-lg p-1">
             <button onClick={() => {
                 const d = new Date(selectedDate + "T00:00:00");
