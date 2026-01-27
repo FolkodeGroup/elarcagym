@@ -1,4 +1,3 @@
-
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
@@ -47,6 +46,18 @@ export interface Diet {
   generatedAt: string;
 }
 
+// --- CAMBIO AQUÍ: Las comidas ahora son string[] (Listas) ---
+export interface NutritionData {
+  breakfast: string[];     
+  morningSnack: string[];  
+  lunch: string[];         
+  afternoonSnack: string[];
+  dinner: string[];        
+  notes?: string;        
+  calories?: string;     
+  lastUpdated: string;   
+}
+
 export interface PaymentLog {
   id: string;
   date: string;
@@ -70,14 +81,13 @@ export interface Member {
   diets: Diet[];
   payments: PaymentLog[]; // New field for gym fee history
   lastAttendance?: string;
-  // Nueva funcionalidad
   phase?: 'volumen' | 'deficit' | 'recomposicion' | 'transicion';
-  // Horarios habituales de entrenamiento
   habitualSchedules?: Array<{
     day: string; // Ej: 'Lunes'
     start: string; // Ej: '08:00'
     end: string;   // Ej: '09:30'
   }>;
+  nutritionPlan?: NutritionData;
 }
 
 export interface Product {
