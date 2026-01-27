@@ -3,13 +3,14 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
 import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
-import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X } from 'lucide-react';
+import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X, FileSpreadsheet } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { SiGmail } from 'react-icons/si';
 import Toast from '../components/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LOGO_BASE64 } from '../services/assets';
+import * as XLSX from 'xlsx';
 
 interface MembersProps {
   initialFilter?: string | null;
@@ -31,6 +32,9 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   // Camera refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  
+  // File Input Ref for Import
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Data for selected member
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
@@ -89,13 +93,61 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     e.preventDefault();
     db.addMember({
       ...newMember,
-      phase: newMember.phase,
+      phase: newMember.phase as any,
       habitualSchedules: newMember.habitualSchedules
     });
     setShowAddModal(false);
     setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
     refreshMembers();
-    alert(t('cambiosGuardados'));
+    setToast({ message: t('cambiosGuardados'), type: 'success' });
+  };
+
+  // --- IMPORTACION MASIVA ---
+  const handleImportClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        const formattedData = data.map((row: any) => ({
+          firstName: row['Nombre'] || row['Nombres'] || '',
+          lastName: row['Apellido'] || row['Apellidos'] || '',
+          dni: row['DNI'] || row['Documento'] || '',
+          email: row['Email'] || row['Correo'] || '',
+          phone: row['Telefono'] || row['Celular'] || '',
+        }));
+
+        const count = db.bulkCreateMembers(formattedData);
+        
+        setToast({ 
+          message: `Se importaron ${count} socios correctamente.`, 
+          type: 'success' 
+        });
+        refreshMembers();
+      } catch (error) {
+        console.error("Error al importar:", error);
+        setToast({ 
+          message: 'Error al leer el archivo. Verifica el formato.', 
+          type: 'error' 
+        });
+      }
+      
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsBinaryString(file);
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,7 +241,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       if(selectedMember) {
           db.updateMember(selectedMember.id, {
             ...editMember,
-            phase: editMember.phase,
+            phase: editMember.phase as any,
             habitualSchedules: editMember.habitualSchedules
           });
           setShowEditModal(false);
@@ -203,38 +255,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
      db.updateMemberStatus(id, newStatus);
      refreshMembers();
   };
-
-  // Helper: Check if member payment is due soon (within 30 days without payment)
-  const isPaymentDueSoon = (member: Member): boolean => {
-    if (member.status !== UserStatus.ACTIVE) return false;
-    if (!member.payments || member.payments.length === 0) return true;
-
-    // find the most recent payment date
-    const paymentDates = member.payments.map(p => new Date(p.date).getTime());
-    const lastPaymentTs = Math.max(...paymentDates);
-    const lastPaymentDate = new Date(lastPaymentTs);
-    const today = new Date();
-    const daysWithoutPayment = (today.getTime() - lastPaymentDate.getTime()) / (1000 * 60 * 60 * 24);
-
-    // Return true if between 30 and 60 days since last payment
-    return daysWithoutPayment >= 30 && daysWithoutPayment < 60;
-  };
-
-
-  // Helper: Check if member is current (paid recently - within last 30 days)
-  const isCurrentOnPayment = (member: Member): boolean => {
-    if (member.status !== UserStatus.ACTIVE) return false;
-    if (!member.payments || member.payments.length === 0) return false;
-
-    // If any payment within last 30 days, consider current
-    const today = new Date();
-    return member.payments.some(p => {
-      const pd = new Date(p.date);
-      const days = (today.getTime() - pd.getTime()) / (1000 * 60 * 60 * 24);
-      return days < 30;
-    });
-  };
-
 
   // --- FUNCIÓN PARA NORMALIZAR TEXTO (QUITAR TILDES) ---
   const normalizeText = (text: string) => {
@@ -286,10 +306,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     const pageHeight = doc.internal.pageSize.getHeight();
 
     // -- BACKGROUND LOGO (WATERMARK) --
-    // We add it to the first page, and assume mostly 1 page routines. 
-    // Ideally loops for multiple pages, but simple here.
     doc.saveGraphicsState();
-    doc.setGState(new (doc as any).GState({ opacity: 0.1 })); // Make it transparent
+    doc.setGState(new (doc as any).GState({ opacity: 0.1 })); 
     const imgSize = 100;
     const xCentered = (pageWidth - imgSize) / 2;
     const yCentered = (pageHeight - imgSize) / 2;
@@ -301,11 +319,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     doc.restoreGraphicsState();
 
     // -- ADD LOGO AS FULL BACKGROUND --
-    // Function to add logo as background (defined here so it's accessible everywhere)
     const addBackgroundLogo = () => {
         doc.saveGraphicsState();
-        doc.setGState(new (doc as any).GState({ opacity: 0.08 })); // Very subtle so content is readable
-        const imgSize = pageHeight * 0.8; // Make it large to fill background
+        doc.setGState(new (doc as any).GState({ opacity: 0.08 })); 
+        const imgSize = pageHeight * 0.8;
         const xCentered = (pageWidth - imgSize) / 2;
         const yCentered = (pageHeight - imgSize) / 2;
         try {
@@ -317,32 +334,29 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     };
 
     // -- BACKGROUND COLOR & LOGO PATTERN --
-    // Add gradient-like background with dark color
-    doc.setFillColor(26, 26, 26); // Dark background (#1a1a1a)
+    doc.setFillColor(26, 26, 26); 
     doc.rect(0, 0, pageWidth, pageHeight, 'F');
 
-    // Add background logo FIRST so it's behind everything
     addBackgroundLogo();
 
     // 1. Header Section with Gold accent
-    // Add decorative gold bar at top
-    doc.setFillColor(212, 175, 55); // Gold color (#d4af37)
+    doc.setFillColor(212, 175, 55); 
     doc.rect(0, 0, pageWidth, 3, 'F');
 
     // Title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(30);
-    doc.setTextColor(212, 175, 55); // Gold text
+    doc.setTextColor(212, 175, 55); 
     doc.text("¡¡¡A ENTRENAR!!!", pageWidth / 2, 20, { align: "center" });
 
     // Routine Name
     doc.setFontSize(14);
-    doc.setTextColor(255, 255, 255); // White text
+    doc.setTextColor(255, 255, 255); 
     doc.text(routine.name.toUpperCase(), pageWidth / 2, 30, { align: "center" });
 
     // Gym Brand
     doc.setFontSize(10);
-    doc.setTextColor(180, 180, 180); // Light gray
+    doc.setTextColor(180, 180, 180); 
     doc.text("EL ARCA - GYM & FITNESS", pageWidth / 2, 38, { align: "center" });
     
     // Reset Color
@@ -352,7 +366,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     let finalY = 45;
 
     routine.days.forEach((day) => {
-        // Prepare rows for this day
         const bodyRows = day.exercises.map(ex => [
             `• ${ex.name.toUpperCase()}${ex.notes ? `\n  (${ex.notes})` : ''}`, 
             `${ex.series} X ${ex.reps}${ex.weight !== 'N/A' && ex.weight ? `, ${ex.weight}` : ''}`
@@ -362,7 +375,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
             startY: finalY,
             head: [[day.dayName.toUpperCase(), "SERIES / REPETICIONES / CARGA"]],
             body: bodyRows,
-            theme: 'plain', // Use plain so autotable doesn't fill cell backgrounds
+            theme: 'plain', 
             headStyles: {
                 halign: 'left',
                 fontStyle: 'bold',
@@ -380,14 +393,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                 1: { cellWidth: 'auto', fontStyle: 'normal' }
             },
             willDrawCell: function(data) {
-                // Draw header background (gold) before autotable draws header text
                 const cell = data.cell;
                 if (cell.section === 'head') {
-                    // semi-opaque gold background for header
                     doc.saveGraphicsState();
                     try {
                         doc.setGState(new (doc as any).GState({ opacity: 0.95 }));
-                    } catch (e) { /* fallback if GState unavailable */ }
+                    } catch (e) { }
                     doc.setFillColor(212, 175, 55);
                     doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
                     doc.restoreGraphicsState();
@@ -395,41 +406,32 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
             },
             didDrawCell: function(data) {
                 const cell = data.cell;
-                // Draw subtle borders for body cells so grid is visible but cells remain transparent
                 if (cell.section === 'body') {
                     doc.setDrawColor(80, 80, 80);
                     doc.setLineWidth(0.3);
-                    // bottom border
                     doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height);
-                    // right border
                     doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
                 }
-                // Ensure header text is black (on top of gold)
                 if (cell.section === 'head') {
                     doc.setTextColor(0, 0, 0);
                 }
             }
         });
 
-        // Update Y for next table (margin)
         finalY = (doc as any).lastAutoTable.finalY + 10;
         
-        // Check page break
         if (finalY > pageHeight - 30) {
             doc.addPage();
             
-            // Add background and logo to new page
-            doc.setFillColor(26, 26, 26); // Dark background
+            doc.setFillColor(26, 26, 26); 
             doc.rect(0, 0, pageWidth, pageHeight, 'F');
             addBackgroundLogo();
             
-            // Add gold bar
             doc.setFillColor(212, 175, 55);
             doc.rect(0, 0, pageWidth, 3, 'F');
             
             finalY = 20;
 
-            // Re-add watermark for new page if desired
             doc.saveGraphicsState();
             doc.setGState(new (doc as any).GState({ opacity: 0.1 }));
             try {
@@ -443,18 +445,14 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     const pageCount = (doc as any).internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
-        
-        // Add gold bar at bottom
         doc.setFillColor(212, 175, 55);
         doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
-        
         doc.setFontSize(8);
-        doc.setTextColor(212, 175, 55); // Gold color for footer text
+        doc.setTextColor(212, 175, 55); 
         doc.text(`Entrenador: ${routine.assignedBy || 'El Arca'} - Socio: ${memberName}`, 10, pageHeight - 8);
         doc.text(`Página ${i} de ${pageCount}`, pageWidth - 30, pageHeight - 8);
     }
 
-    // Download
     const fileName = `Rutina_${memberName.replace(/\s+/g, '_')}_${routine.name.replace(/\s+/g, '_')}.pdf`;
     doc.save(fileName);
     return fileName;
@@ -464,11 +462,9 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       e.stopPropagation();
       if(!selectedMember) return;
 
-      // 1. Generate and Download PDF
       setToast({ message: `⏳ Generando y descargando PDF para ${method === 'whatsapp' ? 'WhatsApp' : 'Email'}. Adjunta el archivo descargado en el mensaje.`, type: 'info' });
       generateRoutinePDF(routine, `${selectedMember.firstName} ${selectedMember.lastName}`);
 
-      // 2. Open App with Message
       const msgText = `Hola ${selectedMember.firstName}, te adjunto el PDF de tu rutina "${routine.name}" de El Arca Gym. \n\n¡A entrenar con todo! 💪`;
       
       if (method === 'whatsapp') {
@@ -966,14 +962,37 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   return (
     <div className="space-y-6">
+      {/* Input oculto para importacion masiva */}
+      <input 
+        type="file" 
+        accept=".xlsx, .xls, .csv" 
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        className="hidden" 
+      />
+
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h2 className="text-2xl font-display font-bold text-white">Directorio de Socios</h2>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="bg-brand-gold text-black px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition flex items-center gap-2"
-        >
-          <Plus size={20} /> Nuevo Socio
-        </button>
+        
+        <div className="flex gap-3">
+          {/* Boton Importar */}
+          <button 
+            onClick={handleImportClick}
+            className="bg-gray-800 text-gray-200 border border-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 hover:text-white transition flex items-center gap-2"
+            title="Importar desde Excel"
+          >
+            <FileSpreadsheet size={18} className="text-green-500" /> 
+            <span className="hidden sm:inline">Importar</span>
+          </button>
+
+          {/* Boton Nuevo Socio */}
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="bg-brand-gold text-black px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition flex items-center gap-2"
+          >
+            <Plus size={20} /> <span className="hidden sm:inline">Nuevo Socio</span> <span className="sm:hidden">Nuevo</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats + Filters */}
