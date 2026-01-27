@@ -1,6 +1,5 @@
-import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine, Reminder, Slot, Reservation, NutritionData } from '../types';
+import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine, Reminder, Slot, Reservation, NutritionData, BiometricLog } from '../types';
 
-// Helper function to generate fake DNI
 const generateFakeDNI = (index: number): string => {
   const base = 20000000 + (index * 123456);
   return base.toString();
@@ -18,9 +17,22 @@ const INITIAL_MEMBERS: Member[] = [
     joinDate: '2023-01-15',
     status: UserStatus.ACTIVE,
     photoUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
+    bioObjective: 'Definición',
     biometrics: [
-      { id: 'b1', date: '2023-01-15', weight: 80, height: 175, bodyFat: 20 },
-      { id: 'b2', date: '2023-06-15', weight: 75, height: 175, bodyFat: 15 },
+      { 
+          id: 'b1', date: '2023-01-15', weight: 80, 
+          chest: 100, waist: 85, abdomen: 88, glutes: 95,
+          rightThigh: 55, leftThigh: 55, 
+          rightCalf: 38, leftCalf: 38,
+          rightArm: 35, leftArm: 35, neck: 40
+      },
+      { 
+          id: 'b2', date: '2023-06-15', weight: 75, 
+          chest: 102, waist: 80, abdomen: 82, glutes: 94,
+          rightThigh: 56, leftThigh: 56, 
+          rightCalf: 39, leftCalf: 39,
+          rightArm: 36, leftArm: 36, neck: 40
+      },
     ],
     routines: [],
     diets: [],
@@ -28,7 +40,6 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay1', date: '2025-12-05', amount: 3000, concept: 'Diciembre', method: 'Efectivo' },
         { id: 'pay2', date: '2025-11-05', amount: 3000, concept: 'Noviembre', method: 'Efectivo' }
     ],
-    // --- CAMBIO AQUÍ: Formato de lista para ejemplo ---
     nutritionPlan: {
         breakfast: ['3 Huevos revueltos', '1 Tostada integral', 'Café negro'],
         morningSnack: ['1 Manzana verde', 'Puñado de almendras'],
@@ -51,7 +62,8 @@ const INITIAL_MEMBERS: Member[] = [
     status: UserStatus.DEBTOR,
     photoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
     biometrics: [
-      { id: 'b3', date: '2023-03-10', weight: 65, height: 160 },
+      // Eliminamos height aquí para evitar conflictos o lo dejamos si types.ts lo acepta como opcional
+      { id: 'b3', date: '2023-03-10', weight: 65 }, 
     ],
     routines: [],
     diets: [],
@@ -70,7 +82,7 @@ const INITIAL_MEMBERS: Member[] = [
     status: UserStatus.DEBTOR,
     photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80',
     biometrics: [
-      { id: 'b4', date: '2023-06-20', weight: 85, height: 178, bodyFat: 22 },
+      { id: 'b4', date: '2023-06-20', weight: 85, bodyFat: 22 },
     ],
     routines: [],
     diets: [],
@@ -79,6 +91,7 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay5', date: '2025-09-20', amount: 3000, concept: 'Septiembre', method: 'Efectivo' }
     ]
   },
+  // Al Día - Pagos recientes (últimos 15 días)
   {
     id: '4',
     firstName: 'Ana',
@@ -114,6 +127,7 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay8', date: '2025-11-08', amount: 3000, concept: 'Noviembre', method: 'Tarjeta' }
     ]
   },
+  // Próximo a Vencer - Pagos hace 35-45 días
   {
     id: '6',
     firstName: 'Sofia',
@@ -148,6 +162,7 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay10', date: '2025-11-03', amount: 3000, concept: 'Noviembre', method: 'Tarjeta' }
     ]
   },
+  // Morosos - Sin pago hace más de 60 días
   {
     id: '8',
     firstName: 'Miguel',
@@ -182,6 +197,7 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay12', date: '2025-08-15', amount: 3000, concept: 'Agosto', method: 'Tarjeta' }
     ]
   },
+  // Inactivo
   {
     id: '10',
     firstName: 'Roberto',
@@ -199,6 +215,7 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay13', date: '2025-06-10', amount: 3000, concept: 'Junio', method: 'Efectivo' }
     ]
   },
+  // Más socios variados
   {
     id: '11',
     firstName: 'Gabriela',
@@ -293,7 +310,7 @@ class MockDB {
       if (!this.state.slots) this.state.slots = generateInitialSlots();
       if (!this.state.reservations) this.state.reservations = [];
 
-      // Migration: ensure members array contains any new initial members
+      // Migration: ensure members array contains any new initial members (merge, avoid duplicates)
       const existingIds = new Set(this.state.members.map(m => m.id));
       let added = false;
       INITIAL_MEMBERS.forEach(initM => {
@@ -303,7 +320,7 @@ class MockDB {
         }
       });
 
-      // Migration: Check fields
+      // Migration: Check if members have payments and photoUrl fields
       this.state.members.forEach(m => {
           if (!m.payments) m.payments = [];
           if (!m.photoUrl) m.photoUrl = '';
@@ -329,6 +346,7 @@ class MockDB {
     localStorage.setItem('el_arca_db', JSON.stringify(this.state));
   }
 
+  // Auth
   login(password: string) {
     if (password === 'admin123') {
       this.state.currentUser = { name: 'Admin', role: 'ADMIN' };
@@ -347,7 +365,9 @@ class MockDB {
     return this.state.currentUser;
   }
 
+  // Members
   getMembers() {
+    // Return a copy sorted by lastName then firstName (case-insensitive, accent-insensitive)
     return [...this.state.members].sort((a, b) => {
       const lastCompare = a.lastName.localeCompare(b.lastName, 'es', { sensitivity: 'base' });
       if (lastCompare !== 0) return lastCompare;
@@ -375,14 +395,18 @@ class MockDB {
     return newMember;
   }
 
+  // --- IMPORTACIÓN MASIVA ---
   bulkCreateMembers(membersData: any[]) {
     let count = 0;
     const today = new Date().toISOString();
 
     membersData.forEach(data => {
+      // Validación mínima: DNI es requerido para evitar duplicados o datos vacíos
       if (!data.dni || String(data.dni).trim() === '') {
         return;
       }
+
+      // Verificar si ya existe (opcional: podrías decidir actualizar si existe)
       const exists = this.state.members.some(m => m.dni === String(data.dni));
       if (exists) return;
 
@@ -393,14 +417,14 @@ class MockDB {
         dni: String(data.dni),
         email: data.email || '',
         phone: String(data.phone || ''),
-        joinDate: today,
-        status: UserStatus.ACTIVE,
+        joinDate: today, // Asumimos fecha de hoy si no viene
+        status: UserStatus.ACTIVE, // Por defecto activos al importar
         photoUrl: '',
         biometrics: [],
         routines: [],
         diets: [],
         payments: [],
-        phase: 'volumen',
+        phase: 'volumen', // Valor por defecto
         habitualSchedules: []
       };
 
@@ -422,17 +446,11 @@ class MockDB {
     }
   }
 
-  updateMember(id: string, data: { firstName: string; lastName: string; dni: string; email: string; phone: string; status: UserStatus; phase?: 'volumen' | 'deficit' | 'recomposicion' | 'transicion'; habitualSchedules?: Array<{ day: string; start: string; end: string }> }) {
+  // --- FUNCIÓN CORREGIDA: updateMember flexible ---
+  updateMember(id: string, data: Partial<Member>) {
     const member = this.state.members.find(m => m.id === id);
     if (member) {
-      member.firstName = data.firstName;
-      member.lastName = data.lastName;
-      member.dni = data.dni;
-      member.email = data.email;
-      member.phone = data.phone;
-      member.status = data.status;
-      if (data.phase) member.phase = data.phase;
-      if (data.habitualSchedules) member.habitualSchedules = data.habitualSchedules;
+      Object.assign(member, data);
       this.save();
     }
   }
@@ -468,6 +486,7 @@ class MockDB {
               concept,
               method
           });
+          // Auto activate if paying
           if(member.status === UserStatus.DEBTOR || member.status === UserStatus.INACTIVE) {
               member.status = UserStatus.ACTIVE;
           }
@@ -475,19 +494,21 @@ class MockDB {
       }
   }
 
-  addBiometric(memberId: string, data: Omit<typeof INITIAL_MEMBERS[0]['biometrics'][0], 'id' | 'date'>) {
+  // --- CORREGIDO: Acepta la fecha del usuario ---
+  addBiometric(memberId: string, data: Omit<BiometricLog, 'id'>) {
     const member = this.state.members.find(m => m.id === memberId);
     if (member) {
       member.biometrics.push({
         ...data,
         id: Math.random().toString(36).substr(2, 9),
-        date: new Date().toISOString().split('T')[0]
+        // Si data.date viene vacío (que no debería), usamos hoy. De lo contrario, se respeta la fecha elegida.
+        date: data.date || new Date().toISOString().split('T')[0] 
       });
       this.save();
     }
   }
 
-  updateBiometric(memberId: string, biometric: { id: string; weight?: number; height?: number; bodyFat?: number; date?: string }) {
+  updateBiometric(memberId: string, biometric: Partial<BiometricLog>) {
     const member = this.state.members.find(m => m.id === memberId);
     if (member) {
       const idx = member.biometrics.findIndex(b => b.id === biometric.id);
@@ -509,6 +530,7 @@ class MockDB {
     }
   }
 
+  // Operations & Exercises
   getExercises() {
     return this.state.exercises;
   }
@@ -560,6 +582,7 @@ class MockDB {
     }
   }
 
+  // Admin / Sales
   getInventory() {
     return this.state.inventory;
   }
@@ -643,6 +666,7 @@ class MockDB {
     return false;
   }
 
+  // Reminders
   getReminders() {
     return this.state.reminders;
   }
@@ -675,6 +699,7 @@ class MockDB {
     this.save();
   }
 
+  // Slots
   getSlots() {
     return this.state.slots;
   }
@@ -704,23 +729,27 @@ class MockDB {
   }
 
   deleteSlot(slotId: string) {
+    // Delete all reservations associated with this slot
     this.state.reservations = this.state.reservations.filter(r => r.slotId !== slotId);
+    // Delete the slot
     this.state.slots = this.state.slots.filter(s => s.id !== slotId);
     this.save();
   }
 
+  // Reservations
   getReservations() {
     return this.state.reservations;
   }
 
   addReservation(data: Omit<Reservation, 'id' | 'createdAt'>) {
+    // Check if member is already assigned to this slot
     if (data.memberId) {
       const alreadyExists = this.state.reservations.some(
         r => r.slotId === data.slotId && r.memberId === data.memberId
       );
       if (alreadyExists) {
         console.warn(`Member ${data.memberId} is already assigned to slot ${data.slotId}`);
-        return null; 
+        return null; // Return null to indicate failure
       }
     }
 
@@ -730,6 +759,7 @@ class MockDB {
       createdAt: new Date().toISOString()
     };
     this.state.reservations.push(newReservation);
+    // Update slot status to reserved
     this.updateSlotStatus(data.slotId, 'reserved');
     this.save();
     return newReservation;
@@ -751,6 +781,7 @@ class MockDB {
   deleteReservation(reservationId: string) {
     const reservation = this.state.reservations.find(r => r.id === reservationId);
     if (reservation) {
+      // Update slot status back to available
       this.updateSlotStatus(reservation.slotId, 'available');
     }
     this.state.reservations = this.state.reservations.filter(r => r.id !== reservationId);
