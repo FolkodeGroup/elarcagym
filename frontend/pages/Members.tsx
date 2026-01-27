@@ -3,7 +3,11 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../services/db';
 import { Member, UserStatus, Routine } from '../types';
 import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
-import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X, FileSpreadsheet } from 'lucide-react';
+import { 
+    Search, Plus, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, 
+    ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X, 
+    FileSpreadsheet, Apple, Eye, Share2, Coffee, Sun, Utensils, Moon 
+} from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { SiGmail } from 'react-icons/si';
 import Toast from '../components/Toast';
@@ -28,6 +32,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
+  // Nuevo Modal de Nutrición
+  const [showNutritionDetailModal, setShowNutritionDetailModal] = useState(false);
 
   // Camera refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -38,8 +44,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   // Data for selected member
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
-    // Track which day index is visible for each routine when expanded
-    const [visibleDayByRoutine, setVisibleDayByRoutine] = useState<Record<string, number>>({});
+  const [visibleDayByRoutine, setVisibleDayByRoutine] = useState<Record<string, number>>({});
 
   // New Member Form State
   const [newMember, setNewMember] = useState({
@@ -68,7 +73,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentConcept, setPaymentConcept] = useState(t('cuotaMensual'));
-    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     refreshMembers();
@@ -77,7 +82,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const refreshMembers = () => {
     setMembers([...db.getMembers()]);
     if(selectedMember) {
-        // Refresh selected member data if open
         const updated = db.getMembers().find(m => m.id === selectedMember.id);
         if(updated) {
             setSelectedMember(updated);
@@ -203,7 +207,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     setToast({ message: t('fotoCapturada'), type: 'success' });
   };
 
-  // Cleanup camera on unmount
   useEffect(() => {
     return () => {
       stopCamera();
@@ -256,7 +259,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
      refreshMembers();
   };
 
-  // --- FUNCIÓN PARA NORMALIZAR TEXTO (QUITAR TILDES) ---
   const normalizeText = (text: string) => {
     return text
       .normalize("NFD")
@@ -265,7 +267,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   };
 
   const filteredMembers = members.filter(m => {
-    // Usamos la función normalizeText para comparar sin tildes ni mayúsculas
     const searchTerm = normalizeText(filter);
     const memberLastName = normalizeText(m.lastName);
     const memberFirstName = normalizeText(m.firstName);
@@ -283,7 +284,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     return matchesSearch && matchesStatus;
   });
 
-  // Counts for dashboard cards
   const totalCount = members.length;
   const alDiaCount = members.filter(m => isCurrentOnPayment(m)).length;
   const debtorsCount = members.filter(m => isDebtorByPayment(m)).length;
@@ -300,12 +300,60 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       return `549${noZero}`;
   };
 
+  // --- NUTRITION SHARING LOGIC ---
+  const handleShareNutrition = (method: 'wa' | 'email') => {
+    if(!selectedMember?.nutritionPlan) {
+        setToast({ message: 'El socio no tiene un plan nutricional asignado.', type: 'error' });
+        return;
+    }
+
+    const plan = selectedMember.nutritionPlan;
+    
+    // Helper para formatear listas
+    const formatList = (items: string[]) => {
+        if (!items || items.length === 0) return ' -';
+        return items.map(i => `• ${i}`).join('\n');
+    };
+
+    const msgText = `🍎 *PLAN NUTRICIONAL - EL ARCA GYM* 🍎\n
+Objetivo Calórico: ${plan.calories || 'No especificado'}
+----------------------------------
+☕ *Desayuno:* 
+${formatList(plan.breakfast)}
+----------------------------------
+☀️ *Media Mañana:* 
+${formatList(plan.morningSnack)}
+----------------------------------
+🍛 *Almuerzo:* 
+${formatList(plan.lunch)}
+----------------------------------
+🥪 *Merienda:* 
+${formatList(plan.afternoonSnack)}
+----------------------------------
+🌙 *Cena:* 
+${formatList(plan.dinner)}
+----------------------------------
+📝 *Notas:* ${plan.notes || '-'}
+
+¡A darle duro! 💪`;
+
+    if (method === 'wa') {
+        const phone = formatPhoneNumber(selectedMember.phone);
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`;
+        window.open(url, '_blank');
+        setToast({ message: 'Abriendo WhatsApp...', type: 'success' });
+    } else {
+        const url = `mailto:${selectedMember.email}?subject=Tu Plan Nutricional - El Arca Gym&body=${encodeURIComponent(msgText)}`;
+        window.open(url, '_blank');
+        setToast({ message: 'Abriendo cliente de correo...', type: 'success' });
+    }
+  };
+
   const generateRoutinePDF = (routine: Routine, memberName: string) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // -- BACKGROUND LOGO (WATERMARK) --
     doc.saveGraphicsState();
     doc.setGState(new (doc as any).GState({ opacity: 0.1 })); 
     const imgSize = 100;
@@ -313,12 +361,9 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     const yCentered = (pageHeight - imgSize) / 2;
     try {
         doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-    } catch(e) {
-        console.warn("Could not add image", e);
-    }
+    } catch(e) {}
     doc.restoreGraphicsState();
 
-    // -- ADD LOGO AS FULL BACKGROUND --
     const addBackgroundLogo = () => {
         doc.saveGraphicsState();
         doc.setGState(new (doc as any).GState({ opacity: 0.08 })); 
@@ -327,42 +372,31 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         const yCentered = (pageHeight - imgSize) / 2;
         try {
             doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-        } catch(e) {
-            console.warn("Could not add image", e);
-        }
+        } catch(e) {}
         doc.restoreGraphicsState();
     };
 
-    // -- BACKGROUND COLOR & LOGO PATTERN --
     doc.setFillColor(26, 26, 26); 
     doc.rect(0, 0, pageWidth, pageHeight, 'F');
-
     addBackgroundLogo();
 
-    // 1. Header Section with Gold accent
     doc.setFillColor(212, 175, 55); 
     doc.rect(0, 0, pageWidth, 3, 'F');
 
-    // Title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(30);
     doc.setTextColor(212, 175, 55); 
     doc.text("¡¡¡A ENTRENAR!!!", pageWidth / 2, 20, { align: "center" });
 
-    // Routine Name
     doc.setFontSize(14);
     doc.setTextColor(255, 255, 255); 
     doc.text(routine.name.toUpperCase(), pageWidth / 2, 30, { align: "center" });
 
-    // Gym Brand
     doc.setFontSize(10);
     doc.setTextColor(180, 180, 180); 
     doc.text("EL ARCA - GYM & FITNESS", pageWidth / 2, 38, { align: "center" });
-    
-    // Reset Color
     doc.setTextColor(255, 255, 255);
 
-    // 2. Table Data Construction
     let finalY = 45;
 
     routine.days.forEach((day) => {
@@ -422,16 +456,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         
         if (finalY > pageHeight - 30) {
             doc.addPage();
-            
             doc.setFillColor(26, 26, 26); 
             doc.rect(0, 0, pageWidth, pageHeight, 'F');
             addBackgroundLogo();
-            
             doc.setFillColor(212, 175, 55);
             doc.rect(0, 0, pageWidth, 3, 'F');
-            
             finalY = 20;
-
             doc.saveGraphicsState();
             doc.setGState(new (doc as any).GState({ opacity: 0.1 }));
             try {
@@ -441,7 +471,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         }
     });
 
-    // Footer
     const pageCount = (doc as any).internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -559,7 +588,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                               )}
                               <span className="text-xs text-gray-500">Miembro desde {new Date(selectedMember.joinDate).toLocaleDateString('es-ES')}</span>
 
-                              {/* Fase de objetivo */}
                               <div className="mt-2">
                                 <span className="text-xs text-gray-400 mr-2">Fase/Objetivo:</span>
                                 <span className="font-bold text-brand-gold text-sm">
@@ -570,7 +598,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                 </span>
                               </div>
 
-                              {/* Horarios habituales */}
                               {selectedMember.habitualSchedules && selectedMember.habitualSchedules.length > 0 && (
                                 <div className="mt-2">
                                   <span className="text-xs text-gray-400 block mb-1">Horarios habituales:</span>
@@ -622,8 +649,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Left Column: Routines */}
+                  {/* Left Column: Routines & Nutrition */}
                   <div className="space-y-6">
+                      
+                      {/* CARD: Rutinas */}
                       <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6">
                           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                               <Dumbbell className="text-brand-gold" /> Rutinas Asignadas
@@ -666,7 +695,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                           
                                           {expandedRoutineId === routine.id && (
                                               <div className="p-4 border-t border-gray-800 bg-black/20 text-sm">
-                                                  {/* Day selector: show small buttons for each day */}
                                                   <div className="flex gap-2 mb-3">
                                                       {routine.days.map((d, i) => (
                                                           <button
@@ -679,7 +707,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                                       ))}
                                                   </div>
 
-                                                  {/* Show only the selected day's exercises */}
                                                   {(() => {
                                                       const idx = visibleDayByRoutine[routine.id] ?? 0;
                                                       const day = routine.days[idx];
@@ -709,7 +736,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                                       <div>
                                                           <button
                                                             onClick={() => {
-                                                              // Download only the currently visible day as a single-day routine
                                                               const idx = visibleDayByRoutine[routine.id] ?? 0;
                                                               const single: Routine = { ...routine, days: routine.days.slice(idx, idx + 1) };
                                                               generateRoutinePDF(single, `${selectedMember.firstName} ${selectedMember.lastName}`);
@@ -727,6 +753,53 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                               )}
                           </div>
                       </div>
+
+                      {/* CARD: Plan Nutricional */}
+                      <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Apple className="text-green-500" /> Plan Nutricional
+                            </h3>
+                        </div>
+
+                        {selectedMember.nutritionPlan ? (
+                            <div className="bg-black/40 border border-green-900/30 p-4 rounded-lg flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-bold text-gray-200">Plan Asignado</p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Calorías: <span className="text-brand-gold">{selectedMember.nutritionPlan.calories || 'N/A'}</span>
+                                    </p>
+                                    <p className="text-[10px] text-gray-600 mt-1">Actualizado: {new Date(selectedMember.nutritionPlan.lastUpdated).toLocaleDateString()}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => setShowNutritionDetailModal(true)}
+                                        className="p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-full transition-colors"
+                                        title="Ver Plan Completo"
+                                    >
+                                        <Eye size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleShareNutrition('wa')}
+                                        className="p-2 bg-green-900/40 hover:bg-green-900/60 text-green-500 rounded-full transition-colors"
+                                        title="Enviar por WhatsApp"
+                                    >
+                                        <FaWhatsapp size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleShareNutrition('email')}
+                                        className="p-2 bg-red-900/40 hover:bg-red-900/60 text-red-500 rounded-full transition-colors"
+                                        title="Enviar por Email"
+                                    >
+                                        <SiGmail size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-gray-500 text-center py-4 text-sm">No hay plan nutricional asignado.</p>
+                        )}
+                      </div>
+
                   </div>
 
                   {/* Right Column: Financials */}
@@ -771,6 +844,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   </div>
               </div>
 
+              {/* === MODALS === */}
+              
                {/* Payment Modal */}
               {showPaymentModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
@@ -807,6 +882,55 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                       </div>
                     </form>
                   </div>
+                </div>
+              )}
+
+              {/* Nutrition Detail Modal */}
+              {showNutritionDetailModal && selectedMember.nutritionPlan && (
+                <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                    <div className="bg-[#151515] border border-gray-700 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+                        <div className="p-5 border-b border-gray-700 flex justify-between items-center bg-[#1a1a1a] rounded-t-xl">
+                            <div>
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <Apple className="text-green-500" /> Plan Nutricional
+                                </h3>
+                                <p className="text-xs text-gray-400 mt-1">Objetivo: <span className="text-brand-gold font-bold">{selectedMember.nutritionPlan.calories || 'N/A'} kcal</span></p>
+                            </div>
+                            <button onClick={() => setShowNutritionDetailModal(false)} className="text-gray-400 hover:text-white p-1">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar">
+                            <NutritionSection title="Desayuno" icon={<Coffee size={16} className="text-orange-400"/>} items={selectedMember.nutritionPlan.breakfast} />
+                            <NutritionSection title="Media Mañana" icon={<Sun size={16} className="text-yellow-400"/>} items={selectedMember.nutritionPlan.morningSnack} />
+                            <NutritionSection title="Almuerzo" icon={<Utensils size={16} className="text-red-400"/>} items={selectedMember.nutritionPlan.lunch} />
+                            <NutritionSection title="Merienda" icon={<Coffee size={16} className="text-amber-600"/>} items={selectedMember.nutritionPlan.afternoonSnack} />
+                            <NutritionSection title="Cena" icon={<Moon size={16} className="text-blue-400"/>} items={selectedMember.nutritionPlan.dinner} />
+
+                            {selectedMember.nutritionPlan.notes && (
+                                <div className="bg-gray-800/20 border border-gray-700 rounded-lg p-4">
+                                    <h4 className="text-xs uppercase font-bold text-gray-500 mb-2">Notas / Suplementación</h4>
+                                    <p className="text-gray-300 text-sm whitespace-pre-line italic">{selectedMember.nutritionPlan.notes}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-gray-700 bg-[#1a1a1a] rounded-b-xl flex justify-end gap-3">
+                            <button 
+                                onClick={() => handleShareNutrition('wa')} 
+                                className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
+                            >
+                                <FaWhatsapp /> Compartir
+                            </button>
+                            <button 
+                                onClick={() => setShowNutritionDetailModal(false)} 
+                                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
                 </div>
               )}
 
@@ -1328,5 +1452,25 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     </div>
   );
 };
+
+const NutritionSection = ({ title, icon, items }: { title: string, icon: any, items: string[] }) => (
+    <div className="bg-black/30 border border-gray-800 rounded-lg p-4">
+        <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
+            {icon} {title}
+        </h4>
+        {items && items.length > 0 ? (
+            <ul className="space-y-1.5 pl-2">
+                {items.map((item, idx) => (
+                    <li key={idx} className="text-gray-300 text-sm flex items-start gap-2">
+                        <span className="mt-1.5 w-1 h-1 bg-brand-gold rounded-full flex-shrink-0"></span>
+                        {item}
+                    </li>
+                ))}
+            </ul>
+        ) : (
+            <p className="text-gray-600 text-xs italic">Sin asignar</p>
+        )}
+    </div>
+);
 
 export default Members;
