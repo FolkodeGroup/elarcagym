@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
 import Biometrics from './pages/Biometrics';
 import Operations from './pages/Operations';
+import Nutrition from './pages/Nutrition.tsx';
 import Admin from './pages/Admin';
 import Ingresos from './pages/Ingresos';
 import Reservas from './pages/Reservas';
@@ -79,6 +80,7 @@ const AppContent: React.FC = () => {
       case 'members': return <Members initialFilter={pageFilter} />;
       case 'biometrics': return <Biometrics />;
       case 'operations': return <Operations />;
+      case 'nutrition': return <Nutrition />;
       case 'admin': return <Admin />;
       case 'Ingresos': return <Ingresos />;
       case 'reservas': return <Reservas />;
@@ -101,7 +103,7 @@ const AppContent: React.FC = () => {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-[#111] max-w-md w-full rounded-lg border border-gray-700 p-6">
             <h3 className="text-lg font-bold text-white mb-2">Tienes cambios sin guardar</h3>
-            <p className="text-sm text-gray-300 mb-4">Si sales ahora, perderás todos los cambios que has hecho en la rutina. ¿Deseas continuar?</p>
+            <p className="text-sm text-gray-300 mb-4">Si sales ahora, perderás todos los cambios que has hecho. ¿Deseas continuar?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => handleConfirmNavigation(false)} className="px-4 py-2 text-sm text-gray-300 rounded border border-gray-700 hover:bg-gray-800">Volver</button>
               <button onClick={() => handleConfirmNavigation(true)} className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700">Descartar y continuar</button>

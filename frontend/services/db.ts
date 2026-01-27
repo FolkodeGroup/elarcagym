@@ -1,4 +1,4 @@
-import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine, Reminder, Slot, Reservation } from '../types';
+import { Member, Product, Sale, UserStatus, AppState, ExerciseMaster, PaymentLog, Routine, Reminder, Slot, Reservation, NutritionData } from '../types';
 
 // Helper function to generate fake DNI
 const generateFakeDNI = (index: number): string => {
@@ -27,7 +27,18 @@ const INITIAL_MEMBERS: Member[] = [
     payments: [
         { id: 'pay1', date: '2025-12-05', amount: 3000, concept: 'Diciembre', method: 'Efectivo' },
         { id: 'pay2', date: '2025-11-05', amount: 3000, concept: 'Noviembre', method: 'Efectivo' }
-    ]
+    ],
+    // --- CAMBIO AQUÍ: Formato de lista para ejemplo ---
+    nutritionPlan: {
+        breakfast: ['3 Huevos revueltos', '1 Tostada integral', 'Café negro'],
+        morningSnack: ['1 Manzana verde', 'Puñado de almendras'],
+        lunch: ['200g Pollo', '150g Arroz', 'Ensalada mixta'],
+        afternoonSnack: ['Yogur proteico', '1 Banana'],
+        dinner: ['Pescado blanco', 'Vegetales al vapor'],
+        notes: 'Beber 3L de agua diarios. Creatina 5g post-entreno.',
+        calories: '2200',
+        lastUpdated: '2025-01-20'
+    }
   },
   {
     id: '2',
@@ -68,7 +79,6 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay5', date: '2025-09-20', amount: 3000, concept: 'Septiembre', method: 'Efectivo' }
     ]
   },
-  // Al Día - Pagos recientes (últimos 15 días)
   {
     id: '4',
     firstName: 'Ana',
@@ -104,7 +114,6 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay8', date: '2025-11-08', amount: 3000, concept: 'Noviembre', method: 'Tarjeta' }
     ]
   },
-  // Próximo a Vencer - Pagos hace 35-45 días
   {
     id: '6',
     firstName: 'Sofia',
@@ -139,7 +148,6 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay10', date: '2025-11-03', amount: 3000, concept: 'Noviembre', method: 'Tarjeta' }
     ]
   },
-  // Morosos - Sin pago hace más de 60 días
   {
     id: '8',
     firstName: 'Miguel',
@@ -174,7 +182,6 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay12', date: '2025-08-15', amount: 3000, concept: 'Agosto', method: 'Tarjeta' }
     ]
   },
-  // Inactivo
   {
     id: '10',
     firstName: 'Roberto',
@@ -192,7 +199,6 @@ const INITIAL_MEMBERS: Member[] = [
         { id: 'pay13', date: '2025-06-10', amount: 3000, concept: 'Junio', method: 'Efectivo' }
     ]
   },
-  // Más socios variados
   {
     id: '11',
     firstName: 'Gabriela',
@@ -287,7 +293,7 @@ class MockDB {
       if (!this.state.slots) this.state.slots = generateInitialSlots();
       if (!this.state.reservations) this.state.reservations = [];
 
-      // Migration: ensure members array contains any new initial members (merge, avoid duplicates)
+      // Migration: ensure members array contains any new initial members
       const existingIds = new Set(this.state.members.map(m => m.id));
       let added = false;
       INITIAL_MEMBERS.forEach(initM => {
@@ -297,7 +303,7 @@ class MockDB {
         }
       });
 
-      // Migration: Check if members have payments and photoUrl fields
+      // Migration: Check fields
       this.state.members.forEach(m => {
           if (!m.payments) m.payments = [];
           if (!m.photoUrl) m.photoUrl = '';
@@ -323,7 +329,6 @@ class MockDB {
     localStorage.setItem('el_arca_db', JSON.stringify(this.state));
   }
 
-  // Auth
   login(password: string) {
     if (password === 'admin123') {
       this.state.currentUser = { name: 'Admin', role: 'ADMIN' };
@@ -342,9 +347,7 @@ class MockDB {
     return this.state.currentUser;
   }
 
-  // Members
   getMembers() {
-    // Return a copy sorted by lastName then firstName (case-insensitive, accent-insensitive)
     return [...this.state.members].sort((a, b) => {
       const lastCompare = a.lastName.localeCompare(b.lastName, 'es', { sensitivity: 'base' });
       if (lastCompare !== 0) return lastCompare;
@@ -372,18 +375,14 @@ class MockDB {
     return newMember;
   }
 
-  // --- IMPORTACIÓN MASIVA ---
   bulkCreateMembers(membersData: any[]) {
     let count = 0;
     const today = new Date().toISOString();
 
     membersData.forEach(data => {
-      // Validación mínima: DNI es requerido para evitar duplicados o datos vacíos
       if (!data.dni || String(data.dni).trim() === '') {
         return;
       }
-
-      // Verificar si ya existe (opcional: podrías decidir actualizar si existe)
       const exists = this.state.members.some(m => m.dni === String(data.dni));
       if (exists) return;
 
@@ -394,14 +393,14 @@ class MockDB {
         dni: String(data.dni),
         email: data.email || '',
         phone: String(data.phone || ''),
-        joinDate: today, // Asumimos fecha de hoy si no viene
-        status: UserStatus.ACTIVE, // Por defecto activos al importar
+        joinDate: today,
+        status: UserStatus.ACTIVE,
         photoUrl: '',
         biometrics: [],
         routines: [],
         diets: [],
         payments: [],
-        phase: 'volumen', // Valor por defecto
+        phase: 'volumen',
         habitualSchedules: []
       };
 
@@ -438,6 +437,19 @@ class MockDB {
     }
   }
 
+  updateMemberNutrition(memberId: string, nutritionData: any) {
+    const member = this.state.members.find(m => m.id === memberId);
+    if (member) {
+      member.nutritionPlan = {
+        ...nutritionData,
+        lastUpdated: new Date().toISOString()
+      };
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
   updateMemberPhoto(id: string, photoUrl: string) {
     const member = this.state.members.find(m => m.id === id);
     if (member) {
@@ -456,7 +468,6 @@ class MockDB {
               concept,
               method
           });
-          // Auto activate if paying
           if(member.status === UserStatus.DEBTOR || member.status === UserStatus.INACTIVE) {
               member.status = UserStatus.ACTIVE;
           }
@@ -498,7 +509,6 @@ class MockDB {
     }
   }
 
-  // Operations & Exercises
   getExercises() {
     return this.state.exercises;
   }
@@ -550,7 +560,6 @@ class MockDB {
     }
   }
 
-  // Admin / Sales
   getInventory() {
     return this.state.inventory;
   }
@@ -634,7 +643,6 @@ class MockDB {
     return false;
   }
 
-  // Reminders
   getReminders() {
     return this.state.reminders;
   }
@@ -667,7 +675,6 @@ class MockDB {
     this.save();
   }
 
-  // Slots
   getSlots() {
     return this.state.slots;
   }
@@ -697,27 +704,23 @@ class MockDB {
   }
 
   deleteSlot(slotId: string) {
-    // Delete all reservations associated with this slot
     this.state.reservations = this.state.reservations.filter(r => r.slotId !== slotId);
-    // Delete the slot
     this.state.slots = this.state.slots.filter(s => s.id !== slotId);
     this.save();
   }
 
-  // Reservations
   getReservations() {
     return this.state.reservations;
   }
 
   addReservation(data: Omit<Reservation, 'id' | 'createdAt'>) {
-    // Check if member is already assigned to this slot
     if (data.memberId) {
       const alreadyExists = this.state.reservations.some(
         r => r.slotId === data.slotId && r.memberId === data.memberId
       );
       if (alreadyExists) {
         console.warn(`Member ${data.memberId} is already assigned to slot ${data.slotId}`);
-        return null; // Return null to indicate failure
+        return null; 
       }
     }
 
@@ -727,7 +730,6 @@ class MockDB {
       createdAt: new Date().toISOString()
     };
     this.state.reservations.push(newReservation);
-    // Update slot status to reserved
     this.updateSlotStatus(data.slotId, 'reserved');
     this.save();
     return newReservation;
@@ -749,7 +751,6 @@ class MockDB {
   deleteReservation(reservationId: string) {
     const reservation = this.state.reservations.find(r => r.id === reservationId);
     if (reservation) {
-      // Update slot status back to available
       this.updateSlotStatus(reservation.slotId, 'available');
     }
     this.state.reservations = this.state.reservations.filter(r => r.id !== reservationId);
