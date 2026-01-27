@@ -372,6 +372,49 @@ class MockDB {
     return newMember;
   }
 
+  // --- IMPORTACIÓN MASIVA ---
+  bulkCreateMembers(membersData: any[]) {
+    let count = 0;
+    const today = new Date().toISOString();
+
+    membersData.forEach(data => {
+      // Validación mínima: DNI es requerido para evitar duplicados o datos vacíos
+      if (!data.dni || String(data.dni).trim() === '') {
+        return;
+      }
+
+      // Verificar si ya existe (opcional: podrías decidir actualizar si existe)
+      const exists = this.state.members.some(m => m.dni === String(data.dni));
+      if (exists) return;
+
+      const newMember: Member = {
+        id: Math.random().toString(36).substr(2, 9),
+        firstName: data.firstName || 'Sin Nombre',
+        lastName: data.lastName || 'Sin Apellido',
+        dni: String(data.dni),
+        email: data.email || '',
+        phone: String(data.phone || ''),
+        joinDate: today, // Asumimos fecha de hoy si no viene
+        status: UserStatus.ACTIVE, // Por defecto activos al importar
+        photoUrl: '',
+        biometrics: [],
+        routines: [],
+        diets: [],
+        payments: [],
+        phase: 'volumen', // Valor por defecto
+        habitualSchedules: []
+      };
+
+      this.state.members.push(newMember);
+      count++;
+    });
+
+    if (count > 0) {
+      this.save();
+    }
+    return count;
+  }
+
   updateMemberStatus(id: string, status: UserStatus) {
     const member = this.state.members.find(m => m.id === id);
     if (member) {
