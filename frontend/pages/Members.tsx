@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../services/db';
-import { Member, UserStatus, Routine } from '../types';
+import { Member, UserStatus, Routine, NutritionData } from '../types';
 import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
 import { 
     Search, Plus, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, 
@@ -21,6 +21,7 @@ interface MembersProps {
 }
 
 const Members: React.FC<MembersProps> = ({ initialFilter }) => {
+  // --- ESTADOS ---
   const [members, setMembers] = useState<Member[]>([]);
   const { t } = useLanguage();
   const [statusFilter, setStatusFilter] = useState<string | null>(initialFilter || null);
@@ -32,21 +33,17 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
-  // Nuevo Modal de Nutrición
   const [showNutritionDetailModal, setShowNutritionDetailModal] = useState(false);
 
   // Camera refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   
-  // File Input Ref for Import
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Data for selected member
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
   const [visibleDayByRoutine, setVisibleDayByRoutine] = useState<Record<string, number>>({});
 
-  // New Member Form State
   const [newMember, setNewMember] = useState({
     firstName: '',
     lastName: '',
@@ -58,7 +55,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     habitualSchedules: [] as { day: string; start: string; end: string }[]
   });
 
-  // Edit Member Form State
   const [editMember, setEditMember] = useState({
     firstName: '',
     lastName: '',
@@ -70,14 +66,22 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     habitualSchedules: [] as { day: string; start: string; end: string }[]
   });
 
-  // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentConcept, setPaymentConcept] = useState(t('cuotaMensual'));
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  // --- EFECTOS ---
   useEffect(() => {
     refreshMembers();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  // --- FUNCIONES AUXILIARES ---
 
   const refreshMembers = () => {
     setMembers([...db.getMembers()]);
@@ -93,6 +97,296 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       setSelectedMember(member);
   };
 
+  const formatPhoneNumber = (phone: string) => {
+      const clean = phone.replace(/\D/g, '');
+      if (clean.startsWith('549')) return clean;
+      if (clean.startsWith('54')) return '549' + clean.substring(2);
+      const noZero = clean.startsWith('0') ? clean.substring(1) : clean;
+      return `549${noZero}`;
+  };
+
+  const sendPaymentReminder = (type: 'wa' | 'email') => {
+      if(!selectedMember) return;
+      const msgText = `Hola ${selectedMember.firstName}, te recordamos que tu cuota en El Arca Gym está vencida o próxima a vencer. Por favor acércate a regularizar tu situación. Gracias! 💪`;
+      
+      if (type === 'wa') {
+          const phone = formatPhoneNumber(selectedMember.phone);
+          const url = `https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`;
+          setToast({ message: `📲 Se abrirá WhatsApp con el número: ${phone}. Mensaje listo para enviar.`, type: 'info' });
+          window.open(url, '_blank');
+      } else {
+          const url = `mailto:${selectedMember.email}?subject=Aviso de Cuota - El Arca Gym&body=${encodeURIComponent(msgText)}`;
+          setToast({ message: `📧 Se abrirá tu cliente de correo. Destinatario: ${selectedMember.email}`, type: 'info' });
+          window.open(url, '_blank');
+      }
+  };
+
+  // --- PDF HELPERS ---
+  const setupPDFBackground = (doc: jsPDF, pageWidth: number, pageHeight: number) => {
+      // Background Color
+      doc.setFillColor(26, 26, 26); 
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+      // Watermark
+      doc.saveGraphicsState();
+      doc.setGState(new (doc as any).GState({ opacity: 0.08 })); 
+      const imgSize = pageHeight * 0.8;
+      const xCentered = (pageWidth - imgSize) / 2;
+      const yCentered = (pageHeight - imgSize) / 2;
+      try {
+          doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
+      } catch(e) {}
+      doc.restoreGraphicsState();
+
+      // Top Gold Bar
+      doc.setFillColor(212, 175, 55); 
+      doc.rect(0, 0, pageWidth, 3, 'F');
+  };
+
+  const addPDFFooter = (doc: jsPDF, pageNumber: number, pageCount: number, pageWidth: number, pageHeight: number, memberName: string) => {
+      doc.setPage(pageNumber);
+      // Bottom Gold Bar
+      doc.setFillColor(212, 175, 55);
+      doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
+      
+      doc.setFontSize(8);
+      doc.setTextColor(212, 175, 55); 
+      doc.text(`El Arca - Socio: ${memberName}`, 10, pageHeight - 8);
+      doc.text(`Página ${pageNumber} de ${pageCount}`, pageWidth - 30, pageHeight - 8);
+  };
+
+  // --- GENERAR PDF RUTINA ---
+  const generateRoutinePDF = (routine: Routine, memberName: string) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    setupPDFBackground(doc, pageWidth, pageHeight);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(30);
+    doc.setTextColor(212, 175, 55); 
+    doc.text("¡¡¡A ENTRENAR!!!", pageWidth / 2, 20, { align: "center" });
+
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255); 
+    doc.text(routine.name.toUpperCase(), pageWidth / 2, 30, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.setTextColor(180, 180, 180); 
+    doc.text("EL ARCA - GYM & FITNESS", pageWidth / 2, 38, { align: "center" });
+    doc.setTextColor(255, 255, 255);
+
+    let finalY = 45;
+
+    routine.days.forEach((day) => {
+        const bodyRows = day.exercises.map(ex => [
+            `• ${ex.name.toUpperCase()}${ex.notes ? `\n  (${ex.notes})` : ''}`, 
+            `${ex.series} X ${ex.reps}${ex.weight !== 'N/A' && ex.weight ? `, ${ex.weight}` : ''}`
+        ]);
+
+        autoTable(doc, {
+            startY: finalY,
+            head: [[day.dayName.toUpperCase(), "SERIES / REPETICIONES / CARGA"]],
+            body: bodyRows,
+            theme: 'plain', 
+            headStyles: {
+                halign: 'left',
+                fontStyle: 'bold',
+                fontSize: 12,
+                textColor: [0, 0, 0]
+            },
+            styles: {
+                fontSize: 10,
+                cellPadding: 4,
+                valign: 'middle',
+                textColor: [255, 255, 255]
+            },
+            columnStyles: {
+                0: { cellWidth: 110, fontStyle: 'bold' },
+                1: { cellWidth: 'auto', fontStyle: 'normal' }
+            },
+            willDrawCell: function(data) {
+                const cell = data.cell;
+                if (cell.section === 'head') {
+                    doc.saveGraphicsState();
+                    try {
+                        doc.setGState(new (doc as any).GState({ opacity: 0.95 }));
+                    } catch (e) { }
+                    doc.setFillColor(212, 175, 55);
+                    doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
+                    doc.restoreGraphicsState();
+                }
+            },
+            didDrawCell: function(data) {
+                const cell = data.cell;
+                if (cell.section === 'body') {
+                    doc.setDrawColor(80, 80, 80);
+                    doc.setLineWidth(0.3);
+                    doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height);
+                    doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
+                }
+                if (cell.section === 'head') {
+                    doc.setTextColor(0, 0, 0);
+                }
+            }
+        });
+
+        finalY = (doc as any).lastAutoTable.finalY + 10;
+        
+        if (finalY > pageHeight - 30) {
+            doc.addPage();
+            setupPDFBackground(doc, pageWidth, pageHeight);
+            finalY = 20;
+        }
+    });
+
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+        addPDFFooter(doc, i, pageCount, pageWidth, pageHeight, memberName);
+    }
+
+    const fileName = `Rutina_${memberName.replace(/\s+/g, '_')}_${routine.name.replace(/\s+/g, '_')}.pdf`;
+    doc.save(fileName);
+    return fileName;
+  };
+
+  const handleShareRoutine = (e: React.MouseEvent, method: 'whatsapp' | 'email', routine: Routine) => {
+      e.stopPropagation();
+      if(!selectedMember) return;
+
+      setToast({ message: `⏳ Generando y descargando PDF para ${method === 'whatsapp' ? 'WhatsApp' : 'Email'}. Adjunta el archivo descargado en el mensaje.`, type: 'info' });
+      generateRoutinePDF(routine, `${selectedMember.firstName} ${selectedMember.lastName}`);
+
+      const msgText = `Hola ${selectedMember.firstName}, te adjunto el PDF de tu rutina "${routine.name}" de El Arca Gym. \n\n¡A entrenar con todo! 💪`;
+      
+      if (method === 'whatsapp') {
+          const url = `https://wa.me/${formatPhoneNumber(selectedMember.phone)}?text=${encodeURIComponent(msgText)}`;
+          setTimeout(() => window.open(url, '_blank'), 1000);
+      } else {
+          const url = `mailto:${selectedMember.email}?subject=Tu Rutina de Entrenamiento - El Arca Gym&body=${encodeURIComponent(msgText)}`;
+          setTimeout(() => window.open(url, '_blank'), 1000);
+      }
+  };
+
+  // --- GENERAR PDF NUTRICION ---
+  const generateNutritionPDF = (plan: NutritionData, memberName: string) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    setupPDFBackground(doc, pageWidth, pageHeight);
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(30);
+    doc.setTextColor(212, 175, 55); // Gold
+    doc.text("PLAN NUTRICIONAL", pageWidth / 2, 20, { align: "center" });
+
+    // Subtitle (Calories)
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255); // White
+    const calText = plan.calories ? `OBJETIVO: ${plan.calories} KCAL` : "OBJETIVO GENERAL";
+    doc.text(calText, pageWidth / 2, 30, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.setTextColor(180, 180, 180); // Gray
+    doc.text("EL ARCA - GYM & FITNESS", pageWidth / 2, 38, { align: "center" });
+
+    // Helper for bullets
+    const formatItems = (items: string[]) => {
+        if (!items || items.length === 0) return 'Sin asignar';
+        return items.map(i => `• ${i}`).join('\n');
+    };
+
+    // Table Data
+    const bodyRows = [
+        ['DESAYUNO', formatItems(plan.breakfast)],
+        ['MEDIA MAÑANA', formatItems(plan.morningSnack)],
+        ['ALMUERZO', formatItems(plan.lunch)],
+        ['MERIENDA', formatItems(plan.afternoonSnack)],
+        ['CENA', formatItems(plan.dinner)],
+        ['NOTAS / SUPLEMENTACIÓN', plan.notes || 'Sin notas adicionales']
+    ];
+
+    autoTable(doc, {
+        startY: 45,
+        head: [['MOMENTO DEL DÍA', 'ALIMENTOS / DETALLE']],
+        body: bodyRows,
+        theme: 'plain', 
+        headStyles: {
+            halign: 'left',
+            fontStyle: 'bold',
+            fontSize: 12,
+            textColor: [0, 0, 0], // Black text
+            fillColor: [212, 175, 55] // Gold background for header
+        },
+        styles: {
+            fontSize: 11,
+            cellPadding: 6,
+            valign: 'middle',
+            textColor: [255, 255, 255], // White text
+            lineColor: [80, 80, 80],
+            lineWidth: 0.1
+        },
+        columnStyles: {
+            0: { cellWidth: 50, fontStyle: 'bold', valign: 'top' },
+            1: { cellWidth: 'auto', fontStyle: 'normal' }
+        },
+        willDrawCell: function(data) {
+            if (data.section === 'head') {
+                doc.setFillColor(212, 175, 55); // Gold
+                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+            }
+        },
+        didDrawCell: function(data) {
+            if (data.section === 'body') {
+                doc.setDrawColor(80, 80, 80);
+                doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+            }
+            if (data.section === 'head') {
+                doc.setTextColor(0, 0, 0); 
+            }
+        }
+    });
+
+    // Footer
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+        addPDFFooter(doc, i, pageCount, pageWidth, pageHeight, memberName);
+    }
+
+    const fileName = `Nutricion_${memberName.replace(/\s+/g, '_')}.pdf`;
+    doc.save(fileName);
+    return fileName;
+  };
+
+  const handleShareNutrition = (method: 'wa' | 'email') => {
+    if(!selectedMember?.nutritionPlan) {
+        setToast({ message: 'El socio no tiene un plan nutricional asignado.', type: 'error' });
+        return;
+    }
+
+    const plan = selectedMember.nutritionPlan;
+    const memberName = `${selectedMember.firstName} ${selectedMember.lastName}`;
+
+    setToast({ message: `Generando PDF de Nutrición...`, type: 'info' });
+    generateNutritionPDF(plan, memberName);
+
+    const msgText = `Hola ${selectedMember.firstName}! 🍎\n\nTe adjunto tu nuevo PLAN NUTRICIONAL de El Arca Gym en formato PDF (revisa tus descargas). \n\nObjetivo: ${plan.calories || 'No especificado'}\n\nCualquier duda me avisas. ¡A comer sano! 🥗💪`;
+
+    if (method === 'wa') {
+        const phone = formatPhoneNumber(selectedMember.phone);
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`;
+        setTimeout(() => window.open(url, '_blank'), 1500); 
+    } else {
+        const url = `mailto:${selectedMember.email}?subject=Tu Plan Nutricional - El Arca Gym&body=${encodeURIComponent(msgText)}`;
+        setTimeout(() => window.open(url, '_blank'), 1500);
+    }
+  };
+
+  // --- HANDLERS COMUNES ---
+
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
     db.addMember({
@@ -106,7 +400,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     setToast({ message: t('cambiosGuardados'), type: 'success' });
   };
 
-  // --- IMPORTACION MASIVA ---
   const handleImportClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -207,12 +500,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     setToast({ message: t('fotoCapturada'), type: 'success' });
   };
 
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
   const handleRegisterPayment = (e: React.FormEvent) => {
       e.preventDefault();
       if(selectedMember) {
@@ -289,237 +576,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const debtorsCount = members.filter(m => isDebtorByPayment(m)).length;
   const dueSoonCount = members.filter(m => isPaymentDueSoon(m)).length;
   const inactiveCount = members.filter(m => m.status === UserStatus.INACTIVE).length;
-
-  // --- MESSAGING & PDF HELPERS ---
-
-  const formatPhoneNumber = (phone: string) => {
-      const clean = phone.replace(/\D/g, '');
-      if (clean.startsWith('549')) return clean;
-      if (clean.startsWith('54')) return '549' + clean.substring(2);
-      const noZero = clean.startsWith('0') ? clean.substring(1) : clean;
-      return `549${noZero}`;
-  };
-
-  // --- NUTRITION SHARING LOGIC ---
-  const handleShareNutrition = (method: 'wa' | 'email') => {
-    if(!selectedMember?.nutritionPlan) {
-        setToast({ message: 'El socio no tiene un plan nutricional asignado.', type: 'error' });
-        return;
-    }
-
-    const plan = selectedMember.nutritionPlan;
-    
-    // Helper para formatear listas
-    const formatList = (items: string[]) => {
-        if (!items || items.length === 0) return ' -';
-        return items.map(i => `• ${i}`).join('\n');
-    };
-
-    const msgText = `🍎 *PLAN NUTRICIONAL - EL ARCA GYM* 🍎\n
-Objetivo Calórico: ${plan.calories || 'No especificado'}
-----------------------------------
-☕ *Desayuno:* 
-${formatList(plan.breakfast)}
-----------------------------------
-☀️ *Media Mañana:* 
-${formatList(plan.morningSnack)}
-----------------------------------
-🍛 *Almuerzo:* 
-${formatList(plan.lunch)}
-----------------------------------
-🥪 *Merienda:* 
-${formatList(plan.afternoonSnack)}
-----------------------------------
-🌙 *Cena:* 
-${formatList(plan.dinner)}
-----------------------------------
-📝 *Notas:* ${plan.notes || '-'}
-
-¡A darle duro! 💪`;
-
-    if (method === 'wa') {
-        const phone = formatPhoneNumber(selectedMember.phone);
-        const url = `https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`;
-        window.open(url, '_blank');
-        setToast({ message: 'Abriendo WhatsApp...', type: 'success' });
-    } else {
-        const url = `mailto:${selectedMember.email}?subject=Tu Plan Nutricional - El Arca Gym&body=${encodeURIComponent(msgText)}`;
-        window.open(url, '_blank');
-        setToast({ message: 'Abriendo cliente de correo...', type: 'success' });
-    }
-  };
-
-  const generateRoutinePDF = (routine: Routine, memberName: string) => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-
-    doc.saveGraphicsState();
-    doc.setGState(new (doc as any).GState({ opacity: 0.1 })); 
-    const imgSize = 100;
-    const xCentered = (pageWidth - imgSize) / 2;
-    const yCentered = (pageHeight - imgSize) / 2;
-    try {
-        doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-    } catch(e) {}
-    doc.restoreGraphicsState();
-
-    const addBackgroundLogo = () => {
-        doc.saveGraphicsState();
-        doc.setGState(new (doc as any).GState({ opacity: 0.08 })); 
-        const imgSize = pageHeight * 0.8;
-        const xCentered = (pageWidth - imgSize) / 2;
-        const yCentered = (pageHeight - imgSize) / 2;
-        try {
-            doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-        } catch(e) {}
-        doc.restoreGraphicsState();
-    };
-
-    doc.setFillColor(26, 26, 26); 
-    doc.rect(0, 0, pageWidth, pageHeight, 'F');
-    addBackgroundLogo();
-
-    doc.setFillColor(212, 175, 55); 
-    doc.rect(0, 0, pageWidth, 3, 'F');
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(30);
-    doc.setTextColor(212, 175, 55); 
-    doc.text("¡¡¡A ENTRENAR!!!", pageWidth / 2, 20, { align: "center" });
-
-    doc.setFontSize(14);
-    doc.setTextColor(255, 255, 255); 
-    doc.text(routine.name.toUpperCase(), pageWidth / 2, 30, { align: "center" });
-
-    doc.setFontSize(10);
-    doc.setTextColor(180, 180, 180); 
-    doc.text("EL ARCA - GYM & FITNESS", pageWidth / 2, 38, { align: "center" });
-    doc.setTextColor(255, 255, 255);
-
-    let finalY = 45;
-
-    routine.days.forEach((day) => {
-        const bodyRows = day.exercises.map(ex => [
-            `• ${ex.name.toUpperCase()}${ex.notes ? `\n  (${ex.notes})` : ''}`, 
-            `${ex.series} X ${ex.reps}${ex.weight !== 'N/A' && ex.weight ? `, ${ex.weight}` : ''}`
-        ]);
-
-        autoTable(doc, {
-            startY: finalY,
-            head: [[day.dayName.toUpperCase(), "SERIES / REPETICIONES / CARGA"]],
-            body: bodyRows,
-            theme: 'plain', 
-            headStyles: {
-                halign: 'left',
-                fontStyle: 'bold',
-                fontSize: 12,
-                textColor: [0, 0, 0]
-            },
-            styles: {
-                fontSize: 10,
-                cellPadding: 4,
-                valign: 'middle',
-                textColor: [255, 255, 255]
-            },
-            columnStyles: {
-                0: { cellWidth: 110, fontStyle: 'bold' },
-                1: { cellWidth: 'auto', fontStyle: 'normal' }
-            },
-            willDrawCell: function(data) {
-                const cell = data.cell;
-                if (cell.section === 'head') {
-                    doc.saveGraphicsState();
-                    try {
-                        doc.setGState(new (doc as any).GState({ opacity: 0.95 }));
-                    } catch (e) { }
-                    doc.setFillColor(212, 175, 55);
-                    doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
-                    doc.restoreGraphicsState();
-                }
-            },
-            didDrawCell: function(data) {
-                const cell = data.cell;
-                if (cell.section === 'body') {
-                    doc.setDrawColor(80, 80, 80);
-                    doc.setLineWidth(0.3);
-                    doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height);
-                    doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
-                }
-                if (cell.section === 'head') {
-                    doc.setTextColor(0, 0, 0);
-                }
-            }
-        });
-
-        finalY = (doc as any).lastAutoTable.finalY + 10;
-        
-        if (finalY > pageHeight - 30) {
-            doc.addPage();
-            doc.setFillColor(26, 26, 26); 
-            doc.rect(0, 0, pageWidth, pageHeight, 'F');
-            addBackgroundLogo();
-            doc.setFillColor(212, 175, 55);
-            doc.rect(0, 0, pageWidth, 3, 'F');
-            finalY = 20;
-            doc.saveGraphicsState();
-            doc.setGState(new (doc as any).GState({ opacity: 0.1 }));
-            try {
-                doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-            } catch(e) {}
-            doc.restoreGraphicsState();
-        }
-    });
-
-    const pageCount = (doc as any).internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFillColor(212, 175, 55);
-        doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
-        doc.setFontSize(8);
-        doc.setTextColor(212, 175, 55); 
-        doc.text(`Entrenador: ${routine.assignedBy || 'El Arca'} - Socio: ${memberName}`, 10, pageHeight - 8);
-        doc.text(`Página ${i} de ${pageCount}`, pageWidth - 30, pageHeight - 8);
-    }
-
-    const fileName = `Rutina_${memberName.replace(/\s+/g, '_')}_${routine.name.replace(/\s+/g, '_')}.pdf`;
-    doc.save(fileName);
-    return fileName;
-  };
-
-  const handleShareRoutine = (e: React.MouseEvent, method: 'whatsapp' | 'email', routine: Routine) => {
-      e.stopPropagation();
-      if(!selectedMember) return;
-
-      setToast({ message: `⏳ Generando y descargando PDF para ${method === 'whatsapp' ? 'WhatsApp' : 'Email'}. Adjunta el archivo descargado en el mensaje.`, type: 'info' });
-      generateRoutinePDF(routine, `${selectedMember.firstName} ${selectedMember.lastName}`);
-
-      const msgText = `Hola ${selectedMember.firstName}, te adjunto el PDF de tu rutina "${routine.name}" de El Arca Gym. \n\n¡A entrenar con todo! 💪`;
-      
-      if (method === 'whatsapp') {
-          const url = `https://wa.me/${formatPhoneNumber(selectedMember.phone)}?text=${encodeURIComponent(msgText)}`;
-          setTimeout(() => window.open(url, '_blank'), 1000);
-      } else {
-          const url = `mailto:${selectedMember.email}?subject=Tu Rutina de Entrenamiento - El Arca Gym&body=${encodeURIComponent(msgText)}`;
-          setTimeout(() => window.open(url, '_blank'), 1000);
-      }
-  };
-
-  const sendPaymentReminder = (type: 'wa' | 'email') => {
-      if(!selectedMember) return;
-      const msgText = `Hola ${selectedMember.firstName}, te recordamos que tu cuota en El Arca Gym está vencida o próxima a vencer. Por favor acércate a regularizar tu situación. Gracias! 💪`;
-      
-      if (type === 'wa') {
-          const phone = formatPhoneNumber(selectedMember.phone);
-          const url = `https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`;
-          setToast({ message: `📲 Se abrirá WhatsApp con el número: ${phone}. Mensaje listo para enviar.`, type: 'info' });
-          window.open(url, '_blank');
-      } else {
-          const url = `mailto:${selectedMember.email}?subject=Aviso de Cuota - El Arca Gym&body=${encodeURIComponent(msgText)}`;
-          setToast({ message: `📧 Se abrirá tu cliente de correo. Destinatario: ${selectedMember.email}`, type: 'info' });
-          window.open(url, '_blank');
-      }
-  };
 
   // --- RENDER VIEWS ---
 
@@ -613,7 +669,6 @@ ${formatList(plan.dinner)}
                           </div>
                       </div>
 
-                      {/* Status & Actions */}
                       <div className="mb-4 flex flex-col items-end gap-2">
                           <div className="flex gap-2">
                               <button
@@ -782,14 +837,14 @@ ${formatList(plan.dinner)}
                                     <button 
                                         onClick={() => handleShareNutrition('wa')}
                                         className="p-2 bg-green-900/40 hover:bg-green-900/60 text-green-500 rounded-full transition-colors"
-                                        title="Enviar por WhatsApp"
+                                        title="Descargar PDF y Enviar por WhatsApp"
                                     >
                                         <FaWhatsapp size={18} />
                                     </button>
                                     <button 
                                         onClick={() => handleShareNutrition('email')}
                                         className="p-2 bg-red-900/40 hover:bg-red-900/60 text-red-500 rounded-full transition-colors"
-                                        title="Enviar por Email"
+                                        title="Descargar PDF y Enviar por Email"
                                     >
                                         <SiGmail size={18} />
                                     </button>
@@ -921,7 +976,7 @@ ${formatList(plan.dinner)}
                                 onClick={() => handleShareNutrition('wa')} 
                                 className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
                             >
-                                <FaWhatsapp /> Compartir
+                                <FaWhatsapp /> Descargar y Enviar
                             </button>
                             <button 
                                 onClick={() => setShowNutritionDetailModal(false)} 
@@ -1075,8 +1130,45 @@ ${formatList(plan.dinner)}
                   </div>
                 </div>
               )}
-              {toast && (
-                  <Toast message={toast.message} type={toast.type} duration={3500} onClose={() => setToast(null)} />
+
+              {/* Camera Modal */}
+              {showCameraModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                  <div className="bg-[#0b0b0b] p-6 rounded-xl border border-gray-800 w-full max-w-md">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-bold text-white">{t('capturarFoto')}</h3>
+                      <button 
+                        onClick={() => { setShowCameraModal(false); stopCamera(); }} 
+                        className="text-gray-400 hover:text-white"
+                      >
+                        <X size={24} />
+                      </button>
+                    </div>
+                    
+                    <div className="bg-black rounded-lg overflow-hidden mb-4">
+                      <video 
+                        ref={videoRef} 
+                        className="w-full aspect-video object-cover"
+                        playsInline
+                      />
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setShowCameraModal(false); stopCamera(); }}
+                        className="flex-1 px-4 py-2 text-gray-400 hover:text-white border border-gray-700 rounded"
+                      >
+                        {t('cancelar')}
+                      </button>
+                      <button
+                        onClick={capturePhoto}
+                        className="flex-1 px-4 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500"
+                      >
+                        <Camera size={18} className="inline mr-2" /> {t('capturar')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
           </div>
       );
@@ -1297,158 +1389,6 @@ ${formatList(plan.dinner)}
           )}
         </div>
       </div>
-
-      {/* Add Member Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-lg border border-gray-700">
-            <h3 className="text-xl font-bold text-white mb-4">{t('registrarSocio')}</h3>
-            <form onSubmit={handleAddMember} className="space-y-4">
-                            {/* Fase de objetivo */}
-                            <div>
-                              <label className="text-xs text-gray-400 block mb-1">Fase/Objetivo</label>
-                              <select
-                                value={newMember.phase}
-                                onChange={e => setNewMember({ ...newMember, phase: e.target.value as any })}
-                                className="w-full bg-black border border-gray-700 text-white p-2 rounded"
-                              >
-                                <option value="volumen">Volumen</option>
-                                <option value="deficit">Déficit</option>
-                                <option value="recomposicion">Recomposición corporal</option>
-                                <option value="transicion">Transición (volumen-défict)</option>
-                              </select>
-                            </div>
-
-                            {/* Horarios habituales */}
-                            <div>
-                              <label className="text-xs text-gray-400 block mb-1">Horarios habituales de entrenamiento</label>
-                              {(newMember.habitualSchedules || []).map((sch, idx) => (
-                                <div key={idx} className="flex gap-2 mb-2">
-                                  <input
-                                    type="text"
-                                    placeholder="Día (ej: Lunes)"
-                                    value={sch.day}
-                                    onChange={e => {
-                                      const arr = [...newMember.habitualSchedules];
-                                      arr[idx].day = e.target.value;
-                                      setNewMember({ ...newMember, habitualSchedules: arr });
-                                    }}
-                                    className="bg-black border border-gray-700 text-white p-2 rounded w-1/3"
-                                  />
-                                  <input
-                                    type="time"
-                                    value={sch.start}
-                                    onChange={e => {
-                                      const arr = [...newMember.habitualSchedules];
-                                      arr[idx].start = e.target.value;
-                                      setNewMember({ ...newMember, habitualSchedules: arr });
-                                    }}
-                                    className="bg-black border border-gray-700 text-white p-2 rounded w-1/3"
-                                  />
-                                  <input
-                                    type="time"
-                                    value={sch.end}
-                                    onChange={e => {
-                                      const arr = [...newMember.habitualSchedules];
-                                      arr[idx].end = e.target.value;
-                                      setNewMember({ ...newMember, habitualSchedules: arr });
-                                    }}
-                                    className="bg-black border border-gray-700 text-white p-2 rounded w-1/3"
-                                  />
-                                  <button type="button" onClick={() => {
-                                    const arr = [...newMember.habitualSchedules];
-                                    arr.splice(idx, 1);
-                                    setNewMember({ ...newMember, habitualSchedules: arr });
-                                  }} className="text-red-400">Eliminar</button>
-                                </div>
-                              ))}
-                              <button type="button" onClick={() => setNewMember({ ...newMember, habitualSchedules: [...(newMember.habitualSchedules || []), { day: '', start: '', end: '' }] })} className="text-xs text-brand-gold mt-1">Agregar horario</button>
-                            </div>
-              <div className="grid grid-cols-2 gap-4">
-                <input 
-                  required
-                  placeholder={t('nombre')} 
-                  value={newMember.firstName}
-                  onChange={e => setNewMember({...newMember, firstName: e.target.value})}
-                  className="bg-black border border-gray-700 p-3 rounded text-white"
-                />
-                <input 
-                  required
-                  placeholder={t('apellido')} 
-                  value={newMember.lastName}
-                  onChange={e => setNewMember({...newMember, lastName: e.target.value})}
-                  className="bg-black border border-gray-700 p-3 rounded text-white"
-                />
-              </div>
-              <input 
-                type="text"
-                required
-                placeholder={t('dniRequerido')} 
-                value={newMember.dni}
-                onChange={e => setNewMember({...newMember, dni: e.target.value})}
-                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
-              />
-              <input 
-                type="email"
-                placeholder={t('email')} 
-                value={newMember.email}
-                onChange={e => setNewMember({...newMember, email: e.target.value})}
-                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
-              />
-              <input 
-                placeholder={t('telefonoEjemplo')} 
-                value={newMember.phone}
-                onChange={e => setNewMember({...newMember, phone: e.target.value})}
-                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
-              />
-              <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-gray-400 hover:text-white">{t('cancelar')}</button>
-                <button type="submit" className="px-6 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500">{t('guardar')}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Camera Modal */}
-      {showCameraModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#0b0b0b] p-6 rounded-xl border border-gray-800 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-white">{t('capturarFoto')}</h3>
-              <button 
-                onClick={() => { setShowCameraModal(false); stopCamera(); }} 
-                className="text-gray-400 hover:text-white"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className="bg-black rounded-lg overflow-hidden mb-4">
-              <video 
-                ref={videoRef} 
-                className="w-full aspect-video object-cover"
-                playsInline
-              />
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setShowCameraModal(false); stopCamera(); }}
-                className="flex-1 px-4 py-2 text-gray-400 hover:text-white border border-gray-700 rounded"
-              >
-                {t('cancelar')}
-              </button>
-              <button
-                onClick={capturePhoto}
-                className="flex-1 px-4 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500"
-              >
-                <Camera size={18} className="inline mr-2" /> {t('capturar')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
