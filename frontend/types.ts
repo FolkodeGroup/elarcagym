@@ -1,27 +1,26 @@
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
-  DEBTOR = 'DEBTOR' // Moroso
+  DEBTOR = 'DEBTOR' 
 }
 
-// --- CAMBIO AQUÍ: Definición completa de medidas ---
 export interface BiometricLog {
   id: string;
   date: string;
-  weight: number;      // Peso
-  height?: number;     // Altura (Agregado para compatibilidad)
-  chest?: number;      // Pecho
-  waist?: number;      // Cintura
-  abdomen?: number;    // Abd
-  glutes?: number;     // Gluteo
-  rightThigh?: number; // CD (Cuádriceps Derecho/Muslo)
-  leftThigh?: number;  // Ci
-  rightCalf?: number;  // GD (Gemelo Derecho)
-  leftCalf?: number;   // Gi
-  rightArm?: number;   // BD (Brazo/Bíceps Derecho)
-  leftArm?: number;    // Bi
-  neck?: number;       // Cuello
-  bodyFat?: number;    // Por si se usa
+  weight: number;      
+  height?: number;     // Estatura en cm para el cálculo del IMC
+  chest?: number;      
+  waist?: number;      
+  abdomen?: number;    
+  glutes?: number;     
+  rightThigh?: number; // CD (Muslo Der)
+  leftThigh?: number;  // Ci (Muslo Izq)
+  rightCalf?: number;  // GD (Gemelo Der)
+  leftCalf?: number;   // Gi (Gemelo Izq)
+  rightArm?: number;   // BD (Brazo Der)
+  leftArm?: number;    // Bi (Brazo Izq)
+  neck?: number;       
+  bodyFat?: number;    
 }
 
 export interface ExerciseDetail {
