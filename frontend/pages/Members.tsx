@@ -39,7 +39,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       dni: '',
       email: '',
       phone: '',
-      password: '',
       status: UserStatus.ACTIVE,
       phase: 'volumen',
       habitualSchedules: []
@@ -66,7 +65,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     dni: '',
     email: '',
     phone: '',
-    password: '',
     status: UserStatus.ACTIVE,
     phase: 'volumen',
     habitualSchedules: [] as { day: string; start: string; end: string }[]
@@ -1376,14 +1374,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                 placeholder={t('telefonoEjemplo')} 
                 value={newMember.phone}
                 onChange={e => setNewMember({...newMember, phone: e.target.value})}
-                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
-              />
-              <input 
-                type="password"
-                required
-                placeholder="Contraseña" 
-                value={newMember.password}
-                onChange={e => setNewMember({...newMember, password: e.target.value})}
                 className="w-full bg-black border border-gray-700 p-3 rounded text-white"
               />
               <div className="flex justify-end gap-3 mt-6">
