@@ -304,27 +304,39 @@ const Operations: React.FC = () => {
     }
   };
 
+  // Limpia los campos no válidos de los días y ejercicios antes de enviar al backend
+  function cleanRoutineDays(days) {
+    return days.map(day => ({
+      dayName: day.dayName,
+      exercises: day.exercises.map(ex => ({
+        name: ex.name,
+        series: ex.series,
+        reps: ex.reps,
+        weight: ex.weight,
+        notes: ex.notes || ''
+      }))
+    }));
+  }
+
   const handleSaveRoutine = async () => {
     if(!routineName || !selectedMemberId) {
         setToast({ message: 'Por favor ingresa un nombre para la rutina y selecciona un socio.', type: 'error' });
         return;
     }
-    
     // Filter out empty days
     const finalDays = routineDays.filter(d => d.exercises.length > 0);
-    
     if(finalDays.length === 0) {
         setToast({ message: 'La rutina debe tener al menos un ejercicio.', type: 'error' });
         return;
     }
-
+    // Limpiar los días y ejercicios antes de enviar
+    const cleanedDays = cleanRoutineDays(routineDays);
     const payload = {
         name: routineName,
         goal: routineGoal,
-        days: routineDays,
+        days: cleanedDays,
         assignedBy: 'El Arca' // TODO: obtener del contexto de autenticación
     };
-
     try {
       if (editingRoutineId) {
           await MembersAPI.updateRoutine(selectedMemberId, editingRoutineId, payload);
@@ -333,7 +345,6 @@ const Operations: React.FC = () => {
           await MembersAPI.addRoutine(selectedMemberId, payload);
           setToast({ message: `¡Rutina "${payload.name}" asignada correctamente!`, type: 'success' });
       }
-
       // Refresh member list to show updated routines and reset
       await loadData();
       resetForm();
