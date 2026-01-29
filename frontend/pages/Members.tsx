@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { db } from '../services/db';
+import { MembersAPI } from '../services/api';
 import { Member, UserStatus, Routine } from '../types';
 import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
 import { Search, Plus, UserX, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X } from 'lucide-react';
@@ -68,16 +68,19 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   useEffect(() => {
     refreshMembers();
+    // eslint-disable-next-line
   }, []);
 
-  const refreshMembers = () => {
-    setMembers([...db.getMembers()]);
-    if(selectedMember) {
-        // Refresh selected member data if open
-        const updated = db.getMembers().find(m => m.id === selectedMember.id);
-        if(updated) {
-            setSelectedMember(updated);
-        }
+  const refreshMembers = async () => {
+    try {
+      const data = await MembersAPI.list();
+      setMembers(data);
+      if(selectedMember) {
+        const updated = data.find((m: Member) => m.id === selectedMember.id);
+        if(updated) setSelectedMember(updated);
+      }
+    } catch (err) {
+      setToast({ message: t('errorCargarSocios'), type: 'error' });
     }
   };
 
@@ -85,30 +88,38 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       setSelectedMember(member);
   };
 
-  const handleAddMember = (e: React.FormEvent) => {
+  const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    db.addMember({
-      ...newMember,
-      phase: newMember.phase,
-      habitualSchedules: newMember.habitualSchedules
-    });
-    setShowAddModal(false);
-    setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
-    refreshMembers();
-    alert(t('cambiosGuardados'));
+    try {
+      await MembersAPI.create({
+        ...newMember,
+        phase: newMember.phase,
+        habitualSchedules: newMember.habitualSchedules
+      });
+      setShowAddModal(false);
+      setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
+      await refreshMembers();
+      setToast({ message: t('cambiosGuardados'), type: 'success' });
+    } catch (err) {
+      setToast({ message: t('errorGuardarSocio'), type: 'error' });
+    }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if(e.target.files && e.target.files[0] && selectedMember) {
-          const file = e.target.files[0];
-          const reader = new FileReader();
-          reader.onloadend = () => {
-              const base64 = reader.result as string;
-              db.updateMemberPhoto(selectedMember.id, base64);
-              refreshMembers();
-          };
-          reader.readAsDataURL(file);
-      }
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if(e.target.files && e.target.files[0] && selectedMember) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        try {
+          await MembersAPI.update(selectedMember.id, { photo: base64 });
+          await refreshMembers();
+        } catch (err) {
+          setToast({ message: t('errorGuardarFoto'), type: 'error' });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const startCamera = async () => {
@@ -134,7 +145,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     }
   };
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (!videoRef.current || !selectedMember) return;
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
@@ -144,11 +155,15 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL('image/jpeg');
-    db.updateMemberPhoto(selectedMember.id, dataUrl);
-    stopCamera();
-    setShowCameraModal(false);
-    refreshMembers();
-    setToast({ message: t('fotoCapturada'), type: 'success' });
+    try {
+      await MembersAPI.update(selectedMember.id, { photo: dataUrl });
+      stopCamera();
+      setShowCameraModal(false);
+      await refreshMembers();
+      setToast({ message: t('fotoCapturada'), type: 'success' });
+    } catch (err) {
+      setToast({ message: t('errorGuardarFoto'), type: 'error' });
+    }
   };
 
   // Cleanup camera on unmount
@@ -158,14 +173,26 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     };
   }, []);
 
-  const handleRegisterPayment = (e: React.FormEvent) => {
-      e.preventDefault();
-      if(selectedMember) {
-          db.addMemberPayment(selectedMember.id, Number(paymentAmount), paymentConcept, 'Efectivo');
-          setShowPaymentModal(false);
-          setPaymentAmount('');
-          refreshMembers();
+  const handleRegisterPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if(selectedMember) {
+      try {
+        await MembersAPI.update(selectedMember.id, {
+          // Suponiendo que el backend acepta un array de pagos o un nuevo pago
+          addPayment: {
+            amount: Number(paymentAmount),
+            concept: paymentConcept,
+            method: 'Efectivo',
+            date: new Date().toISOString()
+          }
+        });
+        setShowPaymentModal(false);
+        setPaymentAmount('');
+        await refreshMembers();
+      } catch (err) {
+        setToast({ message: t('errorGuardarPago'), type: 'error' });
       }
+    }
   };
 
   const handleOpenEditModal = () => {
@@ -184,24 +211,32 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       }
   };
 
-  const handleSaveEditMember = (e: React.FormEvent) => {
-      e.preventDefault();
-      if(selectedMember) {
-          db.updateMember(selectedMember.id, {
-            ...editMember,
-            phase: editMember.phase,
-            habitualSchedules: editMember.habitualSchedules
-          });
-          setShowEditModal(false);
-          refreshMembers();
+  const handleSaveEditMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if(selectedMember) {
+      try {
+        await MembersAPI.update(selectedMember.id, {
+          ...editMember,
+          phase: editMember.phase,
+          habitualSchedules: editMember.habitualSchedules
+        });
+        setShowEditModal(false);
+        await refreshMembers();
+      } catch (err) {
+        setToast({ message: t('errorGuardarSocio'), type: 'error' });
       }
+    }
   };
 
-  const toggleStatus = (e: React.MouseEvent, id: string, currentStatus: UserStatus) => {
-     e.stopPropagation();
-     const newStatus = currentStatus === UserStatus.ACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
-     db.updateMemberStatus(id, newStatus);
-     refreshMembers();
+  const toggleStatus = async (e: React.MouseEvent, id: string, currentStatus: UserStatus) => {
+    e.stopPropagation();
+    const newStatus = currentStatus === UserStatus.ACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
+    try {
+      await MembersAPI.update(id, { status: newStatus });
+      await refreshMembers();
+    } catch (err) {
+      setToast({ message: t('errorGuardarSocio'), type: 'error' });
+    }
   };
 
   // Helper: Check if member payment is due soon (within 30 days without payment)
