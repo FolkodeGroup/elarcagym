@@ -198,12 +198,12 @@ const Biometrics: React.FC = () => {
                                     <TableRow label="CINTURA" unit="cm" field="waist" logs={sortedLogs} />
                                     <TableRow label="ABD" unit="cm" field="abdomen" logs={sortedLogs} />
                                     <TableRow label="GLÚTEO" unit="cm" field="glutes" logs={sortedLogs} />
-                                    <TableRow label="CD (Muslo D)" unit="cm" field="rightThigh" logs={sortedLogs} />
-                                    <TableRow label="Ci (Muslo I)" unit="cm" field="leftThigh" logs={sortedLogs} />
+                                    <TableRow label="CD (Cuádriceps D)" unit="cm" field="rightThigh" logs={sortedLogs} />
+                                    <TableRow label="Ci (Cuádriceps I)" unit="cm" field="leftThigh" logs={sortedLogs} />
                                     <TableRow label="GD (Gemelo D)" unit="cm" field="rightCalf" logs={sortedLogs} />
                                     <TableRow label="Gi (Gemelo I)" unit="cm" field="leftCalf" logs={sortedLogs} />
-                                    <TableRow label="BD (Brazo D)" unit="cm" field="rightArm" logs={sortedLogs} />
-                                    <TableRow label="Bi (Brazo I)" unit="cm" field="leftArm" logs={sortedLogs} />
+                                    <TableRow label="BD (Bíceps D)" unit="cm" field="rightArm" logs={sortedLogs} />
+                                    <TableRow label="Bi (Bíceps I)" unit="cm" field="leftArm" logs={sortedLogs} />
                                     <TableRow label="CUELLO" unit="cm" field="neck" logs={sortedLogs} />
                                 </tbody>
                             </table>
