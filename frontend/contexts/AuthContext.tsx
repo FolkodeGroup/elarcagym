@@ -13,7 +13,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  loginWithPassword: (password: string) => Promise<boolean>;
   logout: () => void;
   error: string | null;
 }
@@ -67,12 +66,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(false);
   }, []);
 
-  // Login con email y contraseña (API real)
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+  // Login con usuario y contraseña (API real)
+  const login = useCallback(async (usuario: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await AuthAPI.login(email, password);
+      const result = await AuthAPI.login(usuario, password);
       if (result.token) {
         const decoded = decodeToken(result.token);
         if (decoded) {
@@ -81,65 +80,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           return true;
         }
       }
-      setError('Error al procesar el login');
+      setError('Usuario o contraseña incorrectos');
       setIsLoading(false);
       return false;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de autenticación');
-      setIsLoading(false);
-      return false;
-    }
-  }, []);
-
-  // Login simplificado con solo contraseña (para modo admin temporal/desarrollo)
-  const loginWithPassword = useCallback(async (password: string): Promise<boolean> => {
-    setIsLoading(true);
-    setError(null);
-    
-    // Modo de desarrollo: contraseña admin123 permite acceso sin backend
-    if (password === 'admin123') {
-      const fakeUser: User = {
-        id: 'admin',
-        email: 'admin@elarca.gym',
-        name: 'Admin',
-        role: 'ADMIN',
-      };
-      // Guardar un token fake para desarrollo
-      localStorage.setItem('auth_token', 'dev_mode_token');
-      setUser(fakeUser);
-      setIsLoading(false);
-      return true;
-    }
-    
-    // En producción, intentar login con un email admin por defecto
-    try {
-      const result = await AuthAPI.login('admin@elarca.gym', password);
-      if (result.token) {
-        const decoded = decodeToken(result.token);
-        if (decoded) {
-          setUser(decoded);
-          setIsLoading(false);
-          return true;
-        }
-      }
-      setError('Contraseña incorrecta');
-      setIsLoading(false);
-      return false;
-    } catch (err) {
-      // Si el backend no está disponible, usar modo desarrollo
-      if (password === 'admin123') {
-        const fakeUser: User = {
-          id: 'admin',
-          email: 'admin@elarca.gym',
-          name: 'Admin',
-          role: 'ADMIN',
-        };
-        localStorage.setItem('auth_token', 'dev_mode_token');
-        setUser(fakeUser);
-        setIsLoading(false);
-        return true;
-      }
-      setError('Contraseña incorrecta');
       setIsLoading(false);
       return false;
     }
@@ -156,7 +101,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isAuthenticated: !!user,
     isLoading,
     login,
-    loginWithPassword,
     logout,
     error,
   };

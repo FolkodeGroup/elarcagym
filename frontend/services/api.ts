@@ -45,6 +45,11 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
   
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
+    if (errorData.error && errorData.error.toLowerCase().includes('token')) {
+      clearToken();
+      // Forzar logout automático y recargar la app
+      window.location.href = '/';
+    }
     throw new Error(errorData.error || `API error: ${res.status}`);
   }
   
