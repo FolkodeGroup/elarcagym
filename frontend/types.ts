@@ -1,23 +1,30 @@
-
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
-  DEBTOR = 'DEBTOR' // Moroso
+  DEBTOR = 'DEBTOR' 
 }
 
 export interface BiometricLog {
   id: string;
   date: string;
-  weight: number; // kg
-  height: number; // cm
-  bodyFat?: number; // %
-  chest?: number;
-  waist?: number;
-  hips?: number;
+  weight: number;      
+  height?: number;     // Estatura en cm para el cálculo del IMC
+  chest?: number;      
+  waist?: number;      
+  abdomen?: number;    
+  glutes?: number;     
+  rightThigh?: number; // CD (Muslo Der)
+  leftThigh?: number;  // Ci (Muslo Izq)
+  rightCalf?: number;  // GD (Gemelo Der)
+  leftCalf?: number;   // Gi (Gemelo Izq)
+  rightArm?: number;   // BD (Brazo Der)
+  leftArm?: number;    // Bi (Brazo Izq)
+  neck?: number;       
+  bodyFat?: number;    
 }
 
 export interface ExerciseDetail {
-  id: string; // unique id inside the routine
+  id: string; 
   name: string;
   series: string;
   reps: string;
@@ -26,7 +33,7 @@ export interface ExerciseDetail {
 }
 
 export interface RoutineDay {
-  dayName: string; // "Lunes", "Día 1", etc.
+  dayName: string;
   exercises: ExerciseDetail[];
 }
 
@@ -47,12 +54,23 @@ export interface Diet {
   generatedAt: string;
 }
 
+export interface NutritionData {
+  breakfast: string[];     
+  morningSnack: string[];  
+  lunch: string[];         
+  afternoonSnack: string[];
+  dinner: string[];        
+  notes?: string;        
+  calories?: string;     
+  lastUpdated: string;   
+}
+
 export interface PaymentLog {
   id: string;
   date: string;
   amount: number;
-  concept: string; // "Cuota Mensual", "Matrícula", etc.
-  method: string; // "Efectivo", "Tarjeta"
+  concept: string; 
+  method: string; 
 }
 
 export interface Member {
@@ -63,21 +81,21 @@ export interface Member {
   email: string;
   phone: string;
   joinDate: string;
-  photoUrl?: string; // New field for profile picture
+  photoUrl?: string; 
   status: UserStatus;
   biometrics: BiometricLog[];
   routines: Routine[];
   diets: Diet[];
-  payments: PaymentLog[]; // New field for gym fee history
+  payments: PaymentLog[];
   lastAttendance?: string;
-  // Nueva funcionalidad
   phase?: 'volumen' | 'deficit' | 'recomposicion' | 'transicion';
-  // Horarios habituales de entrenamiento
+  bioObjective?: string; 
   habitualSchedules?: Array<{
-    day: string; // Ej: 'Lunes'
-    start: string; // Ej: '08:00'
-    end: string;   // Ej: '09:30'
+    day: string; 
+    start: string;
+    end: string;
   }>;
+  nutritionPlan?: NutritionData;
 }
 
 export interface Product {
@@ -90,7 +108,7 @@ export interface Product {
 
 export interface Sale {
   id: string;
-  memberId?: string; // Optional (can be walk-in)
+  memberId?: string;
   date: string;
   items: {
     productId: string;
@@ -110,9 +128,9 @@ export interface Reminder {
 
 export interface Slot {
   id: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM (24h format)
-  duration: number; // minutes
+  date: string; 
+  time: string; 
+  duration: number; 
   status: 'available' | 'reserved' | 'occupied';
   color?: string;
   target?: string;
@@ -121,19 +139,19 @@ export interface Slot {
 export interface Reservation {
   id: string;
   slotId: string;
-  memberId?: string;  // Link to member for proper assignment
+  memberId?: string;
   clientName: string;
   clientPhone?: string;
   clientEmail?: string;
   notes?: string;
-  attended?: boolean; // Track if member attended
+  attended?: boolean; 
   createdAt: string;
 }
 
 export interface ExerciseMaster {
   id: string;
   name: string;
-  category: string; // Pecho, Espalda, Piernas, etc.
+  category: string; 
 }
 
 export interface AppState {

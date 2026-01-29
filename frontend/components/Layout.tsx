@@ -18,13 +18,15 @@ import {
   ChevronDown,
   Sun,
   Moon,
-  ShoppingCart
+  ShoppingCart,
+  Apple // New icon for Nutrition
 } from 'lucide-react';
 import { db } from '../services/db';
 import Toast from './Toast';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { UserStatus } from '../types';
+import { QrCode } from 'lucide-react'; // Asegúrate de tener este import
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -52,7 +54,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
     { id: 'members', label: t('socios'), icon: Users },
     { id: 'biometrics', label: t('seguimiento'), icon: ClipboardList },
     { id: 'operations', label: t('gestorRutinas'), icon: Dumbbell },
+    { id: 'nutrition', label: 'Nutrición', icon: Apple },
     { id: 'reservas', label: t('reservas'), icon: Calendar },
+    { id: 'qr_manager', label: 'Codigo QR', icon: QrCode },
     { id: 'admin', label: t('comercio'), icon: ShoppingCart },
     { id: 'Ingresos', label: t('ingresosVentas'), icon: DollarSign },
   ];
