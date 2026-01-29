@@ -9,11 +9,12 @@ import Nutrition from './pages/Nutrition.tsx';
 import Admin from './pages/Admin';
 import Ingresos from './pages/Ingresos';
 import Reservas from './pages/Reservas';
+import RoutineSelfService from './pages/RoutineSelfService'; // Importar nueva sección
 import { db } from './services/db';
 import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
-
+import QRManager from './pages/QRManager.tsx';
 const AppContent: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -23,7 +24,15 @@ const AppContent: React.FC = () => {
   const { canNavigate, pendingPage, setPendingPage, confirmNavigation } = useNavigation();
 
   useEffect(() => {
-    // Check if user is already logged in from localStorage persistence
+    // 1. Detectar si venimos desde el QR
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'routine') {
+      setCurrentPage('self_service');
+      setIsAuthenticated(true); // Saltamos login para consulta pública
+      return;
+    }
+
+    // 2. Check login normal
     const user = db.getUser();
     if (user) {
       setIsAuthenticated(true);
@@ -39,23 +48,16 @@ const AppContent: React.FC = () => {
     setIsAuthenticated(false);
   };
 
-  // Intercept navigation
   const handleNavigate = (page: string, filter?: string) => {
     if (!canNavigate) {
       setPendingPage(page);
       setShowNavModal(true);
       return;
     }
-    // Fade out effect
     setIsTransitioning(true);
     setTimeout(() => {
       setCurrentPage(page);
-      if (filter) {
-        setPageFilter(filter);
-      } else {
-        setPageFilter(null);
-      }
-      // Fade in effect
+      setPageFilter(filter || null);
       setIsTransitioning(false);
     }, 200);
   };
@@ -74,9 +76,15 @@ const AppContent: React.FC = () => {
     return <Login onLogin={handleLogin} />;
   }
 
+  // Renderizado especial para el portal de socios (sin barra lateral)
+  if (currentPage === 'self_service') {
+    return <RoutineSelfService />;
+  }
+
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard': return <Dashboard onNavigate={handleNavigate} />;
+      case 'qr_manager': return <QRManager />;
       case 'members': return <Members initialFilter={pageFilter} />;
       case 'biometrics': return <Biometrics />;
       case 'operations': return <Operations />;
