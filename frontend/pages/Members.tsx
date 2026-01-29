@@ -114,7 +114,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       reader.onloadend = async () => {
         const base64 = reader.result as string;
         try {
-          await MembersAPI.update(selectedMember.id, { photo: base64 });
+          await MembersAPI.update(selectedMember.id, { photoUrl: base64 });
           await refreshMembers();
         } catch (err) {
           setToast({ message: t('errorGuardarFoto'), type: 'error' });
@@ -158,7 +158,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     ctx.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL('image/jpeg');
     try {
-      await MembersAPI.update(selectedMember.id, { photo: dataUrl });
+      await MembersAPI.update(selectedMember.id, { photoUrl: dataUrl });
       stopCamera();
       setShowCameraModal(false);
       await refreshMembers();
@@ -179,14 +179,11 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     e.preventDefault();
     if(selectedMember) {
       try {
-        await MembersAPI.update(selectedMember.id, {
-          // Suponiendo que el backend acepta un array de pagos o un nuevo pago
-          addPayment: {
-            amount: Number(paymentAmount),
-            concept: paymentConcept,
-            method: 'Efectivo',
-            date: new Date().toISOString()
-          }
+        await MembersAPI.addPayment(selectedMember.id, {
+          amount: Number(paymentAmount),
+          concept: paymentConcept,
+          method: 'Efectivo',
+          date: new Date().toISOString()
         });
         setShowPaymentModal(false);
         setPaymentAmount('');

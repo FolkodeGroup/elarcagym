@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../services/db';
+import { ProductsAPI, SalesAPI } from '../services/api';
 import { Product } from '../types';
 import { ShoppingCart, Plus, Minus, Trash2, Edit2, Search, AlertTriangle } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
@@ -53,7 +53,8 @@ const Admin: React.FC = () => {
         setShowCategoryManager(false);
     };
 
-    const [inventory, setInventory] = useState<Product[]>(db.getInventory());
+    const [inventory, setInventory] = useState<Product[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [cart, setCart] = useState<{product: Product, qty: number}[]>([]);
     const [searchFilter, setSearchFilter] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('ALL');
@@ -65,6 +66,24 @@ const Admin: React.FC = () => {
     
     // Estado para eliminar producto
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+
+    // Cargar inventario desde API
+    const loadInventory = async () => {
+        try {
+            setIsLoading(true);
+            const data = await ProductsAPI.list();
+            setInventory(data);
+        } catch (error) {
+            console.error('Error loading inventory:', error);
+            setToast({ message: 'Error al cargar inventario', type: 'error' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadInventory();
+    }, []);
 
     // Categorías dinámicas
     const DEFAULT_CATEGORIES = ["SUPPLEMENT", "DRINK", "MERCHANDISE", "OTHER"];
@@ -126,27 +145,36 @@ const Admin: React.FC = () => {
 
   const getTotal = () => cart.reduce((acc, item) => acc + (item.product.price * item.qty), 0);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
       if(cart.length === 0) return;
-      db.recordSale(cart.map(c => ({ productId: c.product.id, quantity: c.qty })));
-      setCart([]);
-      setToast({ message: 'Venta registrada con éxito.', type: 'success' });
-      // After checkout, allow navigation again
-      setCanNavigate(true);
-      // Refresh inventory from DB after sale
-      setInventory(db.getInventory());
+      try {
+          await SalesAPI.create({
+              items: cart.map(c => ({ productId: c.product.id, quantity: c.qty })),
+              total: getTotal()
+          });
+          setCart([]);
+          setToast({ message: 'Venta registrada con éxito.', type: 'success' });
+          // After checkout, allow navigation again
+          setCanNavigate(true);
+          // Refresh inventory from API after sale
+          await loadInventory();
+      } catch (error) {
+          console.error('Error recording sale:', error);
+          setToast({ message: 'Error al registrar venta', type: 'error' });
+      }
   };
 
-  const handleConfirmDeleteProduct = () => {
+  const handleConfirmDeleteProduct = async () => {
       if (!productToDelete) return;
       
-      const success = db.deleteProduct(productToDelete.id);
-      if (success) {
-          setInventory(db.getInventory()); // Recargar lista
+      try {
+          await ProductsAPI.delete(productToDelete.id);
+          await loadInventory();
           setToast({ message: `Producto "${productToDelete.name}" eliminado correctamente.`, type: 'success' });
           // Si el producto estaba en el carrito, lo quitamos
           setCart(prev => prev.filter(item => item.product.id !== productToDelete.id));
-      } else {
+      } catch (error) {
+          console.error('Error deleting product:', error);
           setToast({ message: 'Error al eliminar el producto.', type: 'error' });
       }
       setProductToDelete(null); // Cerrar modal
@@ -456,7 +484,7 @@ const Admin: React.FC = () => {
                             )}
                             <div className="flex gap-3 pt-4">
                                 <button className="flex-1 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold" onClick={() => setShowAddModal(false)}>CANCELAR</button>
-                                <button className="flex-1 py-3 rounded-xl bg-brand-gold text-black font-black uppercase tracking-tighter shadow-lg shadow-brand-gold/10" onClick={() => {
+                                <button className="flex-1 py-3 rounded-xl bg-brand-gold text-black font-black uppercase tracking-tighter shadow-lg shadow-brand-gold/10" onClick={async () => {
                                     let categoryToUse = newProductForm.category;
                                     if (addingNewCategory && newProductForm.newCategory.trim()) {
                                         categoryToUse = newProductForm.newCategory.trim().toUpperCase();
@@ -466,12 +494,17 @@ const Admin: React.FC = () => {
                                             localStorage.setItem('categories', JSON.stringify(updated));
                                         }
                                     }
-                                    db.addProduct({ name: newProductForm.name, price: Number(newProductForm.price), category: categoryToUse, stock: Number(newProductForm.stock) });
-                                    setInventory(db.getInventory());
-                                    setToast({ message: `Producto agregado.`, type: 'success' });
-                                    setShowAddModal(false);
-                                    setAddingNewCategory(false);
-                                    setNewProductForm({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '' });
+                                    try {
+                                        await ProductsAPI.create({ name: newProductForm.name, price: Number(newProductForm.price), category: categoryToUse, stock: Number(newProductForm.stock) });
+                                        await loadInventory();
+                                        setToast({ message: `Producto agregado.`, type: 'success' });
+                                        setShowAddModal(false);
+                                        setAddingNewCategory(false);
+                                        setNewProductForm({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '' });
+                                    } catch (error) {
+                                        console.error('Error adding product:', error);
+                                        setToast({ message: 'Error al agregar producto', type: 'error' });
+                                    }
                                 }}>CREAR</button>
                             </div>
                         </div>
@@ -518,7 +551,7 @@ const Admin: React.FC = () => {
                             )}
                             <div className="flex gap-3 pt-4">
                                 <button className="flex-1 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold" onClick={() => setShowEditModal(false)}>CANCELAR</button>
-                                <button className="flex-1 py-3 rounded-xl bg-brand-gold text-black font-black uppercase tracking-tighter shadow-lg shadow-brand-gold/10" onClick={() => {
+                                <button className="flex-1 py-3 rounded-xl bg-brand-gold text-black font-black uppercase tracking-tighter shadow-lg shadow-brand-gold/10" onClick={async () => {
                                     let categoryToUse = editProductForm.category;
                                     if (addingNewCategory && editProductForm.newCategory.trim()) {
                                         categoryToUse = editProductForm.newCategory.trim().toUpperCase();
@@ -528,11 +561,16 @@ const Admin: React.FC = () => {
                                             localStorage.setItem('categories', JSON.stringify(updated));
                                         }
                                     }
-                                    db.updateProduct(editingProduct.id, { name: editProductForm.name, price: Number(editProductForm.price), category: categoryToUse, stock: Number(editProductForm.stock) });
-                                    setInventory(db.getInventory());
-                                    setToast({ message: `Cambios guardados.`, type: 'success' });
-                                    setShowEditModal(false);
-                                    setAddingNewCategory(false);
+                                    try {
+                                        await ProductsAPI.update(editingProduct.id, { name: editProductForm.name, price: Number(editProductForm.price), category: categoryToUse, stock: Number(editProductForm.stock) });
+                                        await loadInventory();
+                                        setToast({ message: `Cambios guardados.`, type: 'success' });
+                                        setShowEditModal(false);
+                                        setAddingNewCategory(false);
+                                    } catch (error) {
+                                        console.error('Error updating product:', error);
+                                        setToast({ message: 'Error al actualizar producto', type: 'error' });
+                                    }
                                 }}>GUARDAR</button>
                             </div>
                         </div>

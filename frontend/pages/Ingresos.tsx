@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../services/db';
+import { SalesAPI } from '../services/api';
 import { Sale } from '../types';
 import { DollarSign, TrendingUp, Edit2, Trash2, Printer, X } from 'lucide-react';
 import Toast from '../components/Toast';
@@ -13,6 +13,7 @@ const Ingresos = () => {
     const [ventasHoy, setVentasHoy] = useState<Sale[]>([]);
     const [totalHoy, setTotalHoy] = useState(0);
     const [totalGeneral, setTotalGeneral] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
     const [filtroFecha, setFiltroFecha] = useState<string>(() => {
         return new Date().toISOString().split('T')[0];
@@ -24,23 +25,31 @@ const Ingresos = () => {
         cargarVentas();
     }, []);
 
-    const cargarVentas = () => {
-        const todasLasVentas = db.getAllSales();
-        setVentas(todasLasVentas);
+    const cargarVentas = async () => {
+        setIsLoading(true);
+        try {
+            const todasLasVentas = await SalesAPI.list();
+            setVentas(todasLasVentas);
 
-        const hoy = new Date().toISOString().split('T')[0];
-        const ventasDelDia = todasLasVentas.filter(venta => {
-            const fechaVenta = new Date(venta.date).toISOString().split('T')[0];
-            return fechaVenta === hoy;
-        });
+            const hoy = new Date().toISOString().split('T')[0];
+            const ventasDelDia = todasLasVentas.filter(venta => {
+                const fechaVenta = new Date(venta.date).toISOString().split('T')[0];
+                return fechaVenta === hoy;
+            });
 
-        setVentasHoy(ventasDelDia);
+            setVentasHoy(ventasDelDia);
 
-        const totalDia = ventasDelDia.reduce((acc, venta) => acc + venta.total, 0);
-        const totalG = todasLasVentas.reduce((acc, venta) => acc + venta.total, 0);
+            const totalDia = ventasDelDia.reduce((acc, venta) => acc + venta.total, 0);
+            const totalG = todasLasVentas.reduce((acc, venta) => acc + venta.total, 0);
 
-        setTotalHoy(totalDia);
-        setTotalGeneral(totalG);
+            setTotalHoy(totalDia);
+            setTotalGeneral(totalG);
+        } catch (error) {
+            console.error('Error loading sales:', error);
+            setToast({ message: 'Error al cargar ventas', type: 'error' });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const formatearFecha = (fecha: string) => {
@@ -58,13 +67,17 @@ const Ingresos = () => {
         setShowDeleteModal(true);
     };
 
-    const confirmarEliminar = () => {
+    const confirmarEliminar = async () => {
         if (ventaAEliminar) {
-            db.deleteSale(ventaAEliminar.id);
-            setToast({ message: t('ventaEliminadaCorrectamente'), type: 'success' });
-            setShowDeleteModal(false);
-            setVentaAEliminar(null);
-            cargarVentas();
+            try {
+                await SalesAPI.delete(ventaAEliminar.id);
+                setToast({ message: t('ventaEliminadaCorrectamente'), type: 'success' });
+                setShowDeleteModal(false);
+                setVentaAEliminar(null);
+                await cargarVentas();
+            } catch (error) {
+                setToast({ message: 'Error al eliminar venta', type: 'error' });
+            }
         }
     };
 

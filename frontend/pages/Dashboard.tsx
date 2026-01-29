@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../services/db';
-import { Member, UserStatus, Reminder, Slot, Reservation } from '../types';
+import { MembersAPI, RemindersAPI, SlotsAPI, ReservationsAPI, SalesAPI } from '../services/api';
+import { Member, UserStatus, Reminder, Slot, Reservation, Sale } from '../types';
 import { isCurrentOnPayment, isDebtorByPayment } from '../services/membershipUtils';
 import { Users, AlertCircle, TrendingUp, DollarSign, Plus, Edit2, Trash2, CreditCard, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -16,6 +16,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDirty, setIsDirty] = useState(false);
   const [showAddReminderModal, setShowAddReminderModal] = useState(false);
   const [showEditReminderModal, setShowEditReminderModal] = useState(false);
@@ -27,15 +29,31 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [editReminderForm, setEditReminderForm] = useState({ text: '', date: '', priority: 'medium' as const });
   const { setCanNavigate } = useNavigation();
 
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [membersData, remindersData, slotsData, reservationsData, salesData] = await Promise.all([
+        MembersAPI.list(),
+        RemindersAPI.list(),
+        SlotsAPI.list(),
+        ReservationsAPI.list(),
+        SalesAPI.list()
+      ]);
+      setMembers(membersData);
+      setReminders(remindersData);
+      setSlots(slotsData);
+      setReservations(reservationsData);
+      setSales(salesData);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      setToast({ message: 'Error al cargar datos', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const allMembers = db.getMembers();
-    setMembers(allMembers);
-    const list = db.getReminders();
-    setReminders(list);
-    const allSlots = db.getSlots();
-    setSlots(allSlots);
-    const allReservations = db.getReservations();
-    setReservations(allReservations);
+    loadData();
   }, []);
 
   // Block navigation when there are unsaved changes
@@ -54,7 +72,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const now = new Date();
     const todayLocal = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     return slots
-      .filter(s => s.date === todayLocal)
+      .filter(s => {
+        const slotDate = typeof s.date === 'string' ? s.date.split('T')[0] : new Date(s.date).toISOString().split('T')[0];
+        return slotDate === todayLocal;
+      })
       .filter(s => reservations.some(r => r.slotId === s.id))
       .sort((a, b) => a.time.localeCompare(b.time));
   };
@@ -62,7 +83,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   // Calcular ingresos de hoy
   const getTodayIncome = () => {
     const hoy = new Date().toISOString().split('T')[0];
-    const ventasHoy = db.getAllSales().filter(venta => {
+    const ventasHoy = sales.filter(venta => {
       const fechaVenta = new Date(venta.date).toISOString().split('T')[0];
       return fechaVenta === hoy;
     });
@@ -78,48 +99,60 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     { name: 'Inactivos', value: inactiveMembers, color: '#9ca3af' },
   ];
 
-  const handleAddReminder = () => {
+  const handleAddReminder = async () => {
     if (!newReminderForm.text.trim() || !newReminderForm.date) {
       setToast({ message: 'Por favor completa todos los campos.', type: 'error' });
       return;
     }
-    const reminder = db.addReminder({
-      text: newReminderForm.text,
-      date: newReminderForm.date,
-      priority: newReminderForm.priority
-    });
-    setReminders([...db.getReminders()]);
-    setToast({ message: 'Recordatorio agregado.', type: 'success' });
-    setShowAddReminderModal(false);
-    setNewReminderForm({ text: '', date: '', priority: 'medium' });
-    setIsDirty(false);
+    try {
+      await RemindersAPI.create({
+        text: newReminderForm.text,
+        date: newReminderForm.date,
+        priority: newReminderForm.priority
+      });
+      await loadData();
+      setToast({ message: 'Recordatorio agregado.', type: 'success' });
+      setShowAddReminderModal(false);
+      setNewReminderForm({ text: '', date: '', priority: 'medium' });
+      setIsDirty(false);
+    } catch (error) {
+      setToast({ message: 'Error al agregar recordatorio', type: 'error' });
+    }
   };
 
-  const handleEditReminder = () => {
+  const handleEditReminder = async () => {
     if (!editingReminder || !editReminderForm.text.trim() || !editReminderForm.date) {
       setToast({ message: 'Por favor completa todos los campos.', type: 'error' });
       return;
     }
-    db.updateReminder(editingReminder.id, {
-      text: editReminderForm.text,
-      date: editReminderForm.date,
-      priority: editReminderForm.priority
-    });
-    setReminders([...db.getReminders()]);
-    setToast({ message: 'Recordatorio actualizado.', type: 'success' });
-    setShowEditReminderModal(false);
-    setEditingReminder(null);
-    setIsDirty(false);
+    try {
+      await RemindersAPI.update(editingReminder.id, {
+        text: editReminderForm.text,
+        date: editReminderForm.date,
+        priority: editReminderForm.priority
+      });
+      await loadData();
+      setToast({ message: 'Recordatorio actualizado.', type: 'success' });
+      setShowEditReminderModal(false);
+      setEditingReminder(null);
+      setIsDirty(false);
+    } catch (error) {
+      setToast({ message: 'Error al actualizar recordatorio', type: 'error' });
+    }
   };
 
-  const handleDeleteReminder = () => {
+  const handleDeleteReminder = async () => {
     if (!reminderToDeleteId) return;
-    db.deleteReminder(reminderToDeleteId);
-    setReminders([...db.getReminders()]);
-    setToast({ message: 'Recordatorio eliminado.', type: 'info' });
-    setShowDeleteReminderConfirm(false);
-    setReminderToDeleteId(null);
-    setIsDirty(false);
+    try {
+      await RemindersAPI.delete(reminderToDeleteId);
+      await loadData();
+      setToast({ message: 'Recordatorio eliminado.', type: 'info' });
+      setShowDeleteReminderConfirm(false);
+      setReminderToDeleteId(null);
+      setIsDirty(false);
+    } catch (error) {
+      setToast({ message: 'Error al eliminar recordatorio', type: 'error' });
+    }
   };
 
   const openEditReminderModal = (reminder: Reminder) => {
