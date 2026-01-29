@@ -30,6 +30,22 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Función para abrir el modal y reiniciar el formulario
+  const handleOpenAddModal = () => {
+    setNewMember({
+      firstName: '',
+      lastName: '',
+      dni: '',
+      email: '',
+      phone: '',
+      password: '',
+      status: UserStatus.ACTIVE,
+      phase: 'volumen',
+      habitualSchedules: []
+    });
+    setShowAddModal(true);
+  };
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -50,6 +66,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     dni: '',
     email: '',
     phone: '',
+    password: '',
     status: UserStatus.ACTIVE,
     phase: 'volumen',
     habitualSchedules: [] as { day: string; start: string; end: string }[]
@@ -99,7 +116,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         habitualSchedules: newMember.habitualSchedules
       });
       setShowAddModal(false);
-      setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
+      setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', password: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
       await refreshMembers();
       setToast({ message: t('cambiosGuardados'), type: 'success' });
     } catch (err) {
@@ -1132,7 +1149,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h2 className="text-2xl font-display font-bold text-white">Directorio de Socios</h2>
         <button 
-          onClick={() => setShowAddModal(true)}
+          onClick={handleOpenAddModal}
           className="bg-brand-gold text-black px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition flex items-center gap-2"
         >
           <Plus size={20} /> Nuevo Socio
@@ -1317,6 +1334,66 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
           )}
         </div>
       </div>
+
+      {/* Add Member Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-lg border border-gray-700">
+            <h3 className="text-xl font-bold text-white mb-4">{t('registrarSocio')}</h3>
+            <form onSubmit={handleAddMember} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <input 
+                  required
+                  placeholder={t('nombre')} 
+                  value={newMember.firstName}
+                  onChange={e => setNewMember({...newMember, firstName: e.target.value})}
+                  className="bg-black border border-gray-700 p-3 rounded text-white"
+                />
+                <input 
+                  required
+                  placeholder={t('apellido')} 
+                  value={newMember.lastName}
+                  onChange={e => setNewMember({...newMember, lastName: e.target.value})}
+                  className="bg-black border border-gray-700 p-3 rounded text-white"
+                />
+              </div>
+              <input 
+                type="text"
+                required
+                placeholder={t('dniRequerido')} 
+                value={newMember.dni}
+                onChange={e => setNewMember({...newMember, dni: e.target.value})}
+                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
+              />
+              <input 
+                type="email"
+                placeholder={t('email')} 
+                value={newMember.email}
+                onChange={e => setNewMember({...newMember, email: e.target.value})}
+                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
+              />
+              <input 
+                placeholder={t('telefonoEjemplo')} 
+                value={newMember.phone}
+                onChange={e => setNewMember({...newMember, phone: e.target.value})}
+                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
+              />
+              <input 
+                type="password"
+                required
+                placeholder="Contraseña" 
+                value={newMember.password}
+                onChange={e => setNewMember({...newMember, password: e.target.value})}
+                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
+              />
+              <div className="flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-gray-400 hover:text-white">{t('cancelar')}</button>
+                <button type="submit" className="px-6 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500">{t('guardar')}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
