@@ -546,7 +546,7 @@ const Operations: React.FC = () => {
         </div>
 
         {/* MIDDLE COLUMN: Exercise Builder */}
-        <div className="lg:col-span-5 bg-[#1a1a1a] p-4 rounded-xl border border-gray-800 flex flex-col">
+        <div className="lg:col-span-5 bg-[#1a1a1a] p-4 rounded-xl border border-gray-800 flex flex-col max-h-[calc(100vh-140px)] overflow-y-auto">
             <h3 className="font-bold text-white mb-4 uppercase tracking-wider text-xs">
                 Editando: <span className="text-brand-gold">{routineDays[activeDayIndex].dayName}</span>
             </h3>
