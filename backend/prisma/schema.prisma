@@ -14,7 +14,7 @@ model Member {
   lastName        String
   dni             String   @unique
   email           String   @unique
-  password        String
+  password        String?  // Opcional - solo para admins, no para socios regulares
   phone           String
   joinDate        DateTime @default(now())
   status          String
