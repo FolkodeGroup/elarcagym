@@ -29,19 +29,50 @@ app.use(express.json());
 // Documentación Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Rutas de autenticación
+// Rutas de autenticación (públicas)
 app.use('/auth', authController(prisma));
 
-// Rutas principales protegidas (ejemplo: members)
+// Ruta pública para consulta de rutinas por DNI (Portal del Socio)
+app.get('/public/member-routine/:dni', async (req, res) => {
+  try {
+    const member = await prisma.member.findUnique({
+      where: { dni: req.params.dni },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        routines: {
+          include: {
+            days: {
+              include: {
+                exercises: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+    if (!member) {
+      return res.status(404).json({ error: 'Socio no encontrado' });
+    }
+    res.json(member);
+  } catch (error) {
+    console.error('Error fetching member routine:', error);
+    res.status(500).json({ error: 'Error al buscar socio' });
+  }
+});
+
+// Rutas principales protegidas
 app.use('/members', authenticateToken, memberController(prisma));
-app.use('/products', productController(prisma));
-app.use('/sales', saleController(prisma));
-app.use('/reservations', reservationController(prisma));
-app.use('/diets', dietController(prisma));
-app.use('/payment-logs', paymentLogController(prisma));
-app.use('/reminders', reminderController(prisma));
-app.use('/slots', slotController(prisma));
-app.use('/exercises', exerciseMasterController(prisma));
+app.use('/products', authenticateToken, productController(prisma));
+app.use('/sales', authenticateToken, saleController(prisma));
+app.use('/reservations', authenticateToken, reservationController(prisma));
+app.use('/diets', authenticateToken, dietController(prisma));
+app.use('/payment-logs', authenticateToken, paymentLogController(prisma));
+app.use('/reminders', authenticateToken, reminderController(prisma));
+app.use('/slots', authenticateToken, slotController(prisma));
+app.use('/exercises', authenticateToken, exerciseMasterController(prisma));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

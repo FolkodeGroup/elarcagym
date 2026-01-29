@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { db } from '../services/db';
+import { useAuth } from '../contexts/AuthContext';
 import { LOGO_BASE64 } from '../services/assets';
 
 interface LoginProps {
@@ -10,14 +10,22 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { loginWithPassword } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (db.login(password)) {
+    setIsLoading(true);
+    setError('');
+    
+    const success = await loginWithPassword(password);
+    
+    if (success) {
       onLogin();
     } else {
       setError('Contraseña incorrecta. (Prueba: admin123)');
     }
+    setIsLoading(false);
   };
 
   return (
@@ -68,9 +76,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
           <button
             type="submit"
-            className="w-full bg-brand-gold hover:bg-yellow-500 text-black font-bold py-4 rounded-lg transition-transform transform hover:scale-[1.02] active:scale-[0.98] uppercase tracking-wider"
+            disabled={isLoading}
+            className="w-full bg-brand-gold hover:bg-yellow-500 text-black font-bold py-4 rounded-lg transition-transform transform hover:scale-[1.02] active:scale-[0.98] uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Ingresar
+            {isLoading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
 

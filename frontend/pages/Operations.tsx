@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { db } from '../services/db';
+import { MembersAPI, ExercisesAPI } from '../services/api';
 import { Member, ExerciseMaster, RoutineDay, ExerciseDetail, Routine } from '../types';
 import { Dumbbell, Plus, Save, Trash2, ClipboardList, Edit2, RotateCcw, Search, ChevronDown, Check } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
@@ -8,6 +8,7 @@ import Toast from '../components/Toast';
 const Operations: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [exercisesMaster, setExercisesMaster] = useState<ExerciseMaster[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { setCanNavigate } = useNavigation();
   
   // Selection State
@@ -50,11 +51,26 @@ const Operations: React.FC = () => {
   const [newExName, setNewExName] = useState('');
   const [newExCategory, setNewExCategory] = useState('');
 
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const [membersData, exercisesData] = await Promise.all([
+        MembersAPI.list(),
+        ExercisesAPI.list()
+      ]);
+      setMembers(membersData);
+      setExercisesMaster(exercisesData);
+      if (membersData.length > 0) setSelectedMemberId(membersData[0].id);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setToast({ message: 'Error al cargar datos', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setMembers(db.getMembers());
-    setExercisesMaster(db.getExercises());
-    const memberList = db.getMembers();
-    if(memberList.length > 0) setSelectedMemberId(memberList[0].id);
+    loadData();
 
     // Click outside listener for dropdowns
     const handleClickOutside = (event: MouseEvent) => {
@@ -269,21 +285,26 @@ const Operations: React.FC = () => {
         setIsDirty(true);
   };
 
-  const handleCreateMasterExercise = () => {
+  const handleCreateMasterExercise = async () => {
     if(!newExName) return;
-    const newEx = db.createMasterExercise(newExName, newExCategory || 'General');
-    setExercisesMaster([...exercisesMaster, newEx]); // Optimistic update
-    
-    // Auto select the new exercise
-    selectExercise(newEx);
-    
-    setShowNewExModal(false);
-    setNewExName('');
-    setNewExCategory('');
-        setIsDirty(true);
+    try {
+      const newEx = await ExercisesAPI.create({ name: newExName, category: newExCategory || 'General' });
+      setExercisesMaster([...exercisesMaster, newEx]);
+      
+      // Auto select the new exercise
+      selectExercise(newEx);
+      
+      setShowNewExModal(false);
+      setNewExName('');
+      setNewExCategory('');
+      setIsDirty(true);
+    } catch (error) {
+      console.error('Error creating exercise:', error);
+      setToast({ message: 'Error al crear ejercicio', type: 'error' });
+    }
   };
 
-  const handleSaveRoutine = () => {
+  const handleSaveRoutine = async () => {
     if(!routineName || !selectedMemberId) {
         setToast({ message: 'Por favor ingresa un nombre para la rutina y selecciona un socio.', type: 'error' });
         return;
@@ -300,21 +321,27 @@ const Operations: React.FC = () => {
     const payload = {
         name: routineName,
         goal: routineGoal,
-        days: routineDays
+        days: routineDays,
+        assignedBy: 'El Arca' // TODO: obtener del contexto de autenticación
     };
 
-    if (editingRoutineId) {
-        db.updateRoutine(selectedMemberId, editingRoutineId, payload);
-        setToast({ message: `¡Rutina "${payload.name}" actualizada correctamente!`, type: 'success' });
-    } else {
-        db.saveRoutine(selectedMemberId, payload);
-        setToast({ message: `¡Rutina "${payload.name}" asignada correctamente!`, type: 'success' });
-    }
+    try {
+      if (editingRoutineId) {
+          await MembersAPI.updateRoutine(selectedMemberId, editingRoutineId, payload);
+          setToast({ message: `¡Rutina "${payload.name}" actualizada correctamente!`, type: 'success' });
+      } else {
+          await MembersAPI.addRoutine(selectedMemberId, payload);
+          setToast({ message: `¡Rutina "${payload.name}" asignada correctamente!`, type: 'success' });
+      }
 
-    // Refresh member list to show updated routines and reset
-    setMembers(db.getMembers());
-    resetForm();
-    setIsDirty(false);
+      // Refresh member list to show updated routines and reset
+      await loadData();
+      resetForm();
+      setIsDirty(false);
+    } catch (error) {
+      console.error('Error saving routine:', error);
+      setToast({ message: 'Error al guardar rutina', type: 'error' });
+    }
   };
 
   const handleDeleteRoutine = (routineId: string, routineName: string) => {
@@ -322,17 +349,22 @@ const Operations: React.FC = () => {
     setShowDeleteModal(true);
   };
 
-  const confirmDeleteRoutine = () => {
+  const confirmDeleteRoutine = async () => {
     if (!routineToDelete || !selectedMemberId) return;
     
-    db.deleteRoutine(selectedMemberId, routineToDelete.id);
-    setMembers(db.getMembers());
-    setToast({ message: `¡Rutina "${routineToDelete.name}" eliminada correctamente!`, type: 'success' });
-    
-    // If we were editing this routine, reset the form
-    if (editingRoutineId === routineToDelete.id) {
-      resetForm();
-      setIsDirty(false);
+    try {
+      await MembersAPI.deleteRoutine(selectedMemberId, routineToDelete.id);
+      await loadData();
+      setToast({ message: `¡Rutina "${routineToDelete.name}" eliminada correctamente!`, type: 'success' });
+      
+      // If we were editing this routine, reset the form
+      if (editingRoutineId === routineToDelete.id) {
+        resetForm();
+        setIsDirty(false);
+      }
+    } catch (error) {
+      console.error('Error deleting routine:', error);
+      setToast({ message: 'Error al eliminar rutina', type: 'error' });
     }
     
     setShowDeleteModal(false);

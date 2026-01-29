@@ -5,14 +5,40 @@ export default function(prisma: any) {
 
   // Obtener todos los recordatorios
   router.get('/', async (req, res) => {
-    const reminders = await prisma.reminder.findMany();
-    res.json(reminders);
+    try {
+      const reminders = await prisma.reminder.findMany({
+        orderBy: { date: 'asc' }
+      });
+      res.json(reminders);
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Obtener un recordatorio por ID
+  router.get('/:id', async (req, res) => {
+    try {
+      const reminder = await prisma.reminder.findUnique({
+        where: { id: req.params.id }
+      });
+      if (!reminder) return res.status(404).json({ error: 'Reminder not found' });
+      res.json(reminder);
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
   });
 
   // Crear un recordatorio
   router.post('/', async (req, res) => {
     try {
-      const reminder = await prisma.reminder.create({ data: req.body });
+      const { text, date, priority } = req.body;
+      const reminder = await prisma.reminder.create({
+        data: {
+          text,
+          date: new Date(date),
+          priority: priority || 'medium'
+        }
+      });
       res.status(201).json(reminder);
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
@@ -22,7 +48,14 @@ export default function(prisma: any) {
   // Actualizar un recordatorio
   router.put('/:id', async (req, res) => {
     try {
-      const reminder = await prisma.reminder.update({ where: { id: req.params.id }, data: req.body });
+      const { date, ...rest } = req.body;
+      const reminder = await prisma.reminder.update({
+        where: { id: req.params.id },
+        data: {
+          ...rest,
+          date: date ? new Date(date) : undefined
+        }
+      });
       res.json(reminder);
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });

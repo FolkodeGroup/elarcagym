@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../services/db';
+import { RemindersAPI } from '../services/api';
 import { Reminder } from '../types';
 import { Plus, Edit2, Trash2, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
@@ -12,6 +12,7 @@ const Reminders: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const { setCanNavigate } = useNavigation();
   const { t } = useLanguage();
@@ -21,9 +22,21 @@ const Reminders: React.FC = () => {
   const [newReminderForm, setNewReminderForm] = useState({ text: '', date: '', priority: 'medium' as const });
   const [editReminderForm, setEditReminderForm] = useState({ text: '', date: '', priority: 'medium' as const });
 
+  const loadReminders = async () => {
+    setIsLoading(true);
+    try {
+      const list = await RemindersAPI.list();
+      setReminders(list);
+    } catch (error) {
+      console.error('Error loading reminders:', error);
+      setToast({ message: 'Error al cargar recordatorios', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const list = db.getReminders();
-    setReminders(list);
+    loadReminders();
   }, []);
 
   // Block navigation when there are unsaved changes
@@ -31,53 +44,65 @@ const Reminders: React.FC = () => {
     setCanNavigate(!isDirty);
   }, [isDirty, setCanNavigate]);
 
-  const handleAddReminder = () => {
+  const handleAddReminder = async () => {
     if (!newReminderForm.text.trim() || !newReminderForm.date) {
       setToast({ message: t('completaCampos'), type: 'error' });
       return;
     }
-    const reminder = db.addReminder({
-      text: newReminderForm.text,
-      date: newReminderForm.date,
-      priority: newReminderForm.priority
-    });
-    setReminders([...db.getReminders()]);
-    setToast({ message: t('recordatorioAgregado'), type: 'success' });
-    setShowAddModal(false);
-    setNewReminderForm({ text: '', date: '', priority: 'medium' });
-    setIsDirty(false);
+    try {
+      await RemindersAPI.create({
+        text: newReminderForm.text,
+        date: newReminderForm.date,
+        priority: newReminderForm.priority
+      });
+      await loadReminders();
+      setToast({ message: t('recordatorioAgregado'), type: 'success' });
+      setShowAddModal(false);
+      setNewReminderForm({ text: '', date: '', priority: 'medium' });
+      setIsDirty(false);
+    } catch (error) {
+      setToast({ message: 'Error al agregar recordatorio', type: 'error' });
+    }
   };
 
-  const handleEditReminder = () => {
+  const handleEditReminder = async () => {
     if (!editingReminder || !editReminderForm.text.trim() || !editReminderForm.date) {
       setToast({ message: t('completaCampos'), type: 'error' });
       return;
     }
-    const updated = db.updateReminder(editingReminder.id, {
-      text: editReminderForm.text,
-      date: editReminderForm.date,
-      priority: editReminderForm.priority
-    });
-    setReminders([...db.getReminders()]);
-    setToast({ message: t('recordatorioActualizado'), type: 'success' });
-    setShowEditModal(false);
-    setEditingReminder(null);
-    setIsDirty(false);
+    try {
+      await RemindersAPI.update(editingReminder.id, {
+        text: editReminderForm.text,
+        date: editReminderForm.date,
+        priority: editReminderForm.priority
+      });
+      await loadReminders();
+      setToast({ message: t('recordatorioActualizado'), type: 'success' });
+      setShowEditModal(false);
+      setEditingReminder(null);
+      setIsDirty(false);
+    } catch (error) {
+      setToast({ message: 'Error al actualizar recordatorio', type: 'error' });
+    }
   };
 
-  const handleDeleteReminder = () => {
+  const handleDeleteReminder = async () => {
     if (!reminderToDeleteId) return;
-    db.deleteReminder(reminderToDeleteId);
-    setReminders([...db.getReminders()]);
-    setToast({ message: t('recordatorioEliminado'), type: 'info' });
-    setShowDeleteConfirm(false);
-    setReminderToDeleteId(null);
-    setIsDirty(false);
+    try {
+      await RemindersAPI.delete(reminderToDeleteId);
+      await loadReminders();
+      setToast({ message: t('recordatorioEliminado'), type: 'info' });
+      setShowDeleteConfirm(false);
+      setReminderToDeleteId(null);
+      setIsDirty(false);
+    } catch (error) {
+      setToast({ message: 'Error al eliminar recordatorio', type: 'error' });
+    }
   };
 
   const openEditModal = (reminder: Reminder) => {
     setEditingReminder(reminder);
-    setEditReminderForm({ text: reminder.text, date: reminder.date, priority: reminder.priority });
+    setEditReminderForm({ text: reminder.text, date: typeof reminder.date === 'string' ? reminder.date.split('T')[0] : reminder.date, priority: reminder.priority });
     setShowEditModal(true);
   };
 

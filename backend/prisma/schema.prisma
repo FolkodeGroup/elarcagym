@@ -19,7 +19,10 @@ model Member {
   joinDate        DateTime @default(now())
   status          String
   photoUrl        String?
-  phase           String
+  phase           String?
+  bioObjective    String?
+  lastAttendance  DateTime?
+  nutritionPlan   Json?    // Almacena NutritionData como JSON
   habitualSchedules HabitualSchedule[]
   biometrics      BiometricLog[]
   routines        Routine[]
@@ -35,20 +38,29 @@ model HabitualSchedule {
   start     String
   end       String
   memberId  String
-  member    Member   @relation(fields: [memberId], references: [id])
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 }
 
 model BiometricLog {
-  id        String   @id @default(uuid())
-  date      DateTime
-  weight    Float
-  height    Float
-  bodyFat   Float?
-  chest     Float?
-  waist     Float?
-  hips      Float?
-  memberId  String
-  member    Member   @relation(fields: [memberId], references: [id])
+  id         String   @id @default(uuid())
+  date       DateTime
+  weight     Float
+  height     Float?
+  bodyFat    Float?
+  chest      Float?
+  waist      Float?
+  abdomen    Float?
+  hips       Float?
+  glutes     Float?
+  rightThigh Float?
+  leftThigh  Float?
+  rightCalf  Float?
+  leftCalf   Float?
+  rightArm   Float?
+  leftArm    Float?
+  neck       Float?
+  memberId   String
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 }
 
 model Routine {
@@ -58,7 +70,7 @@ model Routine {
   assignedBy String
   createdAt DateTime @default(now())
   memberId  String
-  member    Member   @relation(fields: [memberId], references: [id])
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   days      RoutineDay[]
 }
 
@@ -66,7 +78,7 @@ model RoutineDay {
   id        String   @id @default(uuid())
   dayName   String
   routineId String
-  routine   Routine  @relation(fields: [routineId], references: [id])
+  routine   Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
   exercises ExerciseDetail[]
 }
 
@@ -78,7 +90,7 @@ model ExerciseDetail {
   weight    String
   notes     String?
   routineDayId String
-  routineDay   RoutineDay @relation(fields: [routineDayId], references: [id])
+  routineDay   RoutineDay @relation(fields: [routineDayId], references: [id], onDelete: Cascade)
 }
 
 model Diet {
@@ -88,7 +100,7 @@ model Diet {
   description String
   generatedAt DateTime @default(now())
   memberId  String
-  member    Member   @relation(fields: [memberId], references: [id])
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 }
 
 model PaymentLog {
@@ -98,7 +110,7 @@ model PaymentLog {
   concept   String
   method    String
   memberId  String
-  member    Member   @relation(fields: [memberId], references: [id])
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 }
 
 model Product {
@@ -120,13 +132,14 @@ model Sale {
 }
 
 model SaleItem {
-  id        String   @id @default(uuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  saleId    String
-  sale      Sale     @relation(fields: [saleId], references: [id])
-  quantity  Int
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  saleId      String
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  quantity    Int
   priceAtSale Float
+  productName String?
 }
 
 model Reminder {
@@ -142,21 +155,23 @@ model Slot {
   time      String
   duration  Int
   status    String
+  target    String?
+  color     String?
   reservations Reservation[]
 }
 
 model Reservation {
-  id        String   @id @default(uuid())
-  slotId    String
-  slot      Slot     @relation(fields: [slotId], references: [id])
-  memberId  String?
-  member    Member?  @relation("MemberReservations", fields: [memberId], references: [id])
-  clientName String
+  id          String   @id @default(uuid())
+  slotId      String
+  slot        Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  memberId    String?
+  member      Member?  @relation("MemberReservations", fields: [memberId], references: [id])
+  clientName  String
   clientPhone String?
   clientEmail String?
-  notes     String?
-  attended  Boolean?
-  createdAt DateTime @default(now())
+  notes       String?
+  attended    Boolean?
+  createdAt   DateTime @default(now())
 }
 
 model ExerciseMaster {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../services/db';
+import { MembersAPI } from '../services/api';
 import { Member } from '../types';
 import { Search, Save, Coffee, Sun, Utensils, Moon, Apple, Check, AlertCircle, Plus, Trash2, X } from 'lucide-react';
 import Toast from '../components/Toast';
@@ -12,6 +12,7 @@ const Nutrition: React.FC = () => {
     const [searchMember, setSearchMember] = useState('');
     const [showSearchDropdown, setShowSearchDropdown] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Estados de control de cambios
     const [isDirty, setIsDirty] = useState(false);
@@ -28,8 +29,21 @@ const Nutrition: React.FC = () => {
         calories: ''
     });
 
+    const loadMembers = async () => {
+        try {
+            setIsLoading(true);
+            const data = await MembersAPI.list();
+            setMembers(data);
+        } catch (error) {
+            console.error('Error loading members:', error);
+            setToast({ message: 'Error al cargar socios', type: 'error' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
-        setMembers(db.getMembers());
+        loadMembers();
     }, []);
 
     useEffect(() => {
@@ -80,17 +94,18 @@ const Nutrition: React.FC = () => {
         setIsDirty(false);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!selectedMemberId) {
             setToast({ message: 'Por favor selecciona un socio primero.', type: 'error' });
             return;
         }
-        const success = db.updateMemberNutrition(selectedMemberId, plan);
-        if (success) {
+        try {
+            await MembersAPI.updateNutritionPlan(selectedMemberId, plan);
             setToast({ message: 'Plan nutricional guardado exitosamente.', type: 'success' });
-            setMembers(db.getMembers());
+            await loadMembers();
             setIsDirty(false);
-        } else {
+        } catch (error) {
+            console.error('Error saving nutrition plan:', error);
             setToast({ message: 'Error al guardar.', type: 'error' });
         }
     };
