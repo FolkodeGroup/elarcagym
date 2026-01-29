@@ -52,6 +52,7 @@ const Admin: React.FC = () => {
         setEditCategoryValue('');
         setShowCategoryManager(false);
     };
+
     const [inventory, setInventory] = useState<Product[]>(db.getInventory());
     const [cart, setCart] = useState<{product: Product, qty: number}[]>([]);
     const [searchFilter, setSearchFilter] = useState('');
@@ -180,8 +181,7 @@ const Admin: React.FC = () => {
 
   // Filter products based on search and category
   const filteredInventory = inventory.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchFilter.toLowerCase()) || 
-                           product.category.toLowerCase().includes(searchFilter.toLowerCase());
+      const matchesSearch = product.name.toLowerCase().includes(searchFilter.toLowerCase());
       const matchesCategory = categoryFilter === 'ALL' || product.category === categoryFilter;
       return matchesSearch && matchesCategory;
   });
@@ -285,10 +285,9 @@ const Admin: React.FC = () => {
                                 );
                             }
                         })()}
-            {/* Eliminado título repetido de Productos */}
             
             {/* Search and Filter Controls */}
-                                <div className="flex gap-2 flex-wrap">
+                                <div className="flex gap-2 flex-wrap mb-4">
                                     <button
                                         onClick={() => setCategoryFilter('ALL')}
                                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
@@ -315,7 +314,7 @@ const Admin: React.FC = () => {
             </div>
 
             {/* Add Product Button */}
-            <button onClick={() => setShowAddModal(true)} className="bg-brand-gold text-black px-2 py-2 mt-2 rounded-lg font-bold flex items-center gap-2 hover:bg-yellow-500 transition"> 
+            <button onClick={() => setShowAddModal(true)} className="bg-brand-gold text-black px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-yellow-500 transition shadow-lg"> 
                 <Plus size={18} /> Nuevo Producto
             </button>
         </div>
@@ -332,13 +331,13 @@ const Admin: React.FC = () => {
                     onClick={() => addToCart(product)}
                 >
                     <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs font-bold text-gray-500 bg-black px-2 py-1 rounded">{translateCategory(product.category)}</span>
+                        <span className="text-[10px] font-bold text-gray-500 bg-black px-2 py-1 rounded uppercase tracking-wider">{translateCategory(product.category)}</span>
                         <span className="text-sm font-bold text-brand-gold">${product.price}</span>
                     </div>
-                    <h3 className="font-bold text-white group-hover:text-brand-gold transition-colors">{product.name}</h3>
+                    <h3 className="font-bold text-white group-hover:text-brand-gold transition-colors truncate">{product.name}</h3>
                     <p className="text-xs text-gray-500 mt-1">Stock: {product.stock}
                         {product.stock <= 10 && (
-                            <span className="ml-2 text-xs font-bold text-red-500">Bajo stock</span>
+                            <span className="ml-2 text-[10px] font-bold text-red-500">Bajo</span>
                         )}
                     </p>
                     <div className="mt-3 flex gap-2">
@@ -351,7 +350,6 @@ const Admin: React.FC = () => {
                                 setShowEditModal(true); 
                             }} 
                             className="text-gray-300 bg-gray-800 p-2 rounded hover:bg-gray-700"
-                            title="Editar producto"
                         >
                             <Edit2 size={14} />
                         </button>
@@ -361,8 +359,7 @@ const Admin: React.FC = () => {
                                 e.stopPropagation(); 
                                 setProductToDelete(product);
                             }} 
-                            className="text-red-400 bg-gray-800 p-2 rounded hover:bg-gray-700 hover:text-red-300"
-                            title="Eliminar producto por completo"
+                            className="text-red-400 bg-gray-800 p-2 rounded hover:bg-gray-700"
                         >
                             <Trash2 size={14} />
                         </button>
@@ -373,33 +370,30 @@ const Admin: React.FC = () => {
       </div>
 
       {/* Cart Panel */}
-      <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl flex flex-col h-full">
-         <div className="p-6 border-b border-gray-800">
-             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                 <ShoppingCart /> Carrito de compras
+      <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl flex flex-col h-full overflow-hidden shadow-2xl">
+         <div className="p-6 border-b border-gray-800 bg-black/20 text-center">
+             <h3 className="text-lg font-bold text-white flex items-center justify-center gap-2">
+                 <ShoppingCart size={20} className="text-brand-gold" /> Carrito de Venta
              </h3>
          </div>
          
-         <div className="flex-1 overflow-auto p-4 space-y-3">
+         <div className="flex-1 overflow-auto p-4 space-y-3 bg-black/10">
              {cart.length === 0 ? (
-                 <p className="text-center text-gray-500 mt-10">El carrito está vacío.</p>
+                 <p className="text-center text-gray-600 mt-10">Agrega productos...</p>
              ) : (
                  cart.map(item => (
-                     <div key={item.product.id} className="flex justify-between items-center bg-black/40 p-3 rounded">
-                         <div className="flex-1">
-                             <p className="text-white text-sm font-bold">{item.product.name}</p>
-                             <p className="text-brand-gold text-xs">${item.product.price}</p>
+                     <div key={item.product.id} className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-gray-800">
+                         <div className="flex-1 min-w-0">
+                             <p className="text-white text-sm font-bold truncate">{item.product.name}</p>
+                             <p className="text-brand-gold text-xs font-mono">${item.product.price}</p>
                          </div>
                          <div className="flex items-center gap-2">
-                             <button onClick={() => decreaseQty(item.product.id)} className="bg-gray-800 p-1 rounded text-gray-300 hover:bg-gray-700">
+                             <button onClick={() => decreaseQty(item.product.id)} className="bg-gray-800 p-1 rounded text-gray-300 hover:bg-gray-700 transition">
                                  <Minus size={14} />
                              </button>
-                             <span className="text-sm text-white w-8 text-center">{item.qty}</span>
-                             <button onClick={() => increaseQty(item.product.id)} className="bg-gray-800 p-1 rounded text-gray-300 hover:bg-gray-700">
+                             <span className="text-sm text-white font-mono w-6 text-center">{item.qty}</span>
+                             <button onClick={() => increaseQty(item.product.id)} className="bg-gray-800 p-1 rounded text-gray-300 hover:bg-gray-700 transition">
                                  <Plus size={14} />
-                             </button>
-                             <button onClick={() => removeFromCart(item.product.id)} className="text-red-500 hover:text-red-400 ml-2">
-                                 <Trash2 size={18} />
                              </button>
                          </div>
                      </div>
@@ -407,182 +401,164 @@ const Admin: React.FC = () => {
              )}
          </div>
 
-         <div className="p-6 bg-black border-t border-gray-800 mt-auto rounded-b-xl">
+         <div className="p-6 bg-black border-t border-gray-800 mt-auto">
              <div className="flex justify-between items-center mb-6">
-                 <span className="text-gray-400">Total</span>
-                 <span className="text-3xl font-bold text-white">${getTotal().toFixed(2)}</span>
+                 <span className="text-gray-500 uppercase text-[10px] font-black tracking-[0.2em]">Total</span>
+                 <span className="text-3xl font-display font-bold text-white">${getTotal().toFixed(2)}</span>
              </div>
              <button 
                 onClick={handleCheckout}
                 disabled={cart.length === 0}
-                className="w-full bg-brand-gold text-black font-bold py-4 rounded-lg hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-brand-gold text-black font-black py-4 rounded-xl hover:bg-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-tighter transition-all active:scale-95 shadow-lg shadow-brand-gold/10"
              >
-                 CONFIRMAR VENTA
+                 REGISTRAR VENTA
              </button>
          </div>
       </div>
-            {toast && (
-                <Toast message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} />
-            )}
-            {/* Add Product Modal */}
+
+            {/* Modales de producto */}
             {showAddModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/60" onClick={() => setShowAddModal(false)} />
-                    <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md">
-                        <h4 className="text-lg font-bold mb-4">Nuevo Producto</h4>
-                        <div className="space-y-3">
-                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Nombre" value={newProductForm.name} onChange={e => setNewProductForm({...newProductForm, name: e.target.value})} />
-                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Precio" value={newProductForm.price} onChange={e => setNewProductForm({...newProductForm, price: e.target.value})} />
-                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Stock" value={newProductForm.stock} onChange={e => setNewProductForm({...newProductForm, stock: e.target.value})} />
-                                                        <select
-                                                            className="w-full bg-black border border-gray-700 p-2 rounded text-white mb-2"
-                                                            value={addingNewCategory ? 'NEW' : newProductForm.category}
-                                                            onChange={e => {
-                                                                if (e.target.value === 'NEW') {
-                                                                    setAddingNewCategory(true);
-                                                                    setNewProductForm({ ...newProductForm, newCategory: '' });
-                                                                } else {
-                                                                    setAddingNewCategory(false);
-                                                                    setNewProductForm({ ...newProductForm, category: e.target.value });
-                                                                }
-                                                            }}
-                                                        >
-                                                            {categories.map(cat => (
-                                                                <option key={cat} value={cat}>{translateCategory(cat)}</option>
-                                                            ))}
-                                                            <option value="NEW">+ Nueva categoría…</option>
-                                                        </select>
-                                                        {addingNewCategory && (
-                                                            <input
-                                                                className="w-full bg-black border border-gray-700 p-2 rounded text-white mb-2"
-                                                                placeholder="Nombre de la nueva categoría"
-                                                                value={newProductForm.newCategory}
-                                                                onChange={e => setNewProductForm({ ...newProductForm, newCategory: e.target.value })}
-                                                            />
-                                                        )}
-                            <div className="flex justify-end gap-2 mt-4">
-                                <button className="px-4 py-2 rounded bg-gray-700" onClick={() => setShowAddModal(false)}>Cancelar</button>
-                                                                <button className="px-4 py-2 rounded bg-brand-gold text-black" onClick={() => {
-                                                                    let categoryToUse = newProductForm.category;
-                                                                    if (addingNewCategory && newProductForm.newCategory.trim()) {
-                                                                        categoryToUse = newProductForm.newCategory.trim().toUpperCase();
-                                                                        if (!categories.includes(categoryToUse)) {
-                                                                            const updated = [...categories, categoryToUse];
-                                                                            setCategories(updated);
-                                                                            localStorage.setItem('categories', JSON.stringify(updated));
-                                                                        }
-                                                                    }
-                                                                    const p = db.addProduct({ name: newProductForm.name, price: Number(newProductForm.price), category: categoryToUse, stock: Number(newProductForm.stock) });
-                                                                    setInventory(db.getInventory());
-                                                                    setToast({ message: `Producto "${p.name}" agregado.`, type: 'success' });
-                                                                    setShowAddModal(false);
-                                                                    setAddingNewCategory(false);
-                                                                    setNewProductForm({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '' });
-                                                                }}>Crear</button>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+                    <div className="bg-[#0b0b0b] p-6 rounded-3xl border border-gray-800 z-10 w-full max-w-md shadow-2xl">
+                        <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-6">Nuevo Producto</h4>
+                        <div className="space-y-4">
+                            <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Nombre" value={newProductForm.name} onChange={e => setNewProductForm({...newProductForm, name: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Precio" type="number" value={newProductForm.price} onChange={e => setNewProductForm({...newProductForm, price: e.target.value})} />
+                                <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Stock" type="number" value={newProductForm.stock} onChange={e => setNewProductForm({...newProductForm, stock: e.target.value})} />
+                            </div>
+                            <select
+                                className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none"
+                                value={addingNewCategory ? 'NEW' : newProductForm.category}
+                                onChange={e => {
+                                    if (e.target.value === 'NEW') {
+                                        setAddingNewCategory(true);
+                                        setNewProductForm({ ...newProductForm, newCategory: '' });
+                                    } else {
+                                        setAddingNewCategory(false);
+                                        setNewProductForm({ ...newProductForm, category: e.target.value });
+                                    }
+                                }}
+                            >
+                                {categories.map(cat => (
+                                    <option key={cat} value={cat}>{translateCategory(cat)}</option>
+                                ))}
+                                <option value="NEW">+ Nueva categoría…</option>
+                            </select>
+                            {addingNewCategory && (
+                                <input
+                                    className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none border-brand-gold"
+                                    placeholder="Nombre de la nueva categoría"
+                                    value={newProductForm.newCategory}
+                                    onChange={e => setNewProductForm({ ...newProductForm, newCategory: e.target.value })}
+                                />
+                            )}
+                            <div className="flex gap-3 pt-4">
+                                <button className="flex-1 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold" onClick={() => setShowAddModal(false)}>CANCELAR</button>
+                                <button className="flex-1 py-3 rounded-xl bg-brand-gold text-black font-black uppercase tracking-tighter shadow-lg shadow-brand-gold/10" onClick={() => {
+                                    let categoryToUse = newProductForm.category;
+                                    if (addingNewCategory && newProductForm.newCategory.trim()) {
+                                        categoryToUse = newProductForm.newCategory.trim().toUpperCase();
+                                        if (!categories.includes(categoryToUse)) {
+                                            const updated = [...categories, categoryToUse];
+                                            setCategories(updated);
+                                            localStorage.setItem('categories', JSON.stringify(updated));
+                                        }
+                                    }
+                                    db.addProduct({ name: newProductForm.name, price: Number(newProductForm.price), category: categoryToUse, stock: Number(newProductForm.stock) });
+                                    setInventory(db.getInventory());
+                                    setToast({ message: `Producto agregado.`, type: 'success' });
+                                    setShowAddModal(false);
+                                    setAddingNewCategory(false);
+                                    setNewProductForm({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '' });
+                                }}>CREAR</button>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Edit Product Modal */}
             {showEditModal && editingProduct && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/60" onClick={() => setShowEditModal(false)} />
-                    <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md">
-                        <h4 className="text-lg font-bold mb-4">Editar Producto</h4>
-                        <div className="space-y-3">
-                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Nombre" value={editProductForm.name} onChange={e => setEditProductForm({...editProductForm, name: e.target.value})} />
-                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Precio" value={editProductForm.price} onChange={e => setEditProductForm({...editProductForm, price: e.target.value})} />
-                            <input className="w-full bg-black border border-gray-700 p-2 rounded text-white" placeholder="Stock" value={editProductForm.stock} onChange={e => setEditProductForm({...editProductForm, stock: e.target.value})} />
-                                                        <select
-                                                            className="w-full bg-black border border-gray-700 p-2 rounded text-white mb-2"
-                                                            value={addingNewCategory ? 'NEW' : editProductForm.category}
-                                                            onChange={e => {
-                                                                if (e.target.value === 'NEW') {
-                                                                    setAddingNewCategory(true);
-                                                                    setEditProductForm({ ...editProductForm, newCategory: '' });
-                                                                } else {
-                                                                    setAddingNewCategory(false);
-                                                                    setEditProductForm({ ...editProductForm, category: e.target.value });
-                                                                }
-                                                            }}
-                                                        >
-                                                            {categories.map(cat => (
-                                                                <option key={cat} value={cat}>{translateCategory(cat)}</option>
-                                                            ))}
-                                                            <option value="NEW">+ Nueva categoría…</option>
-                                                        </select>
-                                                        {addingNewCategory && (
-                                                            <input
-                                                                className="w-full bg-black border border-gray-700 p-2 rounded text-white mb-2"
-                                                                placeholder="Nombre de la nueva categoría"
-                                                                value={editProductForm.newCategory}
-                                                                onChange={e => setEditProductForm({ ...editProductForm, newCategory: e.target.value })}
-                                                            />
-                                                        )}
-                            <div className="flex justify-end gap-2 mt-4">
-                                <button className="px-4 py-2 rounded bg-gray-700" onClick={() => setShowEditModal(false)}>Cancelar</button>
-                                                                <button className="px-4 py-2 rounded bg-brand-gold text-black" onClick={() => {
-                                                                    if (!editingProduct) return;
-                                                                    let categoryToUse = editProductForm.category;
-                                                                    if (addingNewCategory && editProductForm.newCategory.trim()) {
-                                                                        categoryToUse = editProductForm.newCategory.trim().toUpperCase();
-                                                                        if (!categories.includes(categoryToUse)) {
-                                                                            const updated = [...categories, categoryToUse];
-                                                                            setCategories(updated);
-                                                                            localStorage.setItem('categories', JSON.stringify(updated));
-                                                                        }
-                                                                    }
-                                                                    const updated = db.updateProduct(editingProduct.id, { name: editProductForm.name, price: Number(editProductForm.price), category: categoryToUse, stock: Number(editProductForm.stock) });
-                                                                    setInventory(db.getInventory());
-                                                                    setToast({ message: `Producto "${updated?.name || editingProduct.name}" actualizado.`, type: 'success' });
-                                                                    setShowEditModal(false);
-                                                                    setAddingNewCategory(false);
-                                                                    setEditingProduct(null);
-                                                                }}>Guardar</button>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEditModal(false)} />
+                    <div className="bg-[#0b0b0b] p-6 rounded-3xl border border-gray-800 z-10 w-full max-w-md shadow-2xl">
+                        <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-6">Editar Producto</h4>
+                        <div className="space-y-4">
+                            <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Nombre" value={editProductForm.name} onChange={e => setEditProductForm({...editProductForm, name: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Precio" type="number" value={editProductForm.price} onChange={e => setEditProductForm({...editProductForm, price: e.target.value})} />
+                                <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Stock" type="number" value={editProductForm.stock} onChange={e => setEditProductForm({...editProductForm, stock: e.target.value})} />
+                            </div>
+                            <select
+                                className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none"
+                                value={addingNewCategory ? 'NEW' : editProductForm.category}
+                                onChange={e => {
+                                    if (e.target.value === 'NEW') {
+                                        setAddingNewCategory(true);
+                                        setEditProductForm({ ...editProductForm, newCategory: '' });
+                                    } else {
+                                        setAddingNewCategory(false);
+                                        setEditProductForm({ ...editProductForm, category: e.target.value });
+                                    }
+                                }}
+                            >
+                                {categories.map(cat => (
+                                    <option key={cat} value={cat}>{translateCategory(cat)}</option>
+                                ))}
+                                <option value="NEW">+ Nueva categoría…</option>
+                            </select>
+                            {addingNewCategory && (
+                                <input
+                                    className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none border-brand-gold"
+                                    placeholder="Nombre de la nueva categoría"
+                                    value={editProductForm.newCategory}
+                                    onChange={e => setEditProductForm({ ...editProductForm, newCategory: e.target.value })}
+                                />
+                            )}
+                            <div className="flex gap-3 pt-4">
+                                <button className="flex-1 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold" onClick={() => setShowEditModal(false)}>CANCELAR</button>
+                                <button className="flex-1 py-3 rounded-xl bg-brand-gold text-black font-black uppercase tracking-tighter shadow-lg shadow-brand-gold/10" onClick={() => {
+                                    let categoryToUse = editProductForm.category;
+                                    if (addingNewCategory && editProductForm.newCategory.trim()) {
+                                        categoryToUse = editProductForm.newCategory.trim().toUpperCase();
+                                        if (!categories.includes(categoryToUse)) {
+                                            const updated = [...categories, categoryToUse];
+                                            setCategories(updated);
+                                            localStorage.setItem('categories', JSON.stringify(updated));
+                                        }
+                                    }
+                                    db.updateProduct(editingProduct.id, { name: editProductForm.name, price: Number(editProductForm.price), category: categoryToUse, stock: Number(editProductForm.stock) });
+                                    setInventory(db.getInventory());
+                                    setToast({ message: `Cambios guardados.`, type: 'success' });
+                                    setShowEditModal(false);
+                                    setAddingNewCategory(false);
+                                }}>GUARDAR</button>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Delete Confirmation Modal */}
             {productToDelete && (
-                <div className="fixed inset-0 z-60 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/70" onClick={() => setProductToDelete(null)} />
-                    <div className="bg-[#111] p-6 rounded-lg border border-gray-800 z-20 w-full max-w-sm">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="bg-red-900/30 p-3 rounded-full">
-                                <AlertTriangle className="text-red-500" size={24} />
-                            </div>
-                            <h4 className="text-lg font-bold text-white">Eliminar Producto</h4>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-[#111] p-6 rounded-3xl border border-gray-800 w-full max-w-sm shadow-2xl">
+                        <div className="flex items-center gap-3 mb-4 text-red-500">
+                            <AlertTriangle size={24} />
+                            <h4 className="text-lg font-bold">¿Eliminar producto?</h4>
                         </div>
-                        
-                        <p className="text-gray-300 mb-2">
-                            ¿Estás seguro que deseas eliminar el producto <strong className="text-white">"{productToDelete.name}"</strong>?
+                        <p className="text-gray-300 text-sm mb-6 uppercase tracking-widest font-bold">
+                            Seguro deseas quitar <span className="text-white">"{productToDelete.name}"</span> del inventario?
                         </p>
-                        <p className="text-sm text-red-400 mb-6">
-                            Esta acción no se puede deshacer y el stock actual ({productToDelete.stock}) se perderá.
-                        </p>
-                        
-                        <div className="flex gap-3 justify-end">
-                            <button 
-                                className="px-4 py-2 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition" 
-                                onClick={() => setProductToDelete(null)}
-                            >
-                                Cancelar
-                            </button>
-                            <button 
-                                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition font-bold" 
-                                onClick={handleConfirmDeleteProduct}
-                            >
-                                Sí, Eliminar
-                            </button>
+                        <div className="flex gap-3">
+                            <button className="flex-1 py-2 rounded-xl bg-gray-800 text-gray-400 font-bold text-xs" onClick={() => setProductToDelete(null)}>CANCELAR</button>
+                            <button className="flex-1 py-2 rounded-xl bg-red-600 text-white font-bold text-xs" onClick={handleConfirmDeleteProduct}>SÍ, ELIMINAR</button>
                         </div>
                     </div>
                 </div>
             )}
+
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </div>
   );
 };
