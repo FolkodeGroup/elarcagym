@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { db } from '../services/db';
+import { PublicAPI } from '../services/api';
 import { Member } from '../types';
 import { Search, Dumbbell, ArrowLeft, CheckCircle } from 'lucide-react';
 
@@ -7,16 +7,20 @@ const RoutineSelfService: React.FC = () => {
   const [dni, setDni] = useState('');
   const [member, setMember] = useState<Member | null>(null);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const found = db.getMemberByDNI(dni);
-    if (found) {
-      setMember(found);
+    try {
+      setIsLoading(true);
       setError('');
-    } else {
+      const found = await PublicAPI.getMemberRoutine(dni);
+      setMember(found);
+    } catch (err) {
       setError('No se encontró ningún socio con ese DNI.');
       setMember(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 

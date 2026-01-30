@@ -1,0 +1,22 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Instalar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Instalar dependencias
+        run: npm install
+      - name: Ejecutar tests
+        run: npm test
+      - name: Build (si usas TypeScript)
+        run: npx tsc
+      # Aquí puedes agregar steps para desplegar en Render (ver siguiente paso)

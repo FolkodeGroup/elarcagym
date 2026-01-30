@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { db } from '../services/db';
+import { MembersAPI } from '../services/api';
 import { Member, UserStatus, Routine, NutritionData } from '../types';
 import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
 import { 
@@ -30,6 +30,21 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Función para abrir el modal y reiniciar el formulario
+  const handleOpenAddModal = () => {
+    setNewMember({
+      firstName: '',
+      lastName: '',
+      dni: '',
+      email: '',
+      phone: '',
+      status: UserStatus.ACTIVE,
+      phase: 'volumen',
+      habitualSchedules: []
+    });
+    setShowAddModal(true);
+  };
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -73,23 +88,16 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   // --- EFECTOS ---
   useEffect(() => {
     refreshMembers();
+    // eslint-disable-next-line
   }, []);
 
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
-  // --- FUNCIONES AUXILIARES ---
-
-  const refreshMembers = () => {
-    setMembers([...db.getMembers()]);
-    if(selectedMember) {
-        const updated = db.getMembers().find(m => m.id === selectedMember.id);
-        if(updated) {
-            setSelectedMember(updated);
-        }
+  const refreshMembers = async () => {
+    try {
+      const data = await MembersAPI.list();
+      setMembers(data);
+      // selectedMember se actualizará automáticamente si es necesario
+    } catch (err) {
+      setToast({ message: t('errorCargarSocios'), type: 'error' });
     }
   };
 
@@ -97,367 +105,38 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       setSelectedMember(member);
   };
 
-  const formatPhoneNumber = (phone: string) => {
-      const clean = phone.replace(/\D/g, '');
-      if (clean.startsWith('549')) return clean;
-      if (clean.startsWith('54')) return '549' + clean.substring(2);
-      const noZero = clean.startsWith('0') ? clean.substring(1) : clean;
-      return `549${noZero}`;
-  };
-
-  const sendPaymentReminder = (type: 'wa' | 'email') => {
-      if(!selectedMember) return;
-      const msgText = `Hola ${selectedMember.firstName}, te recordamos que tu cuota en El Arca Gym está vencida o próxima a vencer. Por favor acércate a regularizar tu situación. Gracias! 💪`;
-      
-      if (type === 'wa') {
-          const phone = formatPhoneNumber(selectedMember.phone);
-          const url = `https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`;
-          setToast({ message: `📲 Se abrirá WhatsApp con el número: ${phone}. Mensaje listo para enviar.`, type: 'info' });
-          window.open(url, '_blank');
-      } else {
-          const url = `mailto:${selectedMember.email}?subject=Aviso de Cuota - El Arca Gym&body=${encodeURIComponent(msgText)}`;
-          setToast({ message: `📧 Se abrirá tu cliente de correo. Destinatario: ${selectedMember.email}`, type: 'info' });
-          window.open(url, '_blank');
-      }
-  };
-
-  // --- PDF HELPERS ---
-  const setupPDFBackground = (doc: jsPDF, pageWidth: number, pageHeight: number) => {
-      // Background Color
-      doc.setFillColor(26, 26, 26); 
-      doc.rect(0, 0, pageWidth, pageHeight, 'F');
-
-      // Watermark
-      doc.saveGraphicsState();
-      doc.setGState(new (doc as any).GState({ opacity: 0.08 })); 
-      const imgSize = pageHeight * 0.8;
-      const xCentered = (pageWidth - imgSize) / 2;
-      const yCentered = (pageHeight - imgSize) / 2;
-      try {
-          doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-      } catch(e) {}
-      doc.restoreGraphicsState();
-
-      // Top Gold Bar
-      doc.setFillColor(212, 175, 55); 
-      doc.rect(0, 0, pageWidth, 3, 'F');
-  };
-
-  const addPDFFooter = (doc: jsPDF, pageNumber: number, pageCount: number, pageWidth: number, pageHeight: number, memberName: string) => {
-      doc.setPage(pageNumber);
-      // Bottom Gold Bar
-      doc.setFillColor(212, 175, 55);
-      doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
-      
-      doc.setFontSize(8);
-      doc.setTextColor(212, 175, 55); 
-      doc.text(`El Arca - Socio: ${memberName}`, 10, pageHeight - 8);
-      doc.text(`Página ${pageNumber} de ${pageCount}`, pageWidth - 30, pageHeight - 8);
-  };
-
-  // --- GENERAR PDF RUTINA ---
-  const generateRoutinePDF = (routine: Routine, memberName: string) => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-
-    setupPDFBackground(doc, pageWidth, pageHeight);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(30);
-    doc.setTextColor(212, 175, 55); 
-    doc.text("¡¡¡A ENTRENAR!!!", pageWidth / 2, 20, { align: "center" });
-
-    doc.setFontSize(14);
-    doc.setTextColor(255, 255, 255); 
-    doc.text(routine.name.toUpperCase(), pageWidth / 2, 30, { align: "center" });
-
-    doc.setFontSize(10);
-    doc.setTextColor(180, 180, 180); 
-    doc.text("EL ARCA - GYM & FITNESS", pageWidth / 2, 38, { align: "center" });
-    doc.setTextColor(255, 255, 255);
-
-    let finalY = 45;
-
-    routine.days.forEach((day) => {
-        const bodyRows = day.exercises.map(ex => [
-            `• ${ex.name.toUpperCase()}${ex.notes ? `\n  (${ex.notes})` : ''}`, 
-            `${ex.series} X ${ex.reps}${ex.weight !== 'N/A' && ex.weight ? `, ${ex.weight}` : ''}`
-        ]);
-
-        autoTable(doc, {
-            startY: finalY,
-            head: [[day.dayName.toUpperCase(), "SERIES / REPETICIONES / CARGA"]],
-            body: bodyRows,
-            theme: 'plain', 
-            headStyles: {
-                halign: 'left',
-                fontStyle: 'bold',
-                fontSize: 12,
-                textColor: [0, 0, 0]
-            },
-            styles: {
-                fontSize: 10,
-                cellPadding: 4,
-                valign: 'middle',
-                textColor: [255, 255, 255]
-            },
-            columnStyles: {
-                0: { cellWidth: 110, fontStyle: 'bold' },
-                1: { cellWidth: 'auto', fontStyle: 'normal' }
-            },
-            willDrawCell: function(data) {
-                const cell = data.cell;
-                if (cell.section === 'head') {
-                    doc.saveGraphicsState();
-                    try {
-                        doc.setGState(new (doc as any).GState({ opacity: 0.95 }));
-                    } catch (e) { }
-                    doc.setFillColor(212, 175, 55);
-                    doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
-                    doc.restoreGraphicsState();
-                }
-            },
-            didDrawCell: function(data) {
-                const cell = data.cell;
-                if (cell.section === 'body') {
-                    doc.setDrawColor(80, 80, 80);
-                    doc.setLineWidth(0.3);
-                    doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height);
-                    doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
-                }
-                if (cell.section === 'head') {
-                    doc.setTextColor(0, 0, 0);
-                }
-            }
-        });
-
-        finalY = (doc as any).lastAutoTable.finalY + 10;
-        
-        if (finalY > pageHeight - 30) {
-            doc.addPage();
-            setupPDFBackground(doc, pageWidth, pageHeight);
-            finalY = 20;
-        }
-    });
-
-    const pageCount = (doc as any).internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
-        addPDFFooter(doc, i, pageCount, pageWidth, pageHeight, memberName);
-    }
-
-    const fileName = `Rutina_${memberName.replace(/\s+/g, '_')}_${routine.name.replace(/\s+/g, '_')}.pdf`;
-    doc.save(fileName);
-    return fileName;
-  };
-
-  const handleShareRoutine = (e: React.MouseEvent, method: 'whatsapp' | 'email', routine: Routine) => {
-      e.stopPropagation();
-      if(!selectedMember) return;
-
-      setToast({ message: `⏳ Generando y descargando PDF para ${method === 'whatsapp' ? 'WhatsApp' : 'Email'}. Adjunta el archivo descargado en el mensaje.`, type: 'info' });
-      generateRoutinePDF(routine, `${selectedMember.firstName} ${selectedMember.lastName}`);
-
-      const msgText = `Hola ${selectedMember.firstName}, te adjunto el PDF de tu rutina "${routine.name}" de El Arca Gym. \n\n¡A entrenar con todo! 💪`;
-      
-      if (method === 'whatsapp') {
-          const url = `https://wa.me/${formatPhoneNumber(selectedMember.phone)}?text=${encodeURIComponent(msgText)}`;
-          setTimeout(() => window.open(url, '_blank'), 1000);
-      } else {
-          const url = `mailto:${selectedMember.email}?subject=Tu Rutina de Entrenamiento - El Arca Gym&body=${encodeURIComponent(msgText)}`;
-          setTimeout(() => window.open(url, '_blank'), 1000);
-      }
-  };
-
-  // --- GENERAR PDF NUTRICION ---
-  const generateNutritionPDF = (plan: NutritionData, memberName: string) => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-
-    setupPDFBackground(doc, pageWidth, pageHeight);
-
-    // Header
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(30);
-    doc.setTextColor(212, 175, 55); // Gold
-    doc.text("PLAN NUTRICIONAL", pageWidth / 2, 20, { align: "center" });
-
-    // Subtitle (Calories)
-    doc.setFontSize(14);
-    doc.setTextColor(255, 255, 255); // White
-    const calText = plan.calories ? `OBJETIVO: ${plan.calories} KCAL` : "OBJETIVO GENERAL";
-    doc.text(calText, pageWidth / 2, 30, { align: "center" });
-
-    doc.setFontSize(10);
-    doc.setTextColor(180, 180, 180); // Gray
-    doc.text("EL ARCA - GYM & FITNESS", pageWidth / 2, 38, { align: "center" });
-
-    // Helper for bullets
-    const formatItems = (items: string[]) => {
-        if (!items || items.length === 0) return 'Sin asignar';
-        return items.map(i => `• ${i}`).join('\n');
-    };
-
-    // Table Data
-    const bodyRows = [
-        ['DESAYUNO', formatItems(plan.breakfast)],
-        ['MEDIA MAÑANA', formatItems(plan.morningSnack)],
-        ['ALMUERZO', formatItems(plan.lunch)],
-        ['MERIENDA', formatItems(plan.afternoonSnack)],
-        ['CENA', formatItems(plan.dinner)],
-        ['NOTAS / SUPLEMENTACIÓN', plan.notes || 'Sin notas adicionales']
-    ];
-
-    autoTable(doc, {
-        startY: 45,
-        head: [['MOMENTO DEL DÍA', 'ALIMENTOS / DETALLE']],
-        body: bodyRows,
-        theme: 'plain', 
-        headStyles: {
-            halign: 'left',
-            fontStyle: 'bold',
-            fontSize: 12,
-            textColor: [0, 0, 0], // Black text
-            fillColor: [212, 175, 55] // Gold background for header
-        },
-        styles: {
-            fontSize: 11,
-            cellPadding: 6,
-            valign: 'middle',
-            textColor: [255, 255, 255], // White text
-            lineColor: [80, 80, 80],
-            lineWidth: 0.1
-        },
-        columnStyles: {
-            0: { cellWidth: 50, fontStyle: 'bold', valign: 'top' },
-            1: { cellWidth: 'auto', fontStyle: 'normal' }
-        },
-        willDrawCell: function(data) {
-            if (data.section === 'head') {
-                doc.setFillColor(212, 175, 55); // Gold
-                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-            }
-        },
-        didDrawCell: function(data) {
-            if (data.section === 'body') {
-                doc.setDrawColor(80, 80, 80);
-                doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
-            }
-            if (data.section === 'head') {
-                doc.setTextColor(0, 0, 0); 
-            }
-        }
-    });
-
-    // Footer
-    const pageCount = (doc as any).internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
-        addPDFFooter(doc, i, pageCount, pageWidth, pageHeight, memberName);
-    }
-
-    const fileName = `Nutricion_${memberName.replace(/\s+/g, '_')}.pdf`;
-    doc.save(fileName);
-    return fileName;
-  };
-
-  const handleShareNutrition = (method: 'wa' | 'email') => {
-    if(!selectedMember?.nutritionPlan) {
-        setToast({ message: 'El socio no tiene un plan nutricional asignado.', type: 'error' });
-        return;
-    }
-
-    const plan = selectedMember.nutritionPlan;
-    const memberName = `${selectedMember.firstName} ${selectedMember.lastName}`;
-
-    setToast({ message: `Generando PDF de Nutrición...`, type: 'info' });
-    generateNutritionPDF(plan, memberName);
-
-    const msgText = `Hola ${selectedMember.firstName}! 🍎\n\nTe adjunto tu nuevo PLAN NUTRICIONAL de El Arca Gym en formato PDF (revisa tus descargas). \n\nObjetivo: ${plan.calories || 'No especificado'}\n\nCualquier duda me avisas. ¡A comer sano! 🥗💪`;
-
-    if (method === 'wa') {
-        const phone = formatPhoneNumber(selectedMember.phone);
-        const url = `https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`;
-        setTimeout(() => window.open(url, '_blank'), 1500); 
-    } else {
-        const url = `mailto:${selectedMember.email}?subject=Tu Plan Nutricional - El Arca Gym&body=${encodeURIComponent(msgText)}`;
-        setTimeout(() => window.open(url, '_blank'), 1500);
-    }
-  };
-
-  // --- HANDLERS COMUNES ---
-
-  const handleAddMember = (e: React.FormEvent) => {
+  const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    db.addMember({
-      ...newMember,
-      phase: newMember.phase as any,
-      habitualSchedules: newMember.habitualSchedules
-    });
-    setShowAddModal(false);
-    setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
-    refreshMembers();
-    setToast({ message: t('cambiosGuardados'), type: 'success' });
-  };
-
-  const handleImportClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
+    try {
+      await MembersAPI.create({
+        ...newMember,
+        phase: newMember.phase,
+        habitualSchedules: newMember.habitualSchedules
+      });
+      setShowAddModal(false);
+      setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', password: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
+      await refreshMembers();
+      setToast({ message: t('cambiosGuardados'), type: 'success' });
+    } catch (err) {
+      setToast({ message: t('errorGuardarSocio'), type: 'error' });
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
-
-        const formattedData = data.map((row: any) => ({
-          firstName: row['Nombre'] || row['Nombres'] || '',
-          lastName: row['Apellido'] || row['Apellidos'] || '',
-          dni: row['DNI'] || row['Documento'] || '',
-          email: row['Email'] || row['Correo'] || '',
-          phone: row['Telefono'] || row['Celular'] || '',
-        }));
-
-        const count = db.bulkCreateMembers(formattedData);
-        
-        setToast({ 
-          message: `Se importaron ${count} socios correctamente.`, 
-          type: 'success' 
-        });
-        refreshMembers();
-      } catch (error) {
-        console.error("Error al importar:", error);
-        setToast({ 
-          message: 'Error al leer el archivo. Verifica el formato.', 
-          type: 'error' 
-        });
-      }
-      
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-    reader.readAsBinaryString(file);
-  };
-
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if(e.target.files && e.target.files[0] && selectedMember) {
-          const file = e.target.files[0];
-          const reader = new FileReader();
-          reader.onloadend = () => {
-              const base64 = reader.result as string;
-              db.updateMemberPhoto(selectedMember.id, base64);
-              refreshMembers();
-          };
-          reader.readAsDataURL(file);
-      }
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if(e.target.files && e.target.files[0] && selectedMember) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        try {
+          await MembersAPI.update(selectedMember.id, { photoUrl: base64 });
+          await refreshMembers();
+        } catch (err) {
+          setToast({ message: t('errorGuardarFoto'), type: 'error' });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const startCamera = async () => {
@@ -483,7 +162,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     }
   };
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (!videoRef.current || !selectedMember) return;
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
@@ -493,21 +172,41 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL('image/jpeg');
-    db.updateMemberPhoto(selectedMember.id, dataUrl);
-    stopCamera();
-    setShowCameraModal(false);
-    refreshMembers();
-    setToast({ message: t('fotoCapturada'), type: 'success' });
+    try {
+      await MembersAPI.update(selectedMember.id, { photoUrl: dataUrl });
+      stopCamera();
+      setShowCameraModal(false);
+      await refreshMembers();
+      setToast({ message: t('fotoCapturada'), type: 'success' });
+    } catch (err) {
+      setToast({ message: t('errorGuardarFoto'), type: 'error' });
+    }
   };
 
-  const handleRegisterPayment = (e: React.FormEvent) => {
-      e.preventDefault();
-      if(selectedMember) {
-          db.addMemberPayment(selectedMember.id, Number(paymentAmount), paymentConcept, 'Efectivo');
-          setShowPaymentModal(false);
-          setPaymentAmount('');
-          refreshMembers();
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  const handleRegisterPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if(selectedMember) {
+      try {
+        await MembersAPI.addPayment(selectedMember.id, {
+          amount: Number(paymentAmount),
+          concept: paymentConcept,
+          method: 'Efectivo',
+          date: new Date().toISOString()
+        });
+        setShowPaymentModal(false);
+        setPaymentAmount('');
+        await refreshMembers();
+      } catch (err) {
+        setToast({ message: t('errorGuardarPago'), type: 'error' });
       }
+    }
   };
 
   const handleOpenEditModal = () => {
@@ -526,26 +225,67 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       }
   };
 
-  const handleSaveEditMember = (e: React.FormEvent) => {
-      e.preventDefault();
-      if(selectedMember) {
-          db.updateMember(selectedMember.id, {
-            ...editMember,
-            phase: editMember.phase as any,
-            habitualSchedules: editMember.habitualSchedules
-          });
-          setShowEditModal(false);
-          refreshMembers();
+  const handleSaveEditMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if(selectedMember) {
+      try {
+        await MembersAPI.update(selectedMember.id, {
+          ...editMember,
+          phase: editMember.phase,
+          habitualSchedules: editMember.habitualSchedules
+        });
+        setShowEditModal(false);
+        await refreshMembers();
+      } catch (err) {
+        setToast({ message: t('errorGuardarSocio'), type: 'error' });
       }
+    }
   };
 
-  const toggleStatus = (e: React.MouseEvent, id: string, currentStatus: UserStatus) => {
-     e.stopPropagation();
-     const newStatus = currentStatus === UserStatus.ACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
-     db.updateMemberStatus(id, newStatus);
-     refreshMembers();
+  const toggleStatus = async (e: React.MouseEvent, id: string, currentStatus: UserStatus) => {
+    e.stopPropagation();
+    const newStatus = currentStatus === UserStatus.ACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
+    try {
+      await MembersAPI.update(id, { status: newStatus });
+      await refreshMembers();
+    } catch (err) {
+      setToast({ message: t('errorGuardarSocio'), type: 'error' });
+    }
   };
 
+  // Helper: Check if member payment is due soon (within 30 days without payment)
+  const isPaymentDueSoon = (member: Member): boolean => {
+    if (member.status !== UserStatus.ACTIVE) return false;
+    if (!member.payments || member.payments.length === 0) return true;
+
+    // find the most recent payment date
+    const paymentDates = member.payments.map(p => new Date(p.date).getTime());
+    const lastPaymentTs = Math.max(...paymentDates);
+    const lastPaymentDate = new Date(lastPaymentTs);
+    const today = new Date();
+    const daysWithoutPayment = (today.getTime() - lastPaymentDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    // Return true if between 30 and 60 days since last payment
+    return daysWithoutPayment >= 30 && daysWithoutPayment < 60;
+  };
+
+
+  // Helper: Check if member is current (paid recently - within last 30 days)
+  const isCurrentOnPayment = (member: Member): boolean => {
+    if (member.status !== UserStatus.ACTIVE) return false;
+    if (!member.payments || member.payments.length === 0) return false;
+
+    // If any payment within last 30 days, consider current
+    const today = new Date();
+    return member.payments.some(p => {
+      const pd = new Date(p.date);
+      const days = (today.getTime() - pd.getTime()) / (1000 * 60 * 60 * 24);
+      return days < 30;
+    });
+  };
+
+
+  // --- FUNCIÓN PARA NORMALIZAR TEXTO (QUITAR TILDES) ---
   const normalizeText = (text: string) => {
     return text
       .normalize("NFD")
@@ -554,6 +294,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   };
 
   const filteredMembers = members.filter(m => {
+    // Usamos la función normalizeText para comparar sin tildes ni mayúsculas
     const searchTerm = normalizeText(filter);
     const memberLastName = normalizeText(m.lastName);
     const memberFirstName = normalizeText(m.firstName);
@@ -571,80 +312,281 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     return matchesSearch && matchesStatus;
   });
 
+  // Counts for dashboard cards
   const totalCount = members.length;
   const alDiaCount = members.filter(m => isCurrentOnPayment(m)).length;
   const debtorsCount = members.filter(m => isDebtorByPayment(m)).length;
   const dueSoonCount = members.filter(m => isPaymentDueSoon(m)).length;
   const inactiveCount = members.filter(m => m.status === UserStatus.INACTIVE).length;
 
+  // --- MESSAGING & PDF HELPERS ---
+
+  const formatPhoneNumber = (phone: string) => {
+      const clean = phone.replace(/\D/g, '');
+      if (clean.startsWith('549')) return clean;
+      if (clean.startsWith('54')) return '549' + clean.substring(2);
+      const noZero = clean.startsWith('0') ? clean.substring(1) : clean;
+      return `549${noZero}`;
+  };
+
+  const generateRoutinePDF = (routine: Routine, memberName: string) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // -- ADD LOGO AS FULL BACKGROUND --
+    // Function to add complete page background (defined here so it's accessible everywhere)
+    const addPageBackground = () => {
+        // Add dark background
+        doc.setFillColor(26, 26, 26); // Dark background (#1a1a1a)
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+        
+        // Add background logo watermark
+        doc.saveGraphicsState();
+        doc.setGState(new (doc as any).GState({ opacity: 0.08 })); // Very subtle so content is readable
+        const imgSize = pageHeight * 0.8; // Make it large to fill background
+        const xCentered = (pageWidth - imgSize) / 2;
+        const yCentered = (pageHeight - imgSize) / 2;
+        try {
+            doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
+        } catch(e) {
+            console.warn("Could not add image", e);
+        }
+        doc.restoreGraphicsState();
+        
+        // Add decorative gold bar at top
+        doc.setFillColor(212, 175, 55); // Gold color (#d4af37)
+        doc.rect(0, 0, pageWidth, 3, 'F');
+    };
+
+    // Add background to first page
+    addPageBackground();
+
+    // 1. Header Section with Gold accent
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(30);
+    doc.setTextColor(212, 175, 55); // Gold text
+    doc.text("¡¡¡A ENTRENAR!!!", pageWidth / 2, 20, { align: "center" });
+
+    // Routine Name
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255); // White text
+    doc.text(routine.name.toUpperCase(), pageWidth / 2, 30, { align: "center" });
+
+    // Gym Brand
+    doc.setFontSize(10);
+    doc.setTextColor(180, 180, 180); // Light gray
+    doc.text("EL ARCA - GYM & FITNESS", pageWidth / 2, 38, { align: "center" });
+    
+    // Reset Color
+    doc.setTextColor(255, 255, 255);
+
+    // 2. Table Data Construction
+    let finalY = 45;
+
+    routine.days.forEach((day) => {
+        // Prepare rows for this day
+        const bodyRows = day.exercises.map(ex => [
+            `• ${ex.name.toUpperCase()}${ex.notes ? `\n  (${ex.notes})` : ''}`, 
+            `${ex.series} X ${ex.reps}${ex.weight !== 'N/A' && ex.weight ? `, ${ex.weight}` : ''}`
+        ]);
+
+        autoTable(doc, {
+            startY: finalY,
+            head: [[day.dayName.toUpperCase(), "SERIES / REPETICIONES / CARGA"]],
+            body: bodyRows,
+            theme: 'plain', // Use plain so autotable doesn't fill cell backgrounds
+            headStyles: {
+                halign: 'left',
+                fontStyle: 'bold',
+                fontSize: 12,
+                textColor: [0, 0, 0]
+            },
+            styles: {
+                fontSize: 10,
+                cellPadding: 4,
+                valign: 'middle',
+                textColor: [255, 255, 255]
+            },
+            columnStyles: {
+                0: { cellWidth: 110, fontStyle: 'bold' },
+                1: { cellWidth: 'auto', fontStyle: 'normal' }
+            },
+            willDrawPage: function(data) {
+                // This hook is called BEFORE autoTable draws content on a page
+                // Apply background to all pages except the first one (which already has it)
+                if (data.pageNumber > 1) {
+                    addPageBackground();
+                }
+            },
+            willDrawCell: function(data) {
+                // Draw header background (gold) before autotable draws header text
+                const cell = data.cell;
+                if (cell.section === 'head') {
+                    // semi-opaque gold background for header
+                    doc.saveGraphicsState();
+                    try {
+                        doc.setGState(new (doc as any).GState({ opacity: 0.95 }));
+                    } catch (e) { /* fallback if GState unavailable */ }
+                    doc.setFillColor(212, 175, 55);
+                    doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
+                    doc.restoreGraphicsState();
+                }
+            },
+            didDrawCell: function(data) {
+                const cell = data.cell;
+                // Draw subtle borders for body cells so grid is visible but cells remain transparent
+                if (cell.section === 'body') {
+                    doc.setDrawColor(80, 80, 80);
+                    doc.setLineWidth(0.3);
+                    // bottom border
+                    doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height);
+                    // right border
+                    doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
+                }
+                // Ensure header text is black (on top of gold)
+                if (cell.section === 'head') {
+                    doc.setTextColor(0, 0, 0);
+                }
+            }
+        });
+
+        // Update Y for next table (margin)
+        finalY = (doc as any).lastAutoTable.finalY + 10;
+        
+        // Check page break
+        if (finalY > pageHeight - 30) {
+            doc.addPage();
+            
+            // Add complete background to new page
+            addPageBackground();
+            
+            finalY = 20;
+        }
+    });
+
+    // Footer
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        
+        // Add gold bar at bottom (on top of existing content)
+        doc.setFillColor(212, 175, 55);
+        doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
+        
+        // Add footer text
+        doc.setFontSize(8);
+        doc.setTextColor(212, 175, 55); // Gold color for footer text
+        doc.text(`Entrenador: ${routine.assignedBy || 'El Arca'} - Socio: ${memberName}`, 10, pageHeight - 8);
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth - 30, pageHeight - 8);
+    }
+
+    // Download
+    const fileName = `Rutina_${memberName.replace(/\s+/g, '_')}_${routine.name.replace(/\s+/g, '_')}.pdf`;
+    doc.save(fileName);
+    return fileName;
+  };
+
+  const handleShareRoutine = (e: React.MouseEvent, method: 'whatsapp' | 'email', routine: Routine) => {
+      e.stopPropagation();
+      if(!selectedMember) return;
+
+      // 1. Generate and Download PDF
+      setToast({ message: `⏳ Generando y descargando PDF para ${method === 'whatsapp' ? 'WhatsApp' : 'Email'}. Adjunta el archivo descargado en el mensaje.`, type: 'info' });
+      generateRoutinePDF(routine, `${selectedMember.firstName} ${selectedMember.lastName}`);
+
+      // 2. Open App with Message
+      const msgText = `Hola ${selectedMember.firstName}, te adjunto el PDF de tu rutina "${routine.name}" de El Arca Gym. \n\n¡A entrenar con todo! 💪`;
+      
+      if (method === 'whatsapp') {
+          const url = `https://wa.me/${formatPhoneNumber(selectedMember.phone)}?text=${encodeURIComponent(msgText)}`;
+          setTimeout(() => window.open(url, '_blank'), 1000);
+      } else {
+          const url = `mailto:${selectedMember.email}?subject=Tu Rutina de Entrenamiento - El Arca Gym&body=${encodeURIComponent(msgText)}`;
+          setTimeout(() => window.open(url, '_blank'), 1000);
+      }
+  };
+
+  const sendPaymentReminder = (type: 'wa' | 'email') => {
+      if(!selectedMember) return;
+      const msgText = `Hola ${selectedMember.firstName}, te recordamos que tu cuota en El Arca Gym está vencida o próxima a vencer. Por favor acércate a regularizar tu situación. Gracias! 💪`;
+      
+      if (type === 'wa') {
+          const phone = formatPhoneNumber(selectedMember.phone);
+          const url = `https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`;
+          setToast({ message: `📲 Se abrirá WhatsApp con el número: ${phone}. Mensaje listo para enviar.`, type: 'info' });
+          window.open(url, '_blank');
+      } else {
+          const url = `mailto:${selectedMember.email}?subject=Aviso de Cuota - El Arca Gym&body=${encodeURIComponent(msgText)}`;
+          setToast({ message: `📧 Se abrirá tu cliente de correo. Destinatario: ${selectedMember.email}`, type: 'info' });
+          window.open(url, '_blank');
+      }
+  };
+
   // --- RENDER VIEWS ---
-
   if (selectedMember) {
-      // DETAIL VIEW
-      return (
-          <div className="space-y-6">
-              {/* Header Profile Card */}
-              <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-gray-900 to-black"></div>
-                  <button
-                    onClick={() => setSelectedMember(null)}
-                    className="fixed md:absolute z-50 bg-black/70 hover:bg-black text-white w-12 h-12 flex items-center justify-center rounded-full transition-colors shadow-lg cursor-pointer"
-                    style={{
-                      top: '24px',
-                      left: '24px',
-                      pointerEvents: 'auto',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
-                    }}
-                    aria-label="Volver"
-                  >
-                    <ArrowLeft size={28} />
-                  </button>
-
-                  <div className="relative z-10 flex flex-col md:flex-row items-center md:items-end gap-6 pt-8">
-                      {/* Avatar */}
-                      <div className="relative group">
-                          <div className="w-32 h-32 rounded-full border-4 border-brand-dark bg-gray-800 overflow-hidden shadow-xl">
-                              {selectedMember.photoUrl ? (
-                                  <img src={selectedMember.photoUrl} alt="Profile" className="w-full h-full object-cover" />
-                              ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-4xl">🦁</div>
-                              )}
-                          </div>
-                          <div className="absolute bottom-0 right-0 flex gap-1">
-                              <label className="bg-brand-gold text-black p-2 rounded-full cursor-pointer hover:bg-yellow-500 transition-colors shadow-lg">
-                                  <Camera size={18} title="Subir foto" />
-                                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                              </label>
-                              <button 
-                                onClick={() => { setShowCameraModal(true); startCamera(); }}
-                                className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
-                                title="Tomar foto con cámara"
-                              >
-                                  <Camera size={18} />
-                              </button>
-                          </div>
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 text-center md:text-left mb-2">
-                          <h2 className="text-3xl font-display font-bold text-white uppercase tracking-wider">
-                              {selectedMember.firstName} {selectedMember.lastName}
-                          </h2>
-                          <div className="flex flex-col gap-3 mt-3">
-                              <div className="flex items-center justify-center md:justify-start gap-2 text-gray-400 text-sm flex-wrap">
-                                  <span className="flex items-center gap-1"><Mail size={14} /> {selectedMember.email}</span>
-                                  <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-                                  <span className="flex items-center gap-1"><Phone size={14} /> {selectedMember.phone}</span>
-                              </div>
-                              {selectedMember.dni && (
-                                <div className="bg-brand-gold/10 border border-brand-gold/30 px-3 py-2 rounded inline-block w-fit">
-                                  <span className="text-xs text-gray-400">DNI: </span>
-                                  <span className="text-brand-gold font-bold text-sm">{selectedMember.dni}</span>
-                                </div>
-                              )}
-                              <span className="text-xs text-gray-500">Miembro desde {new Date(selectedMember.joinDate).toLocaleDateString('es-ES')}</span>
-
-                              <div className="mt-2">
+    return (
+      <div>
+        {/* Header Profile Card */}
+        <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-gray-900 to-black"></div>
+          <button
+            onClick={() => setSelectedMember(null)}
+            className="fixed md:absolute z-50 bg-black/70 hover:bg-black text-white w-12 h-12 flex items-center justify-center rounded-full transition-colors shadow-lg cursor-pointer"
+            style={{
+              top: '24px',
+              left: '24px',
+              pointerEvents: 'auto',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
+            }}
+            aria-label="Volver"
+          >
+            <ArrowLeft size={28} />
+          </button>
+          <div className="relative z-10 flex flex-col md:flex-row items-center md:items-end gap-6 pt-8">
+            {/* Avatar */}
+            <div className="relative group">
+              <div className="w-32 h-32 rounded-full border-4 border-brand-dark bg-gray-800 overflow-hidden shadow-xl">
+                {selectedMember.photoUrl ? (
+                  <img src={selectedMember.photoUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-4xl">🦁</div>
+                )}
+              </div>
+              <div className="absolute bottom-0 right-0 flex gap-1">
+                <label className="bg-brand-gold text-black p-2 rounded-full cursor-pointer hover:bg-yellow-500 transition-colors shadow-lg">
+                  <Camera size={18} title="Subir foto" />
+                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                </label>
+                <button 
+                  onClick={() => { setShowCameraModal(true); startCamera(); }}
+                  className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+                  title="Tomar foto con cámara"
+                >
+                  <Camera size={18} />
+                </button>
+              </div>
+            </div>
+            {/* Info */}
+            <div className="flex-1 text-center md:text-left mb-2">
+              <h2 className="text-3xl font-display font-bold text-white uppercase tracking-wider">
+                {selectedMember.firstName} {selectedMember.lastName}
+              </h2>
+              <div className="flex flex-col gap-3 mt-3">
+                <div className="flex items-center justify-center md:justify-start gap-2 text-gray-400 text-sm flex-wrap">
+                  <span className="flex items-center gap-1"><Mail size={14} /> {selectedMember.email}</span>
+                  <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
+                  <span className="flex items-center gap-1"><Phone size={14} /> {selectedMember.phone}</span>
+                </div>
+                {selectedMember.dni && (
+                  <div className="bg-brand-gold/10 border border-brand-gold/30 px-3 py-2 rounded inline-block w-fit">
+                    <span className="text-xs text-gray-400">DNI: </span>
+                    <span className="text-brand-gold font-bold text-sm">{selectedMember.dni}</span>
+                  </div>
+                )}
+                <span className="text-xs text-gray-500">Miembro desde {new Date(selectedMember.joinDate).toLocaleDateString('es-ES')}</span>
+                <div className="mt-2">
                                 <span className="text-xs text-gray-400 mr-2">Fase/Objetivo:</span>
                                 <span className="font-bold text-brand-gold text-sm">
                                   {selectedMember.phase === 'volumen' && 'Volumen'}
@@ -835,14 +777,16 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                         <Eye size={18} />
                                     </button>
                                     <button 
-                                        onClick={() => handleShareNutrition('wa')}
+                                        // TODO: Implementar función para compartir nutrición por WhatsApp
+                                        // onClick={() => handleShareNutrition('wa')}
                                         className="p-2 bg-green-900/40 hover:bg-green-900/60 text-green-500 rounded-full transition-colors"
                                         title="Descargar PDF y Enviar por WhatsApp"
                                     >
                                         <FaWhatsapp size={18} />
                                     </button>
                                     <button 
-                                        onClick={() => handleShareNutrition('email')}
+                                        // TODO: Implementar función para compartir nutrición por Email
+                                        // onClick={() => handleShareNutrition('email')}
                                         className="p-2 bg-red-900/40 hover:bg-red-900/60 text-red-500 rounded-full transition-colors"
                                         title="Descargar PDF y Enviar por Email"
                                     >
@@ -973,7 +917,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
                         <div className="p-4 border-t border-gray-700 bg-[#1a1a1a] rounded-b-xl flex justify-end gap-3">
                             <button 
-                                onClick={() => handleShareNutrition('wa')} 
+                                // TODO: Implementar función para compartir nutrición por WhatsApp
+                                // onClick={() => handleShareNutrition('wa')}
                                 className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
                             >
                                 <FaWhatsapp /> Descargar y Enviar
@@ -1170,45 +1115,22 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   </div>
                 </div>
               )}
-          </div>
-      );
-  }
+            </div>
+          );
+        } // Fin de la vista de detalle
 
   // --- LIST VIEW (Default) ---
 
   return (
     <div className="space-y-6">
-      {/* Input oculto para importacion masiva */}
-      <input 
-        type="file" 
-        accept=".xlsx, .xls, .csv" 
-        ref={fileInputRef} 
-        onChange={handleFileUpload} 
-        className="hidden" 
-      />
-
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h2 className="text-2xl font-display font-bold text-white">Directorio de Socios</h2>
-        
-        <div className="flex gap-3">
-          {/* Boton Importar */}
-          <button 
-            onClick={handleImportClick}
-            className="bg-gray-800 text-gray-200 border border-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 hover:text-white transition flex items-center gap-2"
-            title="Importar desde Excel"
-          >
-            <FileSpreadsheet size={18} className="text-green-500" /> 
-            <span className="hidden sm:inline">Importar</span>
-          </button>
-
-          {/* Boton Nuevo Socio */}
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="bg-brand-gold text-black px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition flex items-center gap-2"
-          >
-            <Plus size={20} /> <span className="hidden sm:inline">Nuevo Socio</span> <span className="sm:hidden">Nuevo</span>
-          </button>
-        </div>
+        <button 
+          onClick={handleOpenAddModal}
+          className="bg-brand-gold text-black px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition flex items-center gap-2"
+        >
+          <Plus size={20} /> Nuevo Socio
+        </button>
       </div>
 
       {/* Stats + Filters */}
@@ -1389,28 +1311,82 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
           )}
         </div>
       </div>
+
+      {/* Add Member Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-lg border border-gray-700">
+            <h3 className="text-xl font-bold text-white mb-4">{t('registrarSocio')}</h3>
+            <form onSubmit={handleAddMember} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <input 
+                  required
+                  placeholder={t('nombre')} 
+                  value={newMember.firstName}
+                  onChange={e => setNewMember({...newMember, firstName: e.target.value})}
+                  className="bg-black border border-gray-700 p-3 rounded text-white"
+                />
+                <input 
+                  required
+                  placeholder={t('apellido')} 
+                  value={newMember.lastName}
+                  onChange={e => setNewMember({...newMember, lastName: e.target.value})}
+                  className="bg-black border border-gray-700 p-3 rounded text-white"
+                />
+              </div>
+              <input 
+                type="text"
+                required
+                placeholder={t('dniRequerido')} 
+                value={newMember.dni}
+                onChange={e => setNewMember({...newMember, dni: e.target.value})}
+                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
+              />
+              <input 
+                type="email"
+                placeholder={t('email')} 
+                value={newMember.email}
+                onChange={e => setNewMember({...newMember, email: e.target.value})}
+                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
+              />
+              <input 
+                placeholder={t('telefonoEjemplo')} 
+                value={newMember.phone}
+                onChange={e => setNewMember({...newMember, phone: e.target.value})}
+                className="w-full bg-black border border-gray-700 p-3 rounded text-white"
+              />
+              <div className="flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-gray-400 hover:text-white">{t('cancelar')}</button>
+                <button type="submit" className="px-6 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500">{t('guardar')}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 const NutritionSection = ({ title, icon, items }: { title: string, icon: any, items: string[] }) => (
-    <div className="bg-black/30 border border-gray-800 rounded-lg p-4">
-        <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
-            {icon} {title}
-        </h4>
-        {items && items.length > 0 ? (
-            <ul className="space-y-1.5 pl-2">
-                {items.map((item, idx) => (
-                    <li key={idx} className="text-gray-300 text-sm flex items-start gap-2">
-                        <span className="mt-1.5 w-1 h-1 bg-brand-gold rounded-full flex-shrink-0"></span>
-                        {item}
-                    </li>
-                ))}
-            </ul>
-        ) : (
-            <p className="text-gray-600 text-xs italic">Sin asignar</p>
-        )}
-    </div>
+  <div className="bg-black/30 border border-gray-800 rounded-lg p-4">
+    <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
+      {icon} {title}
+    </h4>
+    {items && items.length > 0 ? (
+      <ul className="space-y-1.5 pl-2">
+        {items.map((item, idx) => (
+          <li key={idx} className="text-gray-300 text-sm flex items-start gap-2">
+            <span className="mt-1.5 w-1 h-1 bg-brand-gold rounded-full flex-shrink-0"></span>
+            {item}
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-gray-600 text-xs italic">Sin asignar</p>
+    )}
+  </div>
 );
+
+// export default Members; // Eliminado duplicado
 
 export default Members;
