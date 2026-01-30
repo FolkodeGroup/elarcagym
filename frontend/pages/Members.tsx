@@ -334,24 +334,14 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // -- BACKGROUND LOGO (WATERMARK) --
-    // We add it to the first page, and assume mostly 1 page routines. 
-    // Ideally loops for multiple pages, but simple here.
-    doc.saveGraphicsState();
-    doc.setGState(new (doc as any).GState({ opacity: 0.1 })); // Make it transparent
-    const imgSize = 100;
-    const xCentered = (pageWidth - imgSize) / 2;
-    const yCentered = (pageHeight - imgSize) / 2;
-    try {
-        doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-    } catch(e) {
-        console.warn("Could not add image", e);
-    }
-    doc.restoreGraphicsState();
-
     // -- ADD LOGO AS FULL BACKGROUND --
-    // Function to add logo as background (defined here so it's accessible everywhere)
-    const addBackgroundLogo = () => {
+    // Function to add complete page background (defined here so it's accessible everywhere)
+    const addPageBackground = () => {
+        // Add dark background
+        doc.setFillColor(26, 26, 26); // Dark background (#1a1a1a)
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+        
+        // Add background logo watermark
         doc.saveGraphicsState();
         doc.setGState(new (doc as any).GState({ opacity: 0.08 })); // Very subtle so content is readable
         const imgSize = pageHeight * 0.8; // Make it large to fill background
@@ -363,21 +353,16 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
             console.warn("Could not add image", e);
         }
         doc.restoreGraphicsState();
+        
+        // Add decorative gold bar at top
+        doc.setFillColor(212, 175, 55); // Gold color (#d4af37)
+        doc.rect(0, 0, pageWidth, 3, 'F');
     };
 
-    // -- BACKGROUND COLOR & LOGO PATTERN --
-    // Add gradient-like background with dark color
-    doc.setFillColor(26, 26, 26); // Dark background (#1a1a1a)
-    doc.rect(0, 0, pageWidth, pageHeight, 'F');
-
-    // Add background logo FIRST so it's behind everything
-    addBackgroundLogo();
+    // Add background to first page
+    addPageBackground();
 
     // 1. Header Section with Gold accent
-    // Add decorative gold bar at top
-    doc.setFillColor(212, 175, 55); // Gold color (#d4af37)
-    doc.rect(0, 0, pageWidth, 3, 'F');
-
     // Title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(30);
@@ -428,6 +413,13 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                 0: { cellWidth: 110, fontStyle: 'bold' },
                 1: { cellWidth: 'auto', fontStyle: 'normal' }
             },
+            willDrawPage: function(data) {
+                // This hook is called BEFORE autoTable draws content on a page
+                // Apply background to all pages except the first one (which already has it)
+                if (data.pageNumber > 1) {
+                    addPageBackground();
+                }
+            },
             willDrawCell: function(data) {
                 // Draw header background (gold) before autotable draws header text
                 const cell = data.cell;
@@ -467,24 +459,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         if (finalY > pageHeight - 30) {
             doc.addPage();
             
-            // Add background and logo to new page
-            doc.setFillColor(26, 26, 26); // Dark background
-            doc.rect(0, 0, pageWidth, pageHeight, 'F');
-            addBackgroundLogo();
-            
-            // Add gold bar
-            doc.setFillColor(212, 175, 55);
-            doc.rect(0, 0, pageWidth, 3, 'F');
+            // Add complete background to new page
+            addPageBackground();
             
             finalY = 20;
-
-            // Re-add watermark for new page if desired
-            doc.saveGraphicsState();
-            doc.setGState(new (doc as any).GState({ opacity: 0.1 }));
-            try {
-                doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-            } catch(e) {}
-            doc.restoreGraphicsState();
         }
     });
 
@@ -493,10 +471,11 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         
-        // Add gold bar at bottom
+        // Add gold bar at bottom (on top of existing content)
         doc.setFillColor(212, 175, 55);
         doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
         
+        // Add footer text
         doc.setFontSize(8);
         doc.setTextColor(212, 175, 55); // Gold color for footer text
         doc.text(`Entrenador: ${routine.assignedBy || 'El Arca'} - Socio: ${memberName}`, 10, pageHeight - 8);
