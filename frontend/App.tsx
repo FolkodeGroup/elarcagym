@@ -10,17 +10,19 @@ import Admin from './pages/Admin';
 import Ingresos from './pages/Ingresos';
 import Reservas from './pages/Reservas';
 import RoutineSelfService from './pages/RoutineSelfService'; // Importar nueva sección
-import { db } from './services/db';
 import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import QRManager from './pages/QRManager.tsx';
+
 const AppContent: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated, logout, isLoading } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [pageFilter, setPageFilter] = useState<string | null>(null);
   const [showNavModal, setShowNavModal] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isSelfServiceMode, setIsSelfServiceMode] = useState(false);
   const { canNavigate, pendingPage, setPendingPage, confirmNavigation } = useNavigation();
 
   useEffect(() => {
@@ -28,24 +30,17 @@ const AppContent: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') === 'routine') {
       setCurrentPage('self_service');
-      setIsAuthenticated(true); // Saltamos login para consulta pública
+      setIsSelfServiceMode(true);
       return;
-    }
-
-    // 2. Check login normal
-    const user = db.getUser();
-    if (user) {
-      setIsAuthenticated(true);
     }
   }, []);
 
   const handleLogin = () => {
-    setIsAuthenticated(true);
+    // El login ahora es manejado por el contexto
   };
 
   const handleLogout = () => {
-    db.logout();
-    setIsAuthenticated(false);
+    logout();
   };
 
   const handleNavigate = (page: string, filter?: string) => {
@@ -71,6 +66,20 @@ const AppContent: React.FC = () => {
     }
     setShowNavModal(false);
   };
+
+  // Mostrar loading mientras se verifica el estado de autenticación
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-brand-gold text-xl">Cargando...</div>
+      </div>
+    );
+  }
+
+  // Self-service mode no requiere autenticación
+  if (isSelfServiceMode) {
+    return <RoutineSelfService />;
+  }
 
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
@@ -127,9 +136,11 @@ const App: React.FC = () => {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <NavigationProvider>
-          <AppContent />
-        </NavigationProvider>
+        <AuthProvider>
+          <NavigationProvider>
+            <AppContent />
+          </NavigationProvider>
+        </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

@@ -1,0 +1,43 @@
+import { Router } from 'express';
+
+export default function(prisma: any) {
+  const router = Router();
+
+  // Obtener todos los logs de pago
+  router.get('/', async (req, res) => {
+    const payments = await prisma.paymentLog.findMany();
+    res.json(payments);
+  });
+
+  // Crear un log de pago
+  router.post('/', async (req, res) => {
+    try {
+      const payment = await prisma.paymentLog.create({ data: req.body });
+      res.status(201).json(payment);
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
+  // Actualizar un log de pago
+  router.put('/:id', async (req, res) => {
+    try {
+      const payment = await prisma.paymentLog.update({ where: { id: req.params.id }, data: req.body });
+      res.json(payment);
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
+  // Eliminar un log de pago
+  router.delete('/:id', async (req, res) => {
+    try {
+      await prisma.paymentLog.delete({ where: { id: req.params.id } });
+      res.status(204).end();
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
+  return router;
+}

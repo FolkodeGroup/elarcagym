@@ -21,7 +21,7 @@ import {
   ShoppingCart,
   Apple // New icon for Nutrition
 } from 'lucide-react';
-import { db } from '../services/db';
+import { useAuth } from '../contexts/AuthContext';
 import Toast from './Toast';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -47,7 +47,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null);
-  const user = db.getUser();
+  const { user } = useAuth();
 
   const menuItems = [
     { id: 'dashboard', label: t('panelPrincipal'), icon: Activity },

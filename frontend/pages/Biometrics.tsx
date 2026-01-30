@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../services/db';
+import { MembersAPI } from '../services/api';
 import { Member, BiometricLog } from '../types';
 import { Plus, Trash2, Edit2, X, Search } from 'lucide-react';
 import Toast from '../components/Toast';
@@ -9,6 +9,7 @@ const Biometrics: React.FC = () => {
     const [selectedMemberId, setSelectedMemberId] = useState<string>('');
     const [searchMember, setSearchMember] = useState<string>('');
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     
     const [showModal, setShowModal] = useState(false);
     const [editingLogId, setEditingLogId] = useState<string | null>(null);
@@ -57,7 +58,20 @@ const Biometrics: React.FC = () => {
         return `${m.firstName} ${m.lastName}`.toLowerCase().includes(term) || (m.dni && m.dni?.includes(term));
     });
 
-    useEffect(() => { setMembers(db.getMembers()); }, []);
+    const loadMembers = async () => {
+        try {
+            setIsLoading(true);
+            const membersData = await MembersAPI.list();
+            setMembers(membersData);
+        } catch (error) {
+            console.error('Error loading members:', error);
+            setToast({ message: 'Error al cargar socios', type: 'error' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => { loadMembers(); }, []);
 
     // ========== HANDLERS ==========
     const handleOpenModal = (logId?: string) => {
@@ -90,7 +104,7 @@ const Biometrics: React.FC = () => {
         setShowModal(true);
     };
 
-    const handleSaveLog = (e: React.FormEvent) => {
+    const handleSaveLog = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedMemberId) return;
 
@@ -111,15 +125,32 @@ const Biometrics: React.FC = () => {
             neck: Number(formData.neck) || 0,
         };
 
-        if (editingLogId) {
-            db.updateBiometric(selectedMemberId, { id: editingLogId, ...dataToSave });
-        } else {
-            db.addBiometric(selectedMemberId, dataToSave);
-        }
+        try {
+            if (editingLogId) {
+                await MembersAPI.updateBiometric(selectedMemberId, editingLogId, dataToSave);
+            } else {
+                await MembersAPI.addBiometric(selectedMemberId, dataToSave);
+            }
 
-        setMembers([...db.getMembers()]);
-        setShowModal(false);
-        setToast({ message: 'Registro guardado.', type: 'success' });
+            await loadMembers();
+            setShowModal(false);
+            setToast({ message: 'Registro guardado.', type: 'success' });
+        } catch (error) {
+            console.error('Error saving biometric:', error);
+            setToast({ message: 'Error al guardar registro biométrico', type: 'error' });
+        }
+    };
+
+    const handleDeleteLog = async (logId: string) => {
+        if (!confirm("¿Eliminar registro?")) return;
+        try {
+            await MembersAPI.deleteBiometric(selectedMemberId, logId);
+            await loadMembers();
+            setToast({ message: 'Registro eliminado.', type: 'success' });
+        } catch (error) {
+            console.error('Error deleting biometric:', error);
+            setToast({ message: 'Error al eliminar registro', type: 'error' });
+        }
     };
 
     return (
@@ -160,7 +191,7 @@ const Biometrics: React.FC = () => {
                                                 {formatDateHeader(log.date)}
                                                 <div className="absolute top-1 right-1 hidden group-hover:flex gap-1 bg-black/90 rounded px-1 z-40 border border-gray-700">
                                                     <button onClick={() => handleOpenModal(log.id)} className="text-blue-400 hover:text-white p-1"><Edit2 size={10}/></button>
-                                                    <button onClick={() => {if(confirm("¿Eliminar registro?")) {db.deleteBiometric(selectedMemberId, log.id); setMembers([...db.getMembers()]);}}} className="text-red-500 hover:text-red-400 p-1"><Trash2 size={10}/></button>
+                                                    <button onClick={() => handleDeleteLog(log.id)} className="text-red-500 hover:text-red-400 p-1"><Trash2 size={10}/></button>
                                                 </div>
                                             </th>
                                         ))}

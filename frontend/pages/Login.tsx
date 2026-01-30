@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { db } from '../services/db';
+import { useAuth } from '../contexts/AuthContext';
 import { LOGO_BASE64 } from '../services/assets';
 
 interface LoginProps {
@@ -8,16 +8,28 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (db.login(password)) {
+    setIsLoading(true);
+    setError('');
+    if (!usuario || !password) {
+      setError('Por favor ingresa usuario y contraseña.');
+      setIsLoading(false);
+      return;
+    }
+    const success = await login(usuario, password);
+    if (success) {
       onLogin();
     } else {
-      setError('Contraseña incorrecta. (Prueba: admin123)');
+      setError('Usuario o contraseña incorrectos.');
     }
+    setIsLoading(false);
   };
 
   return (
@@ -48,7 +60,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-gray-400 text-sm font-bold mb-2 uppercase tracking-wider">
-              Código de Acceso
+              Usuario
+            </label>
+            <input
+              type="text"
+              value={usuario}
+              onChange={(e) => setUsuario(e.target.value)}
+              className="w-full bg-[#111] border border-gray-700 text-white rounded-lg py-4 px-4 focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold transition-all text-center text-lg tracking-widest"
+              placeholder="Email o DNI"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-gray-400 text-sm font-bold mb-2 uppercase tracking-wider">
+              Contraseña
             </label>
             <input
               type="password"
@@ -56,7 +81,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-[#111] border border-gray-700 text-white rounded-lg py-4 px-4 focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold transition-all text-center text-lg tracking-widest"
               placeholder="••••••••"
-              autoFocus
             />
           </div>
 
@@ -68,9 +92,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
           <button
             type="submit"
-            className="w-full bg-brand-gold hover:bg-yellow-500 text-black font-bold py-4 rounded-lg transition-transform transform hover:scale-[1.02] active:scale-[0.98] uppercase tracking-wider"
+            disabled={isLoading}
+            className="w-full bg-brand-gold hover:bg-yellow-500 text-black font-bold py-4 rounded-lg transition-transform transform hover:scale-[1.02] active:scale-[0.98] uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Ingresar
+            {isLoading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
 

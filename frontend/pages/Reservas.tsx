@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { db } from '../services/db';
+import { SlotsAPI, ReservationsAPI, MembersAPI } from '../services/api';
 import { Slot, Reservation, Member, UserStatus } from '../types';
 import { 
   Plus, Edit2, Trash2, Clock, Search, X, Users, 
@@ -13,6 +13,7 @@ const Reservas: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [waitingList, setWaitingList] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const getLocalDateString = (date: Date = new Date()) => date.toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
@@ -42,14 +43,30 @@ const Reservas: React.FC = () => {
   const { setCanNavigate } = useNavigation();
   const hours = Array.from({ length: 16 }, (_, i) => i + 7);
 
-  const loadData = () => {
-    setSlots(db.getSlots());
-    setReservations(db.getReservations());
-    setAllMembers(db.getMembers());
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [slotsData, reservationsData, membersData] = await Promise.all([
+        SlotsAPI.list(),
+        ReservationsAPI.list(),
+        MembersAPI.list()
+      ]);
+      setSlots(slotsData);
+      setReservations(reservationsData);
+      setAllMembers(membersData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setToast({ message: 'Error al cargar datos', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
     const savedWaiting = localStorage.getItem(`waiting_list_${selectedDate}`);
     setWaitingList(savedWaiting ? JSON.parse(savedWaiting) : []);
   }, [selectedDate]);
@@ -80,24 +97,24 @@ const Reservas: React.FC = () => {
     setShowQuickAdd(true);
   };
 
-  const handleSaveQuickAdd = () => {
+  const handleSaveQuickAdd = async () => {
     if (quickAddForm.selectedMembers.length === 0) {
         setToast({ message: "No hay socios seleccionados", type: 'error' });
         return;
     }
 
-    let targetSlotId = activeSlotId;
+    try {
+      let targetSlotId = activeSlotId;
 
-    if (!targetSlotId) {
-        const newSlot = db.addSlot({
-            date: selectedDate,
-            time: quickAddForm.time,
-            duration: quickAddForm.duration,
-            target: '',
-            status: 'available'
-        });
-        targetSlotId = newSlot.id;
-    }
+      if (!targetSlotId) {
+          const newSlot = await SlotsAPI.create({
+              date: selectedDate,
+              time: quickAddForm.time,
+              duration: quickAddForm.duration,
+              status: 'available'
+          });
+          targetSlotId = newSlot.id;
+      }
 
     const currentRes = reservations.filter(r => r.slotId === targetSlotId);
     const currentMemberIds = currentRes.map(r => r.memberId);
@@ -105,16 +122,17 @@ const Reservas: React.FC = () => {
     // IDs de los socios que vamos a procesar
     const selectedIds = quickAddForm.selectedMembers.map(m => m.id);
 
-    quickAddForm.selectedMembers.forEach(member => {
+    // Crear reservaciones para cada miembro
+    for (const member of quickAddForm.selectedMembers) {
       if (!currentMemberIds.includes(member.id)) {
-          db.addReservation({
+          await ReservationsAPI.create({
             slotId: targetSlotId!,
             memberId: member.id,
             clientName: `${member.firstName} ${member.lastName}`,
             notes: quickAddForm.notes
           });
       }
-    });
+    }
 
     // --- CORRECCIÓN ERROR LISTA ESPERA ---
     // Limpiamos la lista de espera de todos los seleccionados de una sola vez
@@ -122,29 +140,41 @@ const Reservas: React.FC = () => {
     setWaitingList(newWaitingList);
     localStorage.setItem(`waiting_list_${selectedDate}`, JSON.stringify(newWaitingList));
 
-    db.updateSlotStatus(targetSlotId!, 'reserved');
+    await SlotsAPI.update(targetSlotId!, { status: 'reserved' });
 
-    loadData();
+    await loadData();
     setShowQuickAdd(false);
     setToast({ message: "Agenda actualizada", type: 'success' });
+    } catch (error) {
+      console.error('Error saving reservation:', error);
+      setToast({ message: "Error al guardar reservación", type: 'error' });
+    }
   };
 
-  const handleDeleteFullSlot = () => {
+  const handleDeleteFullSlot = async () => {
       if (activeSlotId) {
-          db.deleteSlot(activeSlotId);
-          loadData();
+        try {
+          await SlotsAPI.delete(activeSlotId);
+          await loadData();
           setShowQuickAdd(false);
           setToast({ message: "Franja eliminada", type: 'info' });
+        } catch (error) {
+          setToast({ message: "Error al eliminar franja", type: 'error' });
+        }
       }
   };
 
-  const confirmDeleteReservation = () => {
+  const confirmDeleteReservation = async () => {
     if (selectedReservation) {
-      db.deleteReservation(selectedReservation.id);
-      loadData();
-      setShowDeleteConfirm(false);
-      setSelectedReservation(null);
-      setToast({ message: "Socio quitado del turno", type: 'info' });
+      try {
+        await ReservationsAPI.delete(selectedReservation.id);
+        await loadData();
+        setShowDeleteConfirm(false);
+        setSelectedReservation(null);
+        setToast({ message: "Socio quitado del turno", type: 'info' });
+      } catch (error) {
+        setToast({ message: "Error al eliminar reservación", type: 'error' });
+      }
     }
   };
 
@@ -179,14 +209,18 @@ const Reservas: React.FC = () => {
     }
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingReservation) return;
-    db.updateReservation(editingReservation.id, {
-      clientName: editFormData.clientName,
-      notes: editFormData.notes
-    });
-    loadData();
-    setShowEditModal(false);
+    try {
+      await ReservationsAPI.update(editingReservation.id, {
+        clientName: editFormData.clientName,
+        notes: editFormData.notes
+      });
+      await loadData();
+      setShowEditModal(false);
+    } catch (error) {
+      setToast({ message: "Error al guardar cambios", type: 'error' });
+    }
   };
 
   // --- FILTROS ---
@@ -279,7 +313,7 @@ const Reservas: React.FC = () => {
                                             </span>
                                             <div className="flex items-center gap-1 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                                 <button onClick={(e) => { e.stopPropagation(); setEditingReservation(res); setEditFormData({clientName: res.clientName, notes: res.notes || ''}); setShowEditModal(true); }} className="text-gray-500 hover:text-brand-gold"><StickyNote size={12}/></button>
-                                                <button onClick={(e) => { e.stopPropagation(); db.updateReservationAttendance(res.id, res.attended === false ? true : false); loadData(); }} className={res.attended === false ? 'text-green-500' : 'text-red-500'}><UserX size={12}/></button>
+                                                <button onClick={async (e) => { e.stopPropagation(); await ReservationsAPI.update(res.id, { attended: res.attended === false ? true : false }); loadData(); }} className={res.attended === false ? 'text-green-500' : 'text-red-500'}><UserX size={12}/></button>
                                                 <button onClick={(e) => { e.stopPropagation(); setSelectedReservation(res); setShowDeleteConfirm(true); }} className="text-red-500"><X size={12}/></button>
                                             </div>
                                         </div>
