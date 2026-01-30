@@ -258,19 +258,16 @@ const Reservas: React.FC = () => {
                         onClick={() => handleSlotClick(hour, slot)}
                     >
                         {slot ? (
-                            <div className="h-full">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className="text-[9px] text-gray-500 font-bold bg-gray-800/50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                        <Timer size={10}/> {slot.duration} min
-                                    </span>
-                                    <div className="h-px flex-1 bg-gray-800/50"></div>
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); handleSlotClick(hour, slot); }}
-                                        className="p-1.5 bg-brand-gold text-black rounded-md hover:scale-110 transition shadow-lg shadow-brand-gold/20"
-                                    >
-                                        <UserPlus size={14}/>
-                                    </button>
-                                </div>
+                          <div className="h-full relative">
+                            
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleSlotClick(hour, slot); }}
+                                className="p-1.5 bg-brand-gold text-black rounded-md hover:scale-110 transition shadow-lg shadow-brand-gold/20"
+                              >
+                                <UserPlus size={14}/>
+                              </button>
+                            </div>
                                 <div className="flex flex-wrap gap-2">
                                     {slotRes.map(res => (
                                         <div key={res.id} className="flex items-center gap-2 bg-black/60 border border-gray-800 px-3 py-1.5 rounded-lg group/item">
@@ -287,9 +284,13 @@ const Reservas: React.FC = () => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-gray-800 text-[10px] font-black tracking-widest">+ Agendar Entrenamiento</span>
+                          <div className="h-full relative">
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <button onClick={(e) => { e.stopPropagation(); handleSlotClick(hour, undefined); }} className="p-1.5 bg-brand-gold text-black rounded-md hover:scale-110 transition shadow-lg shadow-brand-gold/20">
+                                <UserPlus size={14}/>
+                              </button>
                             </div>
+                          </div>
                         )}
                     </div>
                 </div>
