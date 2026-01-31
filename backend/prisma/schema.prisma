@@ -171,6 +171,7 @@ model Reservation {
   clientEmail String?
   notes       String?
   attended    Boolean?
+  accessedAt  DateTime?
   createdAt   DateTime @default(now())
 }
 

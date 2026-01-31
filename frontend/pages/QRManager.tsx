@@ -1,27 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { QrCode, Printer, Smartphone, Info, Copy } from 'lucide-react';
+import { RoutineAccessAPI } from '../services/api';
 
 const QRManager: React.FC = () => {
-  // La URL de la app. Para que funcione en el celular de prueba, 
-  // deberías reemplazar "window.location.origin" por la IP de tu PC 
-  // Ejemplo: "http://192.168.1.50:3000"
-  const appUrl = window.location.origin + "?mode=routine";
+  // Simulación: datos de socio y slot para demo QR (en producción, estos vendrían de la UI o selección)
+  const qrUrl = `${window.location.origin}/rutina`;
+  const loading = false;
+  const error = '';
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(appUrl);
-    alert("Enlace copiado: " + appUrl);
+    navigator.clipboard.writeText(qrUrl);
+    alert("Enlace copiado: " + qrUrl);
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
       <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl p-8 shadow-2xl">
         <div className="flex flex-col md:flex-row items-center gap-8">
-          
           {/* Lado Izquierdo: QR */}
-          <div className="bg-white p-6 rounded-[40px] shadow-2xl border-[12px] border-gray-100 flex-shrink-0">
-            <QRCodeSVG value={appUrl} size={220} level="H" includeMargin={true} />
-            <p className="text-black font-black text-[10px] mt-2 text-center uppercase tracking-widest">Escaneame</p>
+          <div className="bg-white p-6 rounded-[40px] shadow-2xl border-[12px] border-gray-100 flex-shrink-0 min-h-[260px] min-w-[260px] flex flex-col items-center justify-center">
+            {loading ? (
+              <span className="text-gray-500 text-xs">Generando QR...</span>
+            ) : error ? (
+              <span className="text-red-500 text-xs">{error}</span>
+            ) : qrUrl ? (
+              <>
+                <QRCodeSVG value={qrUrl} size={220} level="H" includeMargin={true} />
+                <p className="text-black font-black text-[10px] mt-2 text-center uppercase tracking-widest">Escaneame</p>
+              </>
+            ) : null}
           </div>
 
           {/* Lado Derecho: Info */}
@@ -58,6 +66,7 @@ const QRManager: React.FC = () => {
               <button 
                 onClick={copyToClipboard}
                 className="bg-gray-800 text-white px-6 py-3 rounded-xl font-black text-xs uppercase flex items-center gap-2 hover:bg-gray-700 transition"
+                disabled={!qrUrl}
               >
                 <Copy size={18} /> Copiar Enlace
               </button>

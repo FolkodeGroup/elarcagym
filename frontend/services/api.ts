@@ -1,3 +1,30 @@
+// ==================== RUTINA SELF-SERVICE (TOKEN) ====================
+export const RoutineAccessAPI = {
+  validateRoutineAccess: async (token: string, dni: string) => {
+    const res = await fetch(`${API_URL}/routine-access/validate-routine-access`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, dni })
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
+      throw new Error(errorData.error || `API error: ${res.status}`);
+    }
+    return res.json();
+  },
+  validateRoutineAccessByDni: async (dni: string) => {
+    const res = await fetch(`${API_URL}/routine-access/selfservice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dni })
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
+      throw new Error(errorData.error || `API error: ${res.status}`);
+    }
+    return res.json();
+  }
+};
 // Servicio centralizado para consumir la API REST del backend
 // Implementa funciones para cada entidad (members, products, sales, etc.)
 

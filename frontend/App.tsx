@@ -26,7 +26,13 @@ const AppContent: React.FC = () => {
   const { canNavigate, pendingPage, setPendingPage, confirmNavigation } = useNavigation();
 
   useEffect(() => {
-    // 1. Detectar si venimos desde el QR
+    // Mostrar RoutineSelfService si la ruta es /rutina
+    if (window.location.pathname === '/rutina') {
+      setCurrentPage('self_service');
+      setIsSelfServiceMode(true);
+      return;
+    }
+    // 1. Detectar si venimos desde el QR por query param (legacy)
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') === 'routine') {
       setCurrentPage('self_service');
