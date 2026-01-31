@@ -102,7 +102,22 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   };
 
   const handleMemberClick = (member: Member) => {
-      setSelectedMember(member);
+      // Si el miembro tiene un nutritionPlan directo, úsalo. Si no, mapear desde diets.
+      let nutritionPlan = member.nutritionPlan;
+      if (!nutritionPlan && member.diets && member.diets.length > 0) {
+        const lastDiet = member.diets[0];
+        nutritionPlan = {
+          breakfast: lastDiet.breakfast || [],
+          morningSnack: lastDiet.morningSnack || [],
+          lunch: lastDiet.lunch || [],
+          afternoonSnack: lastDiet.afternoonSnack || [],
+          dinner: lastDiet.dinner || [],
+          notes: lastDiet.notes || '',
+          calories: lastDiet.calories?.toString() || '',
+          lastUpdated: lastDiet.generatedAt || ''
+        };
+      }
+      setSelectedMember({ ...member, nutritionPlan });
   };
 
   const handleAddMember = async (e: React.FormEvent) => {
@@ -371,6 +386,107 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const inactiveCount = members.filter(m => m.status === UserStatus.INACTIVE).length;
 
   // --- MESSAGING & PDF HELPERS ---
+  const generateNutritionPDF = (nutritionPlan: any, memberName: string) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // Fondo oscuro y barra dorada superior
+    doc.setFillColor(26, 26, 26);
+    doc.rect(0, 0, pageWidth, pageHeight, 'F');
+    doc.setFillColor(212, 175, 55);
+    doc.rect(0, 0, pageWidth, 3, 'F');
+
+    // Título
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(28);
+    doc.setTextColor(212, 175, 55);
+    doc.text('PLAN NUTRICIONAL', pageWidth / 2, 20, { align: 'center' });
+
+    // Nombre del socio
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.text(memberName, pageWidth / 2, 30, { align: 'center' });
+
+    // Marca del gimnasio
+    doc.setFontSize(10);
+    doc.setTextColor(180, 180, 180);
+    doc.text('EL ARCA - GYM & FITNESS', pageWidth / 2, 38, { align: 'center' });
+
+    // Detalles generales
+    let y = 50;
+    doc.setFontSize(12);
+    doc.setTextColor(212, 175, 55);
+    doc.text('Calorías asignadas:', 20, y);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`${nutritionPlan.calories || 'N/A'}`, 70, y);
+    y += 10;
+    doc.setTextColor(212, 175, 55);
+    doc.text('Actualizado:', 20, y);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`${nutritionPlan.lastUpdated ? new Date(nutritionPlan.lastUpdated).toLocaleDateString() : ''}`, 70, y);
+    y += 15;
+
+    // Renderizar cada comida
+    const comidas = [
+      { label: 'Desayuno', items: nutritionPlan.breakfast, color: [255, 193, 7] },
+      { label: 'Media Mañana', items: nutritionPlan.morningSnack, color: [255, 235, 59] },
+      { label: 'Almuerzo', items: nutritionPlan.lunch, color: [244, 67, 54] },
+      { label: 'Merienda', items: nutritionPlan.afternoonSnack, color: [255, 152, 0] },
+      { label: 'Cena', items: nutritionPlan.dinner, color: [33, 150, 243] }
+    ];
+    doc.setFontSize(11);
+    comidas.forEach(({ label, items, color }) => {
+      if (items && items.length > 0) {
+        doc.setTextColor(...color);
+        doc.text(label + ':', 20, y);
+        doc.setTextColor(255, 255, 255);
+        items.forEach((alimento: string) => {
+          y += 7;
+          doc.text(`• ${alimento}`, 28, y);
+        });
+        y += 10;
+      }
+    });
+
+    // Notas
+    if (nutritionPlan.notes) {
+      doc.setTextColor(212, 175, 55);
+      doc.setFontSize(10);
+      doc.text('Notas / Suplementación:', 20, y);
+      doc.setTextColor(255, 255, 255);
+      y += 7;
+      doc.text(nutritionPlan.notes, 28, y);
+      y += 10;
+    }
+
+    // Pie de página dorado
+    doc.setFillColor(212, 175, 55);
+    doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(212, 175, 55);
+    doc.text(`Socio: ${memberName}`, 10, pageHeight - 8);
+    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, pageWidth - 40, pageHeight - 8);
+
+    // Descargar
+    const fileName = `PlanNutricional_${memberName.replace(/\s+/g, '_')}.pdf`;
+    doc.save(fileName);
+    return fileName;
+  };
+
+  const handleShareNutrition = (method: 'wa' | 'email') => {
+    if (!selectedMember || !selectedMember.nutritionPlan) return;
+    setToast({ message: `⏳ Generando y descargando PDF para ${method === 'wa' ? 'WhatsApp' : 'Email'}. Adjunta el archivo descargado en el mensaje.`, type: 'info' });
+    generateNutritionPDF(selectedMember.nutritionPlan, `${selectedMember.firstName} ${selectedMember.lastName}`);
+    const msgText = `Hola ${selectedMember.firstName}, te adjunto el PDF de tu plan nutricional de El Arca Gym. \n\n¡A entrenar con todo! 💪`;
+    if (method === 'wa') {
+      const url = `https://wa.me/${formatPhoneNumber(selectedMember.phone)}?text=${encodeURIComponent(msgText)}`;
+      setTimeout(() => window.open(url, '_blank'), 1000);
+    } else {
+      const url = `mailto:${selectedMember.email}?subject=Tu Plan Nutricional - El Arca Gym&body=${encodeURIComponent(msgText)}`;
+      setTimeout(() => window.open(url, '_blank'), 1000);
+    }
+  };
 
   const formatPhoneNumber = (phone: string) => {
       const clean = phone.replace(/\D/g, '');
@@ -828,16 +944,14 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                         <Eye size={18} />
                                     </button>
                                     <button 
-                                        // TODO: Implementar función para compartir nutrición por WhatsApp
-                                        // onClick={() => handleShareNutrition('wa')}
+                                        onClick={() => handleShareNutrition('wa')}
                                         className="p-2 bg-green-900/40 hover:bg-green-900/60 text-green-500 rounded-full transition-colors"
                                         title="Descargar PDF y Enviar por WhatsApp"
                                     >
                                         <FaWhatsapp size={18} />
                                     </button>
                                     <button 
-                                        // TODO: Implementar función para compartir nutrición por Email
-                                        // onClick={() => handleShareNutrition('email')}
+                                        onClick={() => handleShareNutrition('email')}
                                         className="p-2 bg-red-900/40 hover:bg-red-900/60 text-red-500 rounded-full transition-colors"
                                         title="Descargar PDF y Enviar por Email"
                                     >
