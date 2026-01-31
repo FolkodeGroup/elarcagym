@@ -1,23 +1,33 @@
 import React, { useState } from 'react';
-import { PublicAPI } from '../services/api';
+import { RoutineAccessAPI } from '../services/api';
 import { Member } from '../types';
-import { Search, Dumbbell, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Search, Dumbbell, ArrowLeft, CheckCircle, AlertTriangle } from 'lucide-react';
+
 
 const RoutineSelfService: React.FC = () => {
   const [dni, setDni] = useState('');
   const [member, setMember] = useState<Member | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [expired, setExpired] = useState(false);
+
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setExpired(false);
     try {
-      setIsLoading(true);
-      setError('');
-      const found = await PublicAPI.getMemberRoutine(dni);
-      setMember(found);
-    } catch (err) {
-      setError('No se encontró ningún socio con ese DNI.');
+      // Nueva API: solo DNI
+      const result = await RoutineAccessAPI.validateRoutineAccessByDni(dni);
+      setMember(result.member);
+    } catch (err: any) {
+      if (err.message && (err.message.toLowerCase().includes('expirado') || err.message.toLowerCase().includes('token')) ) {
+        setExpired(true);
+        setError('El acceso ha expirado o no tienes turno activo.');
+      } else {
+        setError(err.message || 'Error desconocido');
+      }
       setMember(null);
     } finally {
       setIsLoading(false);
@@ -26,7 +36,17 @@ const RoutineSelfService: React.FC = () => {
 
   if (member) {
     return (
-      <div className="max-w-md mx-auto p-4 space-y-6 animate-fadeIn min-h-screen bg-brand-dark text-white">
+      <div
+        className="max-w-md mx-auto p-4 space-y-6 animate-fadeIn min-h-screen bg-black/60 text-white backdrop-blur-sm"
+        style={{
+          backgroundImage: 'url(/images/arca-logo.png)',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center',
+          backgroundSize: 'contain',
+          backgroundAttachment: 'fixed',
+          opacity: 1
+        }}
+      >
         <button onClick={() => setMember(null)} className="flex items-center gap-2 text-brand-gold py-6">
           <ArrowLeft size={20} /> <span className="font-bold uppercase tracking-widest text-xs">Volver a Buscar</span>
         </button>
@@ -42,7 +62,7 @@ const RoutineSelfService: React.FC = () => {
         <div className="space-y-6 pb-20">
           {member.routines && member.routines.length > 0 ? (
             member.routines.slice().reverse().map((routine) => (
-              <div key={routine.id} className="bg-[#1a1a1a] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
+              <div key={routine.id} className="bg-black/60 border border-gray-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
                 <div className="bg-brand-gold px-6 py-3">
                   <h3 className="text-black font-black text-sm uppercase tracking-tighter">{routine.name}</h3>
                 </div>
@@ -87,46 +107,54 @@ const RoutineSelfService: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm bg-[#1a1a1a] border border-gray-800 rounded-[48px] p-10 shadow-2xl relative overflow-hidden">
+    <div
+      className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6"
+      style={{
+        backgroundImage: 'url(/images/arca-logo.png)',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+        backgroundSize: 'contain',
+        backgroundAttachment: 'fixed',
+        opacity: 1
+      }}
+    >
+      <div className="w-full max-w-[90vw] sm:max-w-sm bg-black/60 border border-gray-800 rounded-[48px] p-4 sm:p-10 shadow-2xl relative overflow-hidden backdrop-blur-sm mt-12 mb-4 sm:mt-8 sm:mb-8">
         <div className="absolute top-0 left-0 w-full h-1.5 bg-brand-gold"></div>
-        
         <div className="text-center mb-12">
           <h1 className="text-5xl font-display font-bold text-brand-gold tracking-tighter">EL ARCA</h1>
-          <p className="text-gray-500 text-[10px] uppercase tracking-[0.5em] mt-2 font-black">Portal del Socio</p>
+          <p className="text-gray-200 text-[10px] uppercase tracking-[0.5em] mt-2 font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]">Portal del Socio</p>
         </div>
-
         <form onSubmit={handleSearch} className="space-y-8">
           <div>
-            <label className="block text-gray-400 text-[10px] font-black uppercase mb-3 text-center tracking-widest opacity-70">
+            <label className="block text-gray-200 text-[10px] font-black uppercase mb-3 text-center tracking-widest drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]">
               Ingresa tu Identificación
             </label>
             <input
               type="number"
               value={dni}
               onChange={(e) => setDni(e.target.value)}
-              className="w-full bg-black border-2 border-gray-800 text-white rounded-3xl py-6 px-4 focus:border-brand-gold outline-none text-center text-3xl font-display font-bold tracking-tighter shadow-inner transition-all hover:border-gray-700"
+              className="w-full bg-black border-2 border-gray-800 text-white rounded-3xl py-6 px-4 focus:border-brand-gold outline-none text-center text-3xl font-display font-bold tracking-tighter shadow-inner transition-all hover:border-gray-700 placeholder:text-gray-300 placeholder:font-bold placeholder:opacity-90"
               placeholder="DNI"
               required
+              disabled={isLoading || expired}
             />
           </div>
-
           {error && (
-            <div className="bg-red-900/30 border border-red-800/50 p-4 rounded-2xl text-red-400 text-[10px] text-center font-black uppercase tracking-widest animate-shake">
+            <div className={`bg-red-900/30 border border-red-800/50 p-4 rounded-2xl text-red-400 text-[10px] text-center font-black uppercase tracking-widest animate-shake ${expired ? 'flex flex-col items-center gap-2' : ''}`}>
+              {expired && <AlertTriangle size={24} className="text-yellow-400 mb-1" />}
               {error}
             </div>
           )}
-
           <button
             type="submit"
             className="w-full bg-brand-gold hover:bg-yellow-500 text-black font-black py-6 rounded-3xl transition-all flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-xl shadow-brand-gold/10 active:scale-95"
+            disabled={isLoading || expired}
           >
             <Search size={20} strokeWidth={4} /> Consultar Mi Rutina
           </button>
         </form>
-        
         <div className="mt-12 text-center">
-            <p className="text-gray-700 text-[9px] uppercase font-black tracking-[0.3em]">El Arca Gym & Fitness Manager</p>
+            <p className="text-gray-200 text-[9px] uppercase font-black tracking-[0.3em] drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]">El Arca Gym & Fitness Manager</p>
         </div>
       </div>
     </div>
