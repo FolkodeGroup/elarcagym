@@ -34,7 +34,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md bg-[#1a1a1a] border border-gray-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+      <div className="w-full max-w-md bg-black/60 border border-gray-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden backdrop-blur-sm">
         {/* Decorative elements */}
         <div className="absolute top-0 left-0 w-full h-2 bg-brand-gold"></div>
         
