@@ -38,14 +38,29 @@ const Biometrics: React.FC = () => {
     };
 
     const formatDateHeader = (dateStr: string) => {
-        const d = new Date(dateStr + 'T12:00:00');
+    if (!dateStr) return <span className="text-gray-500 text-xs">S/D</span>;
+
+    const d = new Date(dateStr);
+
+    if (isNaN(d.getTime())) {
         return (
-            <div className="flex flex-col leading-tight">
-                <span className="text-xs text-gray-500 font-normal">{d.getDate()}</span>
-                <span className="text-sm font-bold text-brand-gold">{d.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase()}</span>
+            <div className="flex flex-col leading-tight text-center">
+                <span className="text-xs text-red-500 font-normal">Error</span>
             </div>
         );
-    };
+    }
+
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+
+    return (
+        <div className="flex flex-col leading-tight text-center">
+            <span className="text-xs text-gray-500 font-normal">{d.getDate()}</span>
+            <span className="text-sm font-bold text-brand-gold">
+                {d.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase().replace('.', '')}
+            </span>
+        </div>
+    );
+};
 
     // ========== DERIVADOS ==========
     const selectedMember = members.find(m => m.id === selectedMemberId);
@@ -185,7 +200,7 @@ const Biometrics: React.FC = () => {
                             <table className="w-full text-sm border-collapse min-w-max">
                                 <thead className="bg-[#151515] sticky top-0 z-20 shadow-md">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-gray-400 font-bold sticky left-0 z-30 bg-[#151515] border-r border-b border-gray-800 min-w-[150px] uppercase shadow-[2px_0_5px_rgba(0,0,0,0.5)]">Medida</th>
+                                        <th className="px-4 py-3 text-left text-gray-400 font-bold sticky left-0 z-30 bg-[#151515] border-r border-b border-gray-800 min-w-[150px] uppercase shadow-[2px_0_5px_rgba(0,0,0,0.5)]">Fecha</th>
                                         {sortedLogs.map(log => (
                                             <th key={log.id} className="px-2 py-2 text-center border-r border-b border-gray-800 relative group min-w-[100px]">
                                                 {formatDateHeader(log.date)}
