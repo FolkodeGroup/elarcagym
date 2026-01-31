@@ -1082,11 +1082,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
                         <div className="p-4 border-t border-gray-700 bg-[#1a1a1a] rounded-b-xl flex justify-end gap-3">
                             <button 
-                                // TODO: Implementar función para compartir nutrición por WhatsApp
-                                // onClick={() => handleShareNutrition('wa')}
-                                className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
+                              onClick={() => handleShareNutrition('wa')}
+                              className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
                             >
-                                <FaWhatsapp /> Descargar y Enviar
+                              <FaWhatsapp /> Descargar y Enviar
                             </button>
                             <button 
                                 onClick={() => setShowNutritionDetailModal(false)} 
