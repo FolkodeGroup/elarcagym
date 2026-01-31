@@ -1,10 +1,12 @@
+
+import dotenv from 'dotenv';
+dotenv.config();
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger.js';
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from './generated/prisma/client/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
-import dotenv from 'dotenv';
 
 import memberController from './controllers/memberController.js';
 import productController from './controllers/productController.js';
@@ -17,14 +19,20 @@ import slotController from './controllers/slotController.js';
 import exerciseMasterController from './controllers/exerciseMasterController.js';
 import authController from './controllers/authController.js';
 import { authenticateToken } from './middleware/auth.js';
+import routineTokenController from './controllers/routineTokenController.js';
+import routineAccessController from './controllers/routineAccessController.js';
 
-dotenv.config();
+
+
 const app = express();
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 app.use(cors());
 app.use(express.json());
+// Endpoints públicos para QR (deben ir después de declarar app y prisma)
+app.use('/routine-access', routineAccessController(prisma));
+app.use('/routine-token', routineTokenController);
 
 // Documentación Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
