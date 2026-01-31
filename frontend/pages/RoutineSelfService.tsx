@@ -36,7 +36,17 @@ const RoutineSelfService: React.FC = () => {
 
   if (member) {
     return (
-      <div className="max-w-md mx-auto p-4 space-y-6 animate-fadeIn min-h-screen bg-brand-dark text-white">
+      <div
+        className="max-w-md mx-auto p-4 space-y-6 animate-fadeIn min-h-screen bg-brand-dark text-white"
+        style={{
+          backgroundImage: 'url(/images/arca-logo.png)',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center',
+          backgroundSize: 'contain',
+          backgroundAttachment: 'fixed',
+          opacity: 1
+        }}
+      >
         <button onClick={() => setMember(null)} className="flex items-center gap-2 text-brand-gold py-6">
           <ArrowLeft size={20} /> <span className="font-bold uppercase tracking-widest text-xs">Volver a Buscar</span>
         </button>
@@ -97,7 +107,17 @@ const RoutineSelfService: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6">
+    <div
+      className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6"
+      style={{
+        backgroundImage: 'url(/images/arca-logo.png)',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+        backgroundSize: 'contain',
+        backgroundAttachment: 'fixed',
+        opacity: 1
+      }}
+    >
       <div className="w-full max-w-sm bg-[#1a1a1a] border border-gray-800 rounded-[48px] p-10 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1.5 bg-brand-gold"></div>
         <div className="text-center mb-12">

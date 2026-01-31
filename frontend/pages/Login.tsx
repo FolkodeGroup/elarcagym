@@ -42,7 +42,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div className="h-32 w-32 rounded-full border-4 border-brand-gold flex items-center justify-center bg-black mb-4 shadow-[0_0_20px_rgba(212,175,55,0.3)] overflow-hidden">
              {/* Intenta cargar el logo desde /images/arca-logo.jpg; si falla usa el BASE64 en assets */}
              <img
-               src="/images/arca-logo.jpg"
+               src="/images/arca-logo.png"
                onError={(e) => {
                  const img = e.currentTarget as HTMLImageElement;
                  if (img.src !== LOGO_BASE64) img.src = LOGO_BASE64;

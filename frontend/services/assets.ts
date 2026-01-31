@@ -1,5 +1,5 @@
 
-// AQUI DEBES PEGAR EL BASE64 REAL DE TU IMAGEN "arca-logo.jpg".
+// AQUI DEBES PEGAR EL BASE64 REAL DE TU IMAGEN "arca-logo.png".
 // Puedes usar sitios como https://www.base64-image.de/ para convertir tu imagen jpg a texto.
 // Por ahora, he puesto un placeholder simulando el logo dorado.
 
