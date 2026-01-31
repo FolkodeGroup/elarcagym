@@ -107,14 +107,56 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Validaciones antes de intentar crear
+    // Nombre y apellido: solo letras y espacios, deben contener al menos una letra
+    const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
+    const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
+    if (!newMember.firstName || !nameRegex.test(newMember.firstName) || !hasLetter.test(newMember.firstName)) {
+      window.alert(t('errorNombreInvalido') || 'Nombre inválido');
+      return;
+    }
+    if (!newMember.lastName || !nameRegex.test(newMember.lastName) || !hasLetter.test(newMember.lastName)) {
+      window.alert(t('errorApellidoInvalido') || 'Apellido inválido');
+      return;
+    }
+
+    // DNI: solo dígitos, máximo 8
+    const dniClean = String(newMember.dni).replace(/\D/g, '');
+    if (!/^[0-9]{1,8}$/.test(dniClean)) {
+      window.alert(t('errorDniInvalido') || 'DNI inválido (máx 8 dígitos)');
+      return;
+    }
+
+    // Email simple: contiene @ y termina en .com
+    const email = (newMember.email || '').trim();
+    if (email && !(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
+      window.alert(t('errorEmailInvalido') || 'Email inválido');
+      return;
+    }
+
+    // Teléfono: solo dígitos
+    const phoneClean = String(newMember.phone).replace(/\D/g, '');
+    if (newMember.phone && !/^[0-9]+$/.test(phoneClean)) {
+      window.alert(t('errorTelefonoInvalido') || 'Teléfono inválido');
+      return;
+    }
+
+    // DNI duplicado
+    if (members.some(m => String(m.dni) === dniClean)) {
+      window.alert('El Dni introducido ya esta registrado');
+      return;
+    }
+
     try {
       await MembersAPI.create({
         ...newMember,
+        dni: dniClean,
+        phone: phoneClean,
         phase: newMember.phase,
         habitualSchedules: newMember.habitualSchedules
       });
       setShowAddModal(false);
-      setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', password: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
+      setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
       await refreshMembers();
       setToast({ message: t('cambiosGuardados'), type: 'success' });
     } catch (err) {
@@ -1323,14 +1365,14 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   required
                   placeholder={t('nombre')} 
                   value={newMember.firstName}
-                  onChange={e => setNewMember({...newMember, firstName: e.target.value})}
+                  onChange={e => setNewMember({...newMember, firstName: e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g,'')})}
                   className="bg-black border border-gray-700 p-3 rounded text-white"
                 />
                 <input 
                   required
                   placeholder={t('apellido')} 
                   value={newMember.lastName}
-                  onChange={e => setNewMember({...newMember, lastName: e.target.value})}
+                  onChange={e => setNewMember({...newMember, lastName: e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g,'')})}
                   className="bg-black border border-gray-700 p-3 rounded text-white"
                 />
               </div>
@@ -1339,7 +1381,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                 required
                 placeholder={t('dniRequerido')} 
                 value={newMember.dni}
-                onChange={e => setNewMember({...newMember, dni: e.target.value})}
+                onChange={e => setNewMember({...newMember, dni: e.target.value.replace(/\D/g,'').slice(0,8)})}
                 className="w-full bg-black border border-gray-700 p-3 rounded text-white"
               />
               <input 
@@ -1352,7 +1394,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
               <input 
                 placeholder={t('telefonoEjemplo')} 
                 value={newMember.phone}
-                onChange={e => setNewMember({...newMember, phone: e.target.value})}
+                onChange={e => setNewMember({...newMember, phone: e.target.value.replace(/\D/g,'')})}
                 className="w-full bg-black border border-gray-700 p-3 rounded text-white"
               />
               <div className="flex justify-end gap-3 mt-6">
