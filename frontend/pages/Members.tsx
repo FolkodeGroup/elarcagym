@@ -102,17 +102,23 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   };
 
   const handleMemberClick = (member: Member) => {
-      // Si el miembro tiene un nutritionPlan directo, úsalo. Si no, mapear desde diets.
+      // Si el miembro tiene un nutritionPlan directo, úsalo. Si no, intentar mapear desde diets.description si es JSON válido.
       let nutritionPlan = member.nutritionPlan;
       if (!nutritionPlan && member.diets && member.diets.length > 0) {
         const lastDiet = member.diets[0];
+        let parsed: Partial<NutritionData> = {};
+        try {
+          parsed = lastDiet.description ? JSON.parse(lastDiet.description) : {};
+        } catch (e) {
+          parsed = {};
+        }
         nutritionPlan = {
-          breakfast: lastDiet.breakfast || [],
-          morningSnack: lastDiet.morningSnack || [],
-          lunch: lastDiet.lunch || [],
-          afternoonSnack: lastDiet.afternoonSnack || [],
-          dinner: lastDiet.dinner || [],
-          notes: lastDiet.notes || '',
+          breakfast: Array.isArray(parsed.breakfast) ? parsed.breakfast : [],
+          morningSnack: Array.isArray(parsed.morningSnack) ? parsed.morningSnack : [],
+          lunch: Array.isArray(parsed.lunch) ? parsed.lunch : [],
+          afternoonSnack: Array.isArray(parsed.afternoonSnack) ? parsed.afternoonSnack : [],
+          dinner: Array.isArray(parsed.dinner) ? parsed.dinner : [],
+          notes: typeof parsed.notes === 'string' ? parsed.notes : '',
           calories: lastDiet.calories?.toString() || '',
           lastUpdated: lastDiet.generatedAt || ''
         };
@@ -475,7 +481,9 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     doc.setFontSize(11);
     comidas.forEach(({ label, items, color }) => {
       if (items && items.length > 0) {
-        doc.setTextColor(...color);
+        if (Array.isArray(color) && color.length === 3) {
+          doc.setTextColor(color[0], color[1], color[2]);
+        }
         doc.text(label + ':', 20, y);
         doc.setTextColor(255, 255, 255);
         items.forEach((alimento: string) => {
@@ -1203,81 +1211,85 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                   </div>
                       <div>
                           <label className="text-xs text-gray-400 block mb-1">Nombre</label>
-                          <input 
+                          <input
                               type="text"
                               required
                               value={editMember.firstName}
                               onChange={e => {
-                                // Solo letras y espacios
-                                const val = e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '');
-                                setEditMember({...editMember, firstName: val});
+                                // Solo letras y espacios, permitir borrar todo, y evitar pegado de caracteres inválidos
+                                let val = e.target.value.normalize('NFD').replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '');
+                                setEditMember({ ...editMember, firstName: val });
                               }}
                               className="w-full bg-black border border-gray-600 text-white p-2 rounded"
                               placeholder="Nombre"
                               inputMode="text"
+                              autoComplete="off"
                           />
                       </div>
                       <div>
                           <label className="text-xs text-gray-400 block mb-1">Apellido</label>
-                          <input 
+                          <input
                               type="text"
                               required
                               value={editMember.lastName}
                               onChange={e => {
-                                // Solo letras y espacios
-                                const val = e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '');
-                                setEditMember({...editMember, lastName: val});
+                                let val = e.target.value.normalize('NFD').replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '');
+                                setEditMember({ ...editMember, lastName: val });
                               }}
                               className="w-full bg-black border border-gray-600 text-white p-2 rounded"
                               placeholder="Apellido"
                               inputMode="text"
+                              autoComplete="off"
                           />
                       </div>
                       <div>
                           <label className="text-xs text-gray-400 block mb-1">DNI</label>
-                          <input 
+                          <input
                               type="text"
                               required
                               value={editMember.dni}
                               onChange={e => {
-                                // Solo números, máx 8 dígitos
+                                // Solo números, máx 8 dígitos, limpiar cualquier letra pegada
                                 let val = e.target.value.replace(/\D/g, '');
-                                if (val.length > 8) val = val.slice(0,8);
-                                setEditMember({...editMember, dni: val});
+                                if (val.length > 8) val = val.slice(0, 8);
+                                setEditMember({ ...editMember, dni: val });
                               }}
                               className="w-full bg-black border border-gray-600 text-white p-2 rounded"
                               placeholder="DNI"
                               inputMode="numeric"
                               pattern="[0-9]*"
+                              autoComplete="off"
                           />
                       </div>
                       <div>
                           <label className="text-xs text-gray-400 block mb-1">Email</label>
-                            <input 
-                              type="email"
-                              required
-                              value={editMember.email}
-                              onChange={e => setEditMember({...editMember, email: e.target.value})}
-                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                              placeholder="Email"
-                              inputMode="email"
-                            />
+                                <input
+                                  type="email"
+                                  required
+                                  value={editMember.email}
+                                  onChange={e => setEditMember({ ...editMember, email: e.target.value })}
+                                  className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                                  placeholder="Email"
+                                  inputMode="email"
+                                  autoComplete="off"
+                                />
                       </div>
                       <div>
                           <label className="text-xs text-gray-400 block mb-1">Teléfono</label>
-                          <input 
+                          <input
                               type="text"
                               required
                               value={editMember.phone}
                               onChange={e => {
-                                // Solo números
-                                const val = e.target.value.replace(/\D/g, '');
-                                setEditMember({...editMember, phone: val});
+                                // Solo números, limpiar cualquier letra pegada
+                                let val = e.target.value.replace(/\D/g, '');
+                                setEditMember({ ...editMember, phone: val });
                               }}
                               className="w-full bg-black border border-gray-600 text-white p-2 rounded"
                               placeholder="Teléfono"
                               inputMode="numeric"
                               pattern="[0-9]*"
+                              autoComplete="off"
                           />
                       </div>
                       <div>
