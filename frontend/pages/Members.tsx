@@ -290,6 +290,15 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     try {
       await MembersAPI.update(id, { status: newStatus });
       await refreshMembers();
+      // Buscar el nombre del socio actualizado
+      const member = members.find(m => m.id === id);
+      let msg = '';
+      if (newStatus === UserStatus.INACTIVE) {
+        msg = member ? `${member.firstName} ${member.lastName} ha sido marcado como INACTIVO.` : 'El socio ha sido marcado como INACTIVO.';
+      } else {
+        msg = member ? `${member.firstName} ${member.lastName} ha sido marcado como ACTIVO.` : 'El socio ha sido marcado como ACTIVO.';
+      }
+      setToast({ message: msg, type: 'success' });
     } catch (err) {
       setToast({ message: t('errorGuardarSocio'), type: 'error' });
     }
