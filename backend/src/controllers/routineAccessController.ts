@@ -76,47 +76,34 @@ export default function(prisma: any) {
         include: { slot: true }
       });
       console.log('Reservas del socio:', allReservations);
-      const reservation = await prisma.reservation.findFirst({
-        where: {
-          memberId: member.id,
-          OR: [
-            { attended: false },
-            { attended: null }
-          ],
-          slot: {
-            date: { gte: startOfDay, lte: endOfDay }
-          }
-        },
-        orderBy: {
-          slot: {
-            date: 'asc'
-          }
-        },
-        include: {
-          slot: true
-        }
+      // Buscar todas las reservas del día para el usuario
+      const todayReservations = allReservations.filter((r: { slot: { date: string } }) => {
+        const slotDate = new Date(r.slot.date);
+        return slotDate >= startOfDay && slotDate <= endOfDay;
       });
-      console.log('Reserva encontrada para hoy:', reservation);
-      if (!reservation) {
-        return res.status(403).json({ error: 'No tienes un turno activo para hoy o ya fue registrado.' });
-      }
-      // Lógica de ventana temporal: 1h30min desde el primer acceso
+      // Buscar reserva con accessedAt dentro de la ventana
       const nowDate = new Date();
       const windowMs = 90 * 60 * 1000; // 1h30min en ms
+      let reservation = todayReservations.find((r: { accessedAt?: string }) => r.accessedAt && (nowDate.getTime() - new Date(r.accessedAt).getTime() <= windowMs));
       let allowAccess = false;
-      if (!reservation.accessedAt) {
-        // Primer acceso: setear accessedAt y permitir acceso
-        await prisma.reservation.update({ where: { id: reservation.id }, data: { accessedAt: nowDate } });
+      if (reservation) {
+        // Acceso dentro de la ventana
+        const accessedAt = new Date(reservation.accessedAt);
+        const diffMs = nowDate.getTime() - accessedAt.getTime();
+        console.log('[ACCESO RUTINA] Acceso posterior. nowDate:', nowDate.toISOString(), 'accessedAt:', accessedAt.toISOString(), 'diffMs:', diffMs, 'windowMs:', windowMs);
         allowAccess = true;
       } else {
-        // Acceso posterior: permitir si está dentro de la ventana
-        const accessedAt = new Date(reservation.accessedAt);
-        if (nowDate.getTime() - accessedAt.getTime() <= windowMs) {
+        // Buscar reserva sin accessedAt (primer acceso del día)
+        reservation = todayReservations.find((r: { accessedAt?: string }) => !r.accessedAt);
+        if (reservation) {
+          console.log('[ACCESO RUTINA] Primer acceso. nowDate:', nowDate.toISOString());
+          await prisma.reservation.update({ where: { id: reservation.id }, data: { accessedAt: nowDate } });
           allowAccess = true;
         }
       }
-      if (!allowAccess) {
-        return res.status(403).json({ error: 'El acceso temporal a tu rutina ha expirado. Solicita asistencia en recepción.' });
+      console.log('Reserva encontrada para hoy:', reservation);
+      if (!reservation || !allowAccess) {
+        return res.status(403).json({ error: 'No tienes un turno activo para hoy o ya fue registrado.' });
       }
       // Devolver rutina y datos de contacto
       const memberWithRoutine = await prisma.member.findUnique({
