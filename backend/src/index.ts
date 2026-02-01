@@ -18,6 +18,7 @@ import reminderController from './controllers/reminderController.js';
 import slotController from './controllers/slotController.js';
 import exerciseMasterController from './controllers/exerciseMasterController.js';
 import authController from './controllers/authController.js';
+import configController from './controllers/configController.js';
 import { authenticateToken } from './middleware/auth.js';
 import routineTokenController from './controllers/routineTokenController.js';
 import routineAccessController from './controllers/routineAccessController.js';
@@ -81,6 +82,7 @@ app.use('/payment-logs', authenticateToken, paymentLogController(prisma));
 app.use('/reminders', authenticateToken, reminderController(prisma));
 app.use('/slots', authenticateToken, slotController(prisma));
 app.use('/exercises', authenticateToken, exerciseMasterController(prisma));
+app.use('/config', authenticateToken, configController(prisma));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
