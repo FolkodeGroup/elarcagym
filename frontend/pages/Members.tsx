@@ -985,25 +985,11 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                                   <p className="text-xs text-brand-gold">{routine.goal} • {new Date(routine.createdAt).toLocaleDateString()}</p>
                                               </button>
                                               
-                                              <div className="flex items-center gap-2">
-                                                  <button 
-                                                    onClick={(e) => handleShareRoutine(e, 'whatsapp', routine)}
-                                                    className="p-2 text-green-500 hover:bg-green-900/30 rounded-full transition-colors" 
-                                                    title="Enviar PDF por WhatsApp"
-                                                  >
-                                                      <FaWhatsapp size={18} />
-                                                  </button>
-                                                  <button 
-                                                    onClick={(e) => handleShareRoutine(e, 'email', routine)}
-                                                    className="p-2 text-red-500 hover:bg-red-900/30 rounded-full transition-colors" 
-                                                    title="Enviar PDF por Gmail"
-                                                  >
-                                                      <SiGmail size={18} />
-                                                  </button>
+                                                <div className="flex items-center gap-2">
                                                   <button onClick={() => setExpandedRoutineId(expandedRoutineId === routine.id ? null : routine.id)} className="text-gray-400 p-2">
-                                                      {expandedRoutineId === routine.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                                    {expandedRoutineId === routine.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                                   </button>
-                                              </div>
+                                                </div>
                                           </div>
                                           
                                           {expandedRoutineId === routine.id && (
