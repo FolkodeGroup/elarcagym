@@ -12,11 +12,11 @@ export const RoutineAccessAPI = {
     }
     return res.json();
   },
-  validateRoutineAccessByDni: async (dni: string) => {
+  validateRoutineAccessByDni: async (dni: string, latitude?: number, longitude?: number) => {
     const res = await fetch(`${API_URL}/routine-access/selfservice`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dni })
+      body: JSON.stringify({ dni, latitude, longitude })
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
