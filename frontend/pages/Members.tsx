@@ -787,9 +787,28 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
               </h2>
               <div className="flex flex-col gap-3 mt-3">
                 <div className="flex items-center justify-center md:justify-start gap-2 text-gray-400 text-sm flex-wrap">
-                  <span className="flex items-center gap-1"><Mail size={14} /> {selectedMember.email}</span>
-                  <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-                  <span className="flex items-center gap-1"><Phone size={14} /> {selectedMember.phone}</span>
+                  <a href={`mailto:${selectedMember.email}`} className="flex items-center gap-1 text-gray-300 hover:underline" aria-label={`Enviar email a ${selectedMember.email}`}>
+                    <Mail size={14} /> <span>{selectedMember.email}</span>
+                  </a>
+
+                  <span className="w-1 h-1 bg-gray-600 rounded-full" />
+
+                  <div className="flex items-center gap-2">
+                    <a href={`tel:${selectedMember.phone}`} className="flex items-center gap-1 text-gray-300 hover:underline" aria-label={`Llamar a ${selectedMember.phone}`}>
+                      <Phone size={14} /> <span>{selectedMember.phone}</span>
+                    </a>
+
+                    {selectedMember.phone && (
+                      <button
+                        onClick={() => window.open(`https://wa.me/${formatPhoneNumber(selectedMember.phone)}`, '_blank')}
+                        title="Enviar WhatsApp"
+                        className="text-green-400 hover:text-green-300"
+                        aria-label={`Enviar WhatsApp a ${selectedMember.phone}`}
+                      >
+                        <FaWhatsapp size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {selectedMember.dni && (
                   <div className="bg-brand-gold/10 border border-brand-gold/30 px-3 py-2 rounded inline-block w-fit">
