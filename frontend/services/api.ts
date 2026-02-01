@@ -265,6 +265,9 @@ export const ExercisesAPI = {
   
   delete: (id: string): Promise<void> => 
     apiFetch(`/exercises/${id}`, { method: 'DELETE' }),
+
+  inUse: async (name: string): Promise<{ inUse: boolean; count: number }> =>
+    apiFetch(`/exercises/in-use/${encodeURIComponent(name)}`),
 };
 
 // ==================== DIETS API ====================

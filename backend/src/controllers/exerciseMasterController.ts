@@ -1,7 +1,18 @@
-import { Router } from 'express';
+
+  import { Router } from 'express';
 
 export default function(prisma: any) {
   const router = Router();
+  // Verificar si un ejercicio está en uso en alguna rutina (por nombre)
+  router.get('/in-use/:name', async (req, res) => {
+    try {
+      const name = req.params.name;
+      const count = await prisma.exerciseDetail.count({ where: { name } });
+      res.json({ inUse: count > 0, count });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
 
   // Obtener todos los ejercicios
   router.get('/', async (req, res) => {
