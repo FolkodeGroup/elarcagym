@@ -54,8 +54,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   // Usar lógica consistente con Members.tsx
   const activeMembers = members.filter(m => m.status === UserStatus.ACTIVE).length;
-  const debtors = members.filter(m => isDebtorByPayment(m)).length;
-  const currentMembers = members.filter(m => isCurrentOnPayment(m)).length;
+  const currentMembers = members.filter(m => m.status === UserStatus.ACTIVE && isCurrentOnPayment(m)).length;
+  // Morosos = Activos - Al Día
+  const debtors = activeMembers - currentMembers;
 
   // Obtener turnos de hoy con reservaciones
   const getTodaySlots = () => {

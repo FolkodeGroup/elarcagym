@@ -196,7 +196,16 @@ const dateToInput = (dateStr: string) => {
                     {searchMember && (
                         <div className="absolute top-full left-0 w-full bg-[#222] border border-gray-700 rounded-lg mt-1 max-h-48 overflow-y-auto z-50 shadow-2xl">
                             {filteredSearch.map(m => (
-                                <button key={m.id} onClick={() => { setSelectedMemberId(m.id); setSearchMember(''); }} className="w-full text-left px-4 py-3 hover:bg-gray-800 text-gray-200 border-b border-gray-800 last:border-0">{m.firstName} {m.lastName}</button>
+                                                                <button key={m.id} onClick={() => { setSelectedMemberId(m.id); setSearchMember(''); }} className="w-full text-left px-4 py-3 hover:bg-gray-800 text-gray-200 border-b border-gray-800 last:border-0 flex items-center gap-3">
+                                                                    <span className="inline-block w-8 h-8 rounded-full overflow-hidden bg-gray-700 border border-gray-600 flex-shrink-0">
+                                                                        {m.photoUrl ? (
+                                                                            <img src={m.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+                                                                        ) : (
+                                                                            <span className="flex items-center justify-center w-full h-full text-2xl">🦁</span>
+                                                                        )}
+                                                                    </span>
+                                                                    <span>{m.firstName} {m.lastName}</span>
+                                                                </button>
                             ))}
                         </div>
                     )}

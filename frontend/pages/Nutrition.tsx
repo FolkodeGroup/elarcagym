@@ -171,10 +171,17 @@ const Nutrition: React.FC = () => {
                                         <button 
                                             key={m.id}
                                             onClick={() => handleMemberSelect(m.id, `${m.firstName} ${m.lastName}`)}
-                                            className="w-full text-left px-4 py-3 hover:bg-gray-800 border-b border-gray-700 last:border-0 flex justify-between items-center"
+                                            className="w-full text-left px-4 py-3 hover:bg-gray-800 border-b border-gray-700 last:border-0 flex items-center gap-3"
                                         >
+                                            <span className="inline-block w-8 h-8 rounded-full overflow-hidden bg-gray-700 border border-gray-600 flex-shrink-0">
+                                                {m.photoUrl ? (
+                                                    <img src={m.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="flex items-center justify-center w-full h-full text-2xl">🥗</span>
+                                                )}
+                                            </span>
                                             <span className="text-gray-200">{m.firstName} {m.lastName}</span>
-                                            {selectedMemberId === m.id && <Check size={14} className="text-brand-gold"/>}
+                                            {selectedMemberId === m.id && <Check size={14} className="text-brand-gold ml-auto"/>}
                                         </button>
                                     ))}
                                 </div>
