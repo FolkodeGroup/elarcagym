@@ -249,8 +249,15 @@ const Operations: React.FC = () => {
       return;
     }
 
+    // Validar duplicado
+    const dayExercises = routineDays[activeDayIndex].exercises;
     const masterEx = exercisesMaster.find(ex => ex.id === selectedExerciseId);
     if(!masterEx) return;
+    const alreadyExists = dayExercises.some(ex => ex.name === masterEx.name);
+    if (alreadyExists) {
+      setToast({ message: 'Este ejercicio ya fue agregado a este día.', type: 'error' });
+      return;
+    }
 
     const newDetail: ExerciseDetail = {
         id: Math.random().toString(36).substr(2, 9),
@@ -264,7 +271,7 @@ const Operations: React.FC = () => {
     const updatedDays = [...routineDays];
     updatedDays[activeDayIndex].exercises.push(newDetail);
     setRoutineDays(updatedDays);
-        setIsDirty(true);
+    setIsDirty(true);
     resetExerciseInput();
   };
 
@@ -610,17 +617,23 @@ const Operations: React.FC = () => {
                                       <div className="bg-[#111] px-3 py-1 text-[10px] text-gray-500 uppercase font-bold tracking-wider sticky top-0">
                                         {category}
                                       </div>
-                                      {(exercises as ExerciseMaster[]).map(ex => (
-                                        <button
-                                          key={ex.id}
-                                          type="button"
-                                          onClick={() => selectExercise(ex)}
-                                          className="w-full text-left px-3 py-2 hover:bg-brand-gold hover:text-black text-sm text-gray-200 transition-colors flex justify-between items-center"
-                                        >
-                                          <span>{ex.name}</span>
-                                          {selectedExerciseId === ex.id && <Check size={14} />}
-                                        </button>
-                                      ))}
+                                      {(exercises as ExerciseMaster[]).map(ex => {
+                                        // Deshabilitar si ya está en el día activo
+                                        const isAdded = routineDays[activeDayIndex].exercises.some(e => e.name === ex.name);
+                                        return (
+                                          <button
+                                            key={ex.id}
+                                            type="button"
+                                            onClick={() => !isAdded && selectExercise(ex)}
+                                            className={`w-full text-left px-3 py-2 hover:bg-brand-gold hover:text-black text-sm transition-colors flex justify-between items-center ${isAdded ? 'opacity-50 cursor-not-allowed text-gray-500' : 'text-gray-200'}`}
+                                            disabled={isAdded}
+                                          >
+                                            <span>{ex.name}</span>
+                                            {selectedExerciseId === ex.id && <Check size={14} />}
+                                            {isAdded && <span className="ml-2 text-xs text-brand-gold">Agregado</span>}
+                                          </button>
+                                        );
+                                      })}
                                     </div>
                                   ))
                                 ) : (
