@@ -533,62 +533,73 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // Fondo oscuro y barra dorada superior
-    doc.setFillColor(26, 26, 26);
-    doc.rect(0, 0, pageWidth, pageHeight, 'F');
-    doc.setFillColor(212, 175, 55);
-    doc.rect(0, 0, pageWidth, 3, 'F');
-
-    // Logo del gimnasio como fondo (marca de agua)
-    try {
-      if (typeof LOGO_BASE64 === 'string' && LOGO_BASE64.length > 0) {
-        doc.saveGraphicsState();
-        if (typeof (doc as any).GState === 'function') {
-          doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
+    // Función para reimprimir fondo y encabezado en cada página
+    function printBackgroundAndHeader() {
+      doc.setFillColor(26, 26, 26);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+      doc.setFillColor(212, 175, 55);
+      doc.rect(0, 0, pageWidth, 3, 'F');
+      // Marca de agua
+      try {
+        if (typeof LOGO_BASE64 === 'string' && LOGO_BASE64.length > 0) {
+          doc.saveGraphicsState();
+          if (typeof (doc as any).GState === 'function') {
+            doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
+          }
+          const imgSize = pageHeight * 0.8;
+          const xCentered = (pageWidth - imgSize) / 2;
+          const yCentered = (pageHeight - imgSize) / 2;
+          doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
+          doc.restoreGraphicsState();
         }
-        const imgSize = pageHeight * 0.8;
-        const xCentered = (pageWidth - imgSize) / 2;
-        const yCentered = (pageHeight - imgSize) / 2;
-        doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
-        doc.restoreGraphicsState();
-      }
-    } catch (e) {
-      // Si falla, no interrumpe el PDF
+      } catch (e) {}
+      // Logo encabezado
+      try {
+        if (typeof LOGO_BASE64 === 'string' && LOGO_BASE64.length > 0) {
+          doc.addImage(LOGO_BASE64, 'JPEG', pageWidth - 40, 6, 28, 18);
+        }
+      } catch (e) {}
+      // Título
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(28);
+      doc.setTextColor(212, 175, 55);
+      doc.text('PLAN NUTRICIONAL', pageWidth / 2, 20, { align: 'center' });
+      // Nombre del socio
+      doc.setFontSize(14);
+      doc.setTextColor(255, 255, 255);
+      doc.text(memberName, pageWidth / 2, 30, { align: 'center' });
+      // Marca del gimnasio
+      doc.setFontSize(10);
+      doc.setTextColor(180, 180, 180);
+      doc.text('EL ARCA - GYM & FITNESS', pageWidth / 2, 38, { align: 'center' });
     }
 
-    // Logo del gimnasio (encabezado pequeño)
-    try {
-      if (typeof LOGO_BASE64 === 'string' && LOGO_BASE64.length > 0) {
-        doc.addImage(LOGO_BASE64, 'JPEG', pageWidth - 40, 6, 28, 18);
+    // Inicializar primera página
+    printBackgroundAndHeader();
+    let y = 50;
+    const bottomMargin = 20;
+    function checkPageBreak(extra = 0) {
+      if (y + extra > pageHeight - bottomMargin) {
+        doc.setFillColor(212, 175, 55);
+        doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(212, 175, 55);
+        doc.text(`Socio: ${memberName}`, 10, pageHeight - 8);
+        doc.text(`Fecha: ${new Date().toLocaleDateString()}`, pageWidth - 40, pageHeight - 8);
+        doc.addPage();
+        printBackgroundAndHeader();
+        y = 50;
       }
-    } catch (e) {
-      // Si falla, no interrumpe el PDF
     }
-
-    // Título
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(28);
-    doc.setTextColor(212, 175, 55);
-    doc.text('PLAN NUTRICIONAL', pageWidth / 2, 20, { align: 'center' });
-
-    // Nombre del socio
-    doc.setFontSize(14);
-    doc.setTextColor(255, 255, 255);
-    doc.text(memberName, pageWidth / 2, 30, { align: 'center' });
-
-    // Marca del gimnasio
-    doc.setFontSize(10);
-    doc.setTextColor(180, 180, 180);
-    doc.text('EL ARCA - GYM & FITNESS', pageWidth / 2, 38, { align: 'center' });
 
     // Detalles generales
-    let y = 50;
     doc.setFontSize(12);
     doc.setTextColor(212, 175, 55);
     doc.text('Calorías asignadas:', 20, y);
     doc.setTextColor(255, 255, 255);
     doc.text(`${nutritionPlan.calories || 'N/A'}`, 70, y);
     y += 10;
+    checkPageBreak(15);
     doc.setTextColor(212, 175, 55);
     doc.text('Actualizado:', 20, y);
     doc.setTextColor(255, 255, 255);
@@ -606,6 +617,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     doc.setFontSize(11);
     comidas.forEach(({ label, items, color }) => {
       if (items && items.length > 0) {
+        checkPageBreak(10);
         if (Array.isArray(color) && color.length === 3) {
           doc.setTextColor(color[0], color[1], color[2]);
         }
@@ -613,6 +625,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         doc.setTextColor(255, 255, 255);
         items.forEach((alimento: string) => {
           y += 7;
+          checkPageBreak(7);
           doc.text(`• ${alimento}`, 28, y);
         });
         y += 10;
@@ -620,6 +633,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     });
 
     // Sección de Suplementación
+    checkPageBreak(20);
     doc.setFontSize(12);
     doc.setTextColor(76, 175, 80); // Verde
     doc.text('Suplementación:', 20, y);
@@ -628,6 +642,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     doc.setTextColor(255, 255, 255);
     if (nutritionPlan.supplements && nutritionPlan.supplements.length > 0) {
       nutritionPlan.supplements.forEach((supp: string) => {
+        checkPageBreak(7);
         doc.text(`• ${supp}`, 28, y);
         y += 7;
       });
@@ -636,6 +651,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       y += 7;
     }
     if (nutritionPlan.supplementNotes) {
+      checkPageBreak(14);
       doc.setFontSize(10);
       doc.setTextColor(76, 175, 80);
       doc.text('Observaciones:', 28, y);
@@ -648,6 +664,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
     // Notas generales
     if (nutritionPlan.notes) {
+      checkPageBreak(14);
       doc.setTextColor(212, 175, 55);
       doc.setFontSize(10);
       doc.text('Notas generales:', 20, y);
@@ -657,7 +674,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       y += 10;
     }
 
-    // Pie de página dorado
+    // Pie de página dorado en la última página
     doc.setFillColor(212, 175, 55);
     doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
     doc.setFontSize(8);
