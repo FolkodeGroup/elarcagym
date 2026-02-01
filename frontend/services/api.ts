@@ -298,3 +298,17 @@ export const PaymentLogsAPI = {
   delete: (id: string): Promise<void> => 
     apiFetch(`/payment-logs/${id}`, { method: 'DELETE' }),
 };
+
+// ==================== CONFIG API ====================
+export const ConfigAPI = {
+  list: (): Promise<Array<{ id: string; key: string; value: string; description?: string }>> => apiFetch('/config'),
+  
+  get: (key: string): Promise<{ id: string; key: string; value: string; description?: string }> => 
+    apiFetch(`/config/${key}`),
+  
+  set: (key: string, value: string, description?: string): Promise<{ id: string; key: string; value: string; description?: string }> => 
+    apiFetch(`/config/${key}`, { method: 'PUT', body: JSON.stringify({ value, description }) }),
+  
+  delete: (key: string): Promise<void> => 
+    apiFetch(`/config/${key}`, { method: 'DELETE' }),
+};
