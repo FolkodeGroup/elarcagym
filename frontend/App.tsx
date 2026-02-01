@@ -9,7 +9,8 @@ import Nutrition from './pages/Nutrition.tsx';
 import Admin from './pages/Admin';
 import Ingresos from './pages/Ingresos';
 import Reservas from './pages/Reservas';
-import RoutineSelfService from './pages/RoutineSelfService'; // Importar nueva sección
+import RoutineSelfService from './pages/RoutineSelfService';
+import ExercisesAdmin from './pages/ExercisesAdmin';
 import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -107,6 +108,7 @@ const AppContent: React.FC = () => {
       case 'admin': return <Admin />;
       case 'Ingresos': return <Ingresos />;
       case 'reservas': return <Reservas />;
+      case 'exercises_admin': return <ExercisesAdmin />;
       default: return <Dashboard onNavigate={handleNavigate} />;
     }
   };
