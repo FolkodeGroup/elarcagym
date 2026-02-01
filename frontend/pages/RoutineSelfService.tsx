@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RoutineAccessAPI } from '../services/api';
 import { Member } from '../types';
-import { Search, Dumbbell, ArrowLeft, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Search, Dumbbell, ArrowLeft, CheckCircle, AlertTriangle, MapPin } from 'lucide-react';
 
 
 const RoutineSelfService: React.FC = () => {
@@ -10,21 +10,73 @@ const RoutineSelfService: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [expired, setExpired] = useState(false);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
 
+  const getLocation = (): Promise<{ latitude: number; longitude: number }> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Tu navegador no soporta geolocalización'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          let errorMessage = 'No se pudo obtener tu ubicación';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Debes permitir el acceso a tu ubicación para ver tu rutina';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Tu ubicación no está disponible en este momento';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Se agotó el tiempo esperando tu ubicación';
+              break;
+          }
+          reject(new Error(errorMessage));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    });
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setIsRequestingLocation(true);
     setError('');
     setExpired(false);
     try {
-      // Nueva API: solo DNI
-      const result = await RoutineAccessAPI.validateRoutineAccessByDni(dni);
+      // Solicitar ubicación
+      const location = await getLocation();
+      setIsRequestingLocation(false);
+      
+      // Nueva API: DNI + ubicación
+      const result = await RoutineAccessAPI.validateRoutineAccessByDni(
+        dni,
+        location.latitude,
+        location.longitude
+      );
       setMember(result.member);
     } catch (err: any) {
+      setIsRequestingLocation(false);
       if (err.message && (err.message.toLowerCase().includes('expirado') || err.message.toLowerCase().includes('token')) ) {
         setExpired(true);
         setError('El acceso ha expirado o no tienes turno activo.');
+      } else if (err.message && err.message.toLowerCase().includes('ubicación')) {
+        setError(err.message);
+      } else if (err.message && err.message.toLowerCase().includes('gimnasio')) {
+        setError(err.message);
       } else {
         setError(err.message || 'Error desconocido');
       }
@@ -145,9 +197,15 @@ const RoutineSelfService: React.FC = () => {
               {error}
             </div>
           )}
+          {isRequestingLocation && (
+            <div className="bg-blue-900/30 border border-blue-800/50 p-4 rounded-2xl text-blue-400 text-[10px] text-center font-black uppercase tracking-widest flex flex-col items-center gap-2">
+              <MapPin size={24} className="text-blue-400 mb-1 animate-pulse" />
+              Solicitando tu ubicación...
+            </div>
+          )}
           <button
             type="submit"
-            className="w-full bg-brand-gold hover:bg-yellow-500 text-black font-black py-6 rounded-3xl transition-all flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-xl shadow-brand-gold/10 active:scale-95"
+            className="w-full bg-brand-gold hover:bg-yellow-500 text-black font-black py-6 rounded-3xl transition-all flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-xl shadow-brand-gold/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading || expired}
           >
             <Search size={20} strokeWidth={4} /> Consultar Mi Rutina

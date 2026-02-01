@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { verifyRoutineToken } from '../utils/routineToken.js';
+import { isWithinGymRadius } from '../config/gymLocation.js';
 
 export default function(prisma: any) {
   const router = Router();
@@ -53,10 +54,28 @@ export default function(prisma: any) {
   // Endpoint para autoconsulta: solo DNI, busca turno activo, marca asistencia y devuelve rutina
   router.post('/selfservice', async (req, res) => {
     try {
-      const { dni } = req.body;
+      const { dni, latitude, longitude } = req.body;
       if (!dni) {
         return res.status(400).json({ error: 'DNI requerido' });
       }
+      
+      // Validar geolocalización si se proporciona
+      if (latitude !== undefined && longitude !== undefined) {
+        const withinRadius = isWithinGymRadius(latitude, longitude);
+        if (!withinRadius) {
+          return res.status(403).json({ 
+            error: 'Debes estar en el gimnasio para acceder a tu rutina.',
+            code: 'LOCATION_OUT_OF_RANGE'
+          });
+        }
+      } else {
+        // Si no se proporciona ubicación, rechazar el acceso
+        return res.status(400).json({ 
+          error: 'Se requiere tu ubicación para acceder a la rutina.',
+          code: 'LOCATION_REQUIRED'
+        });
+      }
+      
       // Buscar miembro por DNI
       const member = await prisma.member.findUnique({ where: { dni } });
       if (!member) {
@@ -83,7 +102,7 @@ export default function(prisma: any) {
       });
       // Buscar reserva con accessedAt dentro de la ventana
       const nowDate = new Date();
-      const windowMs = 90 * 60 * 1000; // 1h30min en ms
+      const windowMs = 120 * 60 * 1000; // 2 horas en ms
       let reservation = todayReservations.find((r: { accessedAt?: string }) => r.accessedAt && (nowDate.getTime() - new Date(r.accessedAt).getTime() <= windowMs));
       let allowAccess = false;
       if (reservation) {
