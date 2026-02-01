@@ -15,7 +15,12 @@ const Reservas: React.FC = () => {
   const [waitingList, setWaitingList] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getLocalDateString = (date: Date = new Date()) => date.toISOString().split('T')[0];
+  const getLocalDateString = (date: Date = new Date()) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   
   // Modales
@@ -41,7 +46,8 @@ const Reservas: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   
   const { setCanNavigate } = useNavigation();
-  const hours = Array.from({ length: 16 }, (_, i) => i + 7);
+  // Mostrar desde las 07:00 hasta las 23:00 inclusive
+  const hours = Array.from({ length: 17 }, (_, i) => i + 7);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -123,6 +129,7 @@ const Reservas: React.FC = () => {
     const selectedIds = quickAddForm.selectedMembers.map(m => m.id);
 
     // Crear reservaciones para cada miembro
+    let newReservationsCount = 0;
     for (const member of quickAddForm.selectedMembers) {
       if (!currentMemberIds.includes(member.id)) {
           await ReservationsAPI.create({
@@ -131,6 +138,7 @@ const Reservas: React.FC = () => {
             clientName: `${member.firstName} ${member.lastName}`,
             notes: quickAddForm.notes
           });
+          newReservationsCount++;
       }
     }
 
@@ -142,9 +150,18 @@ const Reservas: React.FC = () => {
 
     await SlotsAPI.update(targetSlotId!, { status: 'reserved' });
 
+    // Recargar datos para actualizar la grilla
     await loadData();
+    
+    // Cerrar modal y mostrar notificación de éxito
     setShowQuickAdd(false);
-    setToast({ message: "Agenda actualizada", type: 'success' });
+    
+    const memberNames = quickAddForm.selectedMembers.map(m => m.firstName).join(', ');
+    const successMessage = newReservationsCount === 1 
+      ? `Reserva creada exitosamente para ${memberNames}` 
+      : `${newReservationsCount} reservas creadas exitosamente`;
+    
+    setToast({ message: successMessage, type: 'success' });
     } catch (error) {
       console.error('Error saving reservation:', error);
       setToast({ message: "Error al guardar reservación", type: 'error' });
@@ -227,12 +244,29 @@ const Reservas: React.FC = () => {
   const filteredSearchMembers = useMemo(() => {
     if (!searchMember.trim()) return [];
     const selectedIds = quickAddForm.selectedMembers.map(m => m.id);
+    
+    // Obtener IDs de socios que ya tienen reserva para el día seleccionado
+    const todaySlotsIds = slots
+      .filter(s => {
+        const slotDate = typeof s.date === 'string' ? s.date.split('T')[0] : getLocalDateString(new Date(s.date));
+        return slotDate === selectedDate;
+      })
+      .map(s => s.id);
+    
+    const reservedMemberIds = reservations
+      .filter(r => todaySlotsIds.includes(r.slotId))
+      .map(r => r.memberId);
+    
     return allMembers
-      .filter(m => m.status === UserStatus.ACTIVE && !selectedIds.includes(m.id) && 
-        `${m.firstName} ${m.lastName}`.toLowerCase().includes(searchMember.toLowerCase()))
+      .filter(m => 
+        m.status === UserStatus.ACTIVE && 
+        !selectedIds.includes(m.id) && 
+        !reservedMemberIds.includes(m.id) && 
+        `${m.firstName} ${m.lastName}`.toLowerCase().includes(searchMember.toLowerCase())
+      )
       .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
       .slice(0, 8);
-  }, [allMembers, searchMember, quickAddForm.selectedMembers]);
+  }, [allMembers, searchMember, quickAddForm.selectedMembers, slots, reservations, selectedDate]);
 
   const filteredWaitingSearch = useMemo(() => {
     if (!searchWaiting.trim()) return [];
@@ -243,7 +277,10 @@ const Reservas: React.FC = () => {
         .slice(0, 5);
   }, [allMembers, searchWaiting, waitingList]);
 
-  const dateSlots = slots.filter(s => s.date === selectedDate);
+  const dateSlots = slots.filter(s => {
+    const slotDate = typeof s.date === 'string' ? s.date.split('T')[0] : getLocalDateString(new Date(s.date));
+    return slotDate === selectedDate;
+  });
 
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] space-y-4">
