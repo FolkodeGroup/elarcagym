@@ -522,6 +522,32 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     doc.setFillColor(212, 175, 55);
     doc.rect(0, 0, pageWidth, 3, 'F');
 
+    // Logo del gimnasio como fondo (marca de agua)
+    try {
+      if (typeof LOGO_BASE64 === 'string' && LOGO_BASE64.length > 0) {
+        doc.saveGraphicsState();
+        if (typeof (doc as any).GState === 'function') {
+          doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
+        }
+        const imgSize = pageHeight * 0.8;
+        const xCentered = (pageWidth - imgSize) / 2;
+        const yCentered = (pageHeight - imgSize) / 2;
+        doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
+        doc.restoreGraphicsState();
+      }
+    } catch (e) {
+      // Si falla, no interrumpe el PDF
+    }
+
+    // Logo del gimnasio (encabezado pequeño)
+    try {
+      if (typeof LOGO_BASE64 === 'string' && LOGO_BASE64.length > 0) {
+        doc.addImage(LOGO_BASE64, 'JPEG', pageWidth - 40, 6, 28, 18);
+      }
+    } catch (e) {
+      // Si falla, no interrumpe el PDF
+    }
+
     // Título
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(28);
@@ -576,11 +602,38 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       }
     });
 
-    // Notas
+    // Sección de Suplementación
+    doc.setFontSize(12);
+    doc.setTextColor(76, 175, 80); // Verde
+    doc.text('Suplementación:', 20, y);
+    y += 8;
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    if (nutritionPlan.supplements && nutritionPlan.supplements.length > 0) {
+      nutritionPlan.supplements.forEach((supp: string) => {
+        doc.text(`• ${supp}`, 28, y);
+        y += 7;
+      });
+    } else {
+      doc.text('Sin suplementos asignados', 28, y);
+      y += 7;
+    }
+    if (nutritionPlan.supplementNotes) {
+      doc.setFontSize(10);
+      doc.setTextColor(76, 175, 80);
+      doc.text('Observaciones:', 28, y);
+      y += 7;
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.text(nutritionPlan.supplementNotes, 32, y);
+      y += 10;
+    }
+
+    // Notas generales
     if (nutritionPlan.notes) {
       doc.setTextColor(212, 175, 55);
       doc.setFontSize(10);
-      doc.text('Notas / Suplementación:', 20, y);
+      doc.text('Notas generales:', 20, y);
       doc.setTextColor(255, 255, 255);
       y += 7;
       doc.text(nutritionPlan.notes, 28, y);
@@ -1231,9 +1284,35 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                             <NutritionSection title="Merienda" icon={<Coffee size={16} className="text-amber-600"/>} items={selectedMember.nutritionPlan.afternoonSnack} />
                             <NutritionSection title="Cena" icon={<Moon size={16} className="text-blue-400"/>} items={selectedMember.nutritionPlan.dinner} />
 
+                            {/* Sección de Suplementación */}
+                            <div className="bg-black/30 border border-green-900/30 rounded-lg p-4">
+                              <h4 className="text-sm font-bold text-green-400 flex items-center gap-2 mb-3">
+                                <FileSpreadsheet size={16} className="text-green-400" /> Suplementación
+                              </h4>
+                              {selectedMember.nutritionPlan.supplements && selectedMember.nutritionPlan.supplements.length > 0 ? (
+                                <ul className="space-y-1.5 pl-2">
+                                  {selectedMember.nutritionPlan.supplements.map((supp, idx) => (
+                                    <li key={idx} className="text-green-200 text-sm flex items-start gap-2">
+                                      <span className="mt-1.5 w-1 h-1 bg-brand-gold rounded-full flex-shrink-0"></span>
+                                      {supp}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-gray-600 text-xs italic">Sin suplementos asignados</p>
+                              )}
+                              {selectedMember.nutritionPlan.supplementNotes && (
+                                <div className="mt-3">
+                                  <h5 className="text-xs uppercase font-bold text-gray-500 mb-1">Observaciones</h5>
+                                  <p className="text-green-200 text-xs whitespace-pre-line italic">{selectedMember.nutritionPlan.supplementNotes}</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Notas generales */}
                             {selectedMember.nutritionPlan.notes && (
                                 <div className="bg-gray-800/20 border border-gray-700 rounded-lg p-4">
-                                    <h4 className="text-xs uppercase font-bold text-gray-500 mb-2">Notas / Suplementación</h4>
+                                    <h4 className="text-xs uppercase font-bold text-gray-500 mb-2">Notas generales</h4>
                                     <p className="text-gray-300 text-sm whitespace-pre-line italic">{selectedMember.nutritionPlan.notes}</p>
                                 </div>
                             )}

@@ -60,6 +60,8 @@ export interface NutritionData {
   lunch: string[];         
   afternoonSnack: string[];
   dinner: string[];        
+  supplements?: string[]; // Suplementos recomendados
+  supplementNotes?: string; // Observaciones/instrucciones de suplementación
   notes?: string;        
   calories?: string;     
   lastUpdated: string;   
