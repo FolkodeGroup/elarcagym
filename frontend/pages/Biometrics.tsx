@@ -62,6 +62,21 @@ const Biometrics: React.FC = () => {
     );
 };
 
+// Convierte una fecha (string) a formato YYYY-MM-DD adecuado para inputs type=date
+// Evita el "desplazamiento" por zona horaria: si la fecha ya viene como YYYY-MM-DD la devuelve tal cual;
+// si viene como datetime ISO usa la parte UTC (toISOString().split('T')[0]) para asegurar el día correcto.
+const dateToInput = (dateStr: string) => {
+    if (!dateStr) return '';
+    // Si ya está en formato YYYY-MM-DD, devolver directamente
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+
+    // Usar la representación ISO (UTC) evita que el timezone local desplace el día hacia atrás
+    return d.toISOString().split('T')[0];
+};
+
     // ========== DERIVADOS ==========
     const selectedMember = members.find(m => m.id === selectedMemberId);
     const sortedLogs = selectedMember?.biometrics 
@@ -94,7 +109,7 @@ const Biometrics: React.FC = () => {
             const log = selectedMember.biometrics.find(b => b.id === logId);
             if (log) {
                 setEditingLogId(logId);
-                setFormDate(log.date);
+                setFormDate(dateToInput(log.date));
                 setFormData({
                     weight: log.weight?.toString() || '',
                     height: log.height?.toString() || '',
@@ -125,19 +140,19 @@ const Biometrics: React.FC = () => {
 
         const dataToSave: any = {
             date: formDate,
-            weight: Number(formData.weight) || 0,
-            height: Number(formData.height) || 0,
-            chest: Number(formData.chest) || 0,
-            waist: Number(formData.waist) || 0,
-            abdomen: Number(formData.abdomen) || 0,
-            glutes: Number(formData.glutes) || 0,
-            rightThigh: Number(formData.rightThigh) || 0,
-            leftThigh: Number(formData.leftThigh) || 0,
-            rightCalf: Number(formData.rightCalf) || 0,
-            leftCalf: Number(formData.leftCalf) || 0,
-            rightArm: Number(formData.rightArm) || 0,
-            leftArm: Number(formData.leftArm) || 0,
-            neck: Number(formData.neck) || 0,
+            weight: Math.round(Number(formData.weight) || 0),
+            height: Math.round(Number(formData.height) || 0),
+            chest: Math.round(Number(formData.chest) || 0),
+            waist: Math.round(Number(formData.waist) || 0),
+            abdomen: Math.round(Number(formData.abdomen) || 0),
+            glutes: Math.round(Number(formData.glutes) || 0),
+            rightThigh: Math.round(Number(formData.rightThigh) || 0),
+            leftThigh: Math.round(Number(formData.leftThigh) || 0),
+            rightCalf: Math.round(Number(formData.rightCalf) || 0),
+            leftCalf: Math.round(Number(formData.leftCalf) || 0),
+            rightArm: Math.round(Number(formData.rightArm) || 0),
+            leftArm: Math.round(Number(formData.leftArm) || 0),
+            neck: Math.round(Number(formData.neck) || 0),
         };
 
         try {
@@ -325,11 +340,54 @@ const TableRow = ({ label, unit, field, logs, highlight }: { label: string, unit
     </tr>
 );
 
-const InputGroup = ({ label, value, onChange, required, highlight, type = "number" }: any) => (
-    <div>
-        <label className={`block text-[10px] mb-1.5 uppercase font-black tracking-wider ${highlight ? 'text-brand-gold' : 'text-gray-500'}`}>{label}</label>
-        <input type={type} step="0.1" value={value} onChange={e => onChange(e.target.value)} required={required} className={`w-full bg-black border text-white px-3 py-3 rounded-xl text-sm font-bold focus:border-brand-gold outline-none transition-all ${highlight ? 'border-brand-gold/50 bg-brand-gold/5' : 'border-gray-800'}`} placeholder="-" />
-    </div>
-);
+const InputGroup = ({ label, value, onChange, required, highlight, type = "number", integerOnly }: any) => {
+    const isInteger = typeof integerOnly === 'boolean' ? integerOnly : (type === 'number');
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let v = e.target.value;
+        if (isInteger) {
+            // Remove any non-digit characters
+            v = v.replace(/\D/g, '');
+        }
+        onChange(v);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (!isInteger) return;
+        const allowedKeys = ['Backspace', 'ArrowLeft', 'ArrowRight', 'Tab', 'Delete', 'Home', 'End'];
+        if (allowedKeys.includes(e.key)) return;
+        if (!/^\d$/.test(e.key)) {
+            e.preventDefault();
+        }
+    };
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        if (!isInteger) return;
+        const text = (e.clipboardData || (window as any).clipboardData).getData('text');
+        if (/\D/.test(text)) {
+            e.preventDefault();
+        }
+    };
+
+    return (
+        <div>
+            <label className={`block text-[10px] mb-1.5 uppercase font-black tracking-wider ${highlight ? 'text-brand-gold' : 'text-gray-500'}`}>{label}</label>
+            <input
+                type={type}
+                step={isInteger ? "1" : "0.1"}
+                inputMode={isInteger ? "numeric" : undefined}
+                pattern={isInteger ? "\\d*" : undefined}
+                min="0"
+                value={value}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                required={required}
+                className={`w-full bg-black border text-white px-3 py-3 rounded-xl text-sm font-bold focus:border-brand-gold outline-none transition-all ${highlight ? 'border-brand-gold/50 bg-brand-gold/5' : 'border-gray-800'}`}
+                placeholder="-"
+            />
+        </div>
+    );
+};
 
 export default Biometrics;
