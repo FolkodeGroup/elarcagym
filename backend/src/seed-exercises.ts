@@ -70,9 +70,11 @@ const exercises = [
 async function main() {
   let nuevos = 0;
   for (const ex of exercises) {
-    const existe = await prisma.exerciseMaster.findFirst({ where: { name: ex.name } });
+    // Normalizar el grupo muscular a mayúsculas
+    const exNormalized = { ...ex, category: ex.category.toUpperCase() };
+    const existe = await prisma.exerciseMaster.findFirst({ where: { name: exNormalized.name } });
     if (!existe) {
-      await prisma.exerciseMaster.create({ data: ex });
+      await prisma.exerciseMaster.create({ data: exNormalized });
       nuevos++;
     }
   }
