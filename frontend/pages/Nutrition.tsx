@@ -25,6 +25,7 @@ const Nutrition: React.FC = () => {
         lunch: [] as string[],
         afternoonSnack: [] as string[],
         dinner: [] as string[],
+        supplements: [] as string[],
         notes: '',
         calories: ''
     });
@@ -73,11 +74,12 @@ const Nutrition: React.FC = () => {
                     lunch: member.nutritionPlan.lunch || [],
                     afternoonSnack: member.nutritionPlan.afternoonSnack || [],
                     dinner: member.nutritionPlan.dinner || [],
+                    supplements: member.nutritionPlan.supplements || [],
                     notes: member.nutritionPlan.notes || '',
                     calories: member.nutritionPlan.calories || ''
                 });
             } else {
-                setPlan({ breakfast: [], morningSnack: [], lunch: [], afternoonSnack: [], dinner: [], notes: '', calories: '' });
+                setPlan({ breakfast: [], morningSnack: [], lunch: [], afternoonSnack: [], dinner: [], supplements: [], notes: '', calories: '' });
             }
             setIsDirty(false);
         }
@@ -218,11 +220,11 @@ const Nutrition: React.FC = () => {
                                 </div>
                                 
                                 <div className="flex-1">
-                                    <label className="text-xs text-gray-500 uppercase block mb-1">Notas / Suplementos</label>
+                                    <label className="text-xs text-gray-500 uppercase block mb-1">Notas</label>
                                     <textarea 
                                         value={plan.notes}
                                         onChange={(e) => { setPlan(prev => ({...prev, notes: e.target.value})); setIsDirty(true); }}
-                                        placeholder="Creatina 5g, Multivitamínico..."
+                                        placeholder="Notas generales..."
                                         className="w-full h-32 bg-black border border-gray-700 rounded p-3 text-sm text-gray-300 resize-none"
                                     />
                                 </div>
@@ -294,6 +296,16 @@ const Nutrition: React.FC = () => {
                                 onAdd={(item) => addItem('dinner', item)}
                                 onRemove={(idx) => removeItem('dinner', idx)}
                                 placeholder="Ej: Pescado, Vegetales..."
+                            />
+
+                            {/* Sección de Suplementación */}
+                            <MealListEditor
+                                title="Suplementación"
+                                icon={<Apple className="text-green-500" />}
+                                items={plan.supplements}
+                                onAdd={(item) => addItem('supplements', item)}
+                                onRemove={(idx) => removeItem('supplements', idx)}
+                                placeholder="Ej: Creatina, Multivitamínico..."
                             />
                         </div>
                     )}
