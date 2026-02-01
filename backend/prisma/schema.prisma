@@ -180,3 +180,11 @@ model ExerciseMaster {
   name      String
   category  String
 }
+
+model Config {
+  id                String   @id @default(uuid())
+  key               String   @unique
+  value             String
+  description       String?
+  updatedAt         DateTime @updatedAt
+}
