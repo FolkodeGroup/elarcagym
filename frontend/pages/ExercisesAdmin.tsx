@@ -60,8 +60,15 @@ const ExercisesAdmin: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('¿Eliminar este ejercicio?')) return;
+    const exercise = exercises.find(e => e.id === id);
+    if (!exercise) return;
     try {
+      const usage = await ExercisesAPI.inUse(exercise.name);
+      if (usage.inUse) {
+        setToast({ message: `No se puede eliminar: el ejercicio está en uso en ${usage.count} rutina(s).`, type: 'error' });
+        return;
+      }
+      if (!window.confirm('¿Eliminar este ejercicio?')) return;
       await ExercisesAPI.delete(id);
       setToast({ message: 'Ejercicio eliminado', type: 'success' });
       loadExercises();
