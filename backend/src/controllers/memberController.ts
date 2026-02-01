@@ -168,8 +168,6 @@ export default function(prisma: any) {
 
   // Actualizar un miembro
   router.put('/:id', async (req, res) => {
-      // Log de depuración para ver el body recibido
-      console.log('PUT /members/:id body:', JSON.stringify(req.body).slice(0, 500));
     try {
       const { habitualSchedules, biometrics, routines, diets, payments, ...memberData } = req.body;
       // Permitir updates parciales: solo validar campos si están presentes
@@ -252,7 +250,6 @@ export default function(prisma: any) {
       });
       res.json(member);
     } catch (e) {
-      console.error('Error en PUT /members/:id:', e);
       // Prisma error de unicidad
       if (
         typeof e === 'object' && e !== null &&
