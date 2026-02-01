@@ -152,12 +152,7 @@ const Operations: React.FC = () => {
     });
   }, [members, memberSearchText]);
 
-  const handleOpenCreateModal = () => {
-      setNewExName(exerciseSearch); // Pre-fill with what user typed
-      setNewExCategory('');
-      setShowNewExModal(true);
-      setIsDropdownOpen(false);
-  };
+  // Eliminado: función para abrir modal de creación rápida de ejercicio
 
   // --- Handlers ---
 
@@ -250,14 +245,9 @@ const Operations: React.FC = () => {
   const handleAddExerciseToDay = (e: React.FormEvent) => {
     e.preventDefault();
     if(!selectedExerciseId) {
-        // If user typed a name but didn't select or create, prompt to create
-        if(exerciseSearch && !exercisesMaster.find(e => e.name === exerciseSearch)) {
-            handleOpenCreateModal();
-            return;
-        }
-        setToast({ message: 'Por favor selecciona un ejercicio válido de la lista.', type: 'error' });
-        return;
-    };
+      setToast({ message: 'Por favor selecciona un ejercicio válido de la lista.', type: 'error' });
+      return;
+    }
 
     const masterEx = exercisesMaster.find(ex => ex.id === selectedExerciseId);
     if(!masterEx) return;
@@ -613,39 +603,40 @@ const Operations: React.FC = () => {
                             
                             {/* Autocomplete Dropdown */}
                             {isDropdownOpen && (
-                                <div className="absolute bottom-full mb-1 left-0 w-full bg-[#222] border border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto z-50">
-                                    {Object.keys(groupedExercises).length > 0 ? (
-                                        Object.entries(groupedExercises).map(([category, exercises]) => (
-                                            <div key={category}>
-                                                <div className="bg-[#111] px-3 py-1 text-[10px] text-gray-500 uppercase font-bold tracking-wider sticky top-0">
-                                                    {category}
-                                                </div>
-                                                {(exercises as ExerciseMaster[]).map(ex => (
-                                                    <button
-                                                        key={ex.id}
-                                                        type="button"
-                                                        onClick={() => selectExercise(ex)}
-                                                        className="w-full text-left px-3 py-2 hover:bg-brand-gold hover:text-black text-sm text-gray-200 transition-colors flex justify-between items-center"
-                                                    >
-                                                        <span>{ex.name}</span>
-                                                        {selectedExerciseId === ex.id && <Check size={14} />}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="p-2">
-                                            <p className="text-xs text-gray-500 px-2 py-1">No se encontraron resultados.</p>
-                                            <button 
-                                                type="button"
-                                                onClick={handleOpenCreateModal}
-                                                className="w-full text-left px-2 py-2 text-brand-gold hover:bg-[#333] rounded text-sm font-bold flex items-center gap-2"
-                                            >
-                                                <Plus size={16} /> Crear "{exerciseSearch}"
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                              <div className="absolute bottom-full mb-1 left-0 w-full bg-[#222] border border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto z-50">
+                                {Object.keys(groupedExercises).length > 0 ? (
+                                  Object.entries(groupedExercises).map(([category, exercises]) => (
+                                    <div key={category}>
+                                      <div className="bg-[#111] px-3 py-1 text-[10px] text-gray-500 uppercase font-bold tracking-wider sticky top-0">
+                                        {category}
+                                      </div>
+                                      {(exercises as ExerciseMaster[]).map(ex => (
+                                        <button
+                                          key={ex.id}
+                                          type="button"
+                                          onClick={() => selectExercise(ex)}
+                                          className="w-full text-left px-3 py-2 hover:bg-brand-gold hover:text-black text-sm text-gray-200 transition-colors flex justify-between items-center"
+                                        >
+                                          <span>{ex.name}</span>
+                                          {selectedExerciseId === ex.id && <Check size={14} />}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="p-2 flex flex-col gap-2">
+                                    <p className="text-xs text-gray-500 px-2 py-1">No se encontraron resultados.</p>
+                                    <a
+                                      href="/ExercisesAdmin"
+                                      className="w-full text-left px-2 py-2 text-brand-gold hover:bg-[#333] rounded text-sm font-bold flex items-center gap-2 border border-brand-gold justify-center"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      Gestionar ejercicios
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
                             )}
                         </div>
                     </div>
@@ -722,38 +713,7 @@ const Operations: React.FC = () => {
       </div>
 
       {/* Modal: New Master Exercise */}
-      {showNewExModal && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-              <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
-                  <h3 className="text-lg font-bold text-white mb-4">Nuevo Ejercicio</h3>
-                  <div className="space-y-4">
-                      <div>
-                          <label className="text-xs text-gray-400 block mb-1">Nombre del Ejercicio</label>
-                          <input 
-                              autoFocus
-                              value={newExName}
-                              onChange={e => setNewExName(e.target.value)}
-                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                              placeholder="Ej: Press Arnold"
-                          />
-                      </div>
-                      <div>
-                          <label className="text-xs text-gray-400 block mb-1">Grupo Muscular</label>
-                          <input 
-                              value={newExCategory}
-                              onChange={e => setNewExCategory(e.target.value)}
-                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                              placeholder="Ej: Hombros"
-                          />
-                      </div>
-                      <div className="flex justify-end gap-2 mt-4">
-                          <button onClick={() => setShowNewExModal(false)} className="px-3 py-2 text-gray-400 text-sm">Cancelar</button>
-                          <button onClick={handleCreateMasterExercise} className="px-4 py-2 bg-brand-gold text-black rounded font-bold text-sm">Crear</button>
-                      </div>
-                  </div>
-              </div>
-          </div>
-      )}
+        {/* Eliminado: Modal de creación rápida de ejercicio */}
 
       {/* Delete Routine Confirmation Modal */}
       {showDeleteModal && (

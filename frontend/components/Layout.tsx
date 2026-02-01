@@ -204,6 +204,20 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                      </div>
                    </button>
 
+                   {/* Ejercicios */}
+                   <button
+                     onClick={() => {
+                       setAdminMenuOpen(false);
+                       onNavigate('exercises_admin');
+                     }}
+                     className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-800 transition text-white group"
+                   >
+                     <Dumbbell size={18} className="text-brand-gold group-hover:scale-110 transition" />
+                     <div className="flex-1 text-left">
+                       <p className="text-sm font-semibold">Ejercicios</p>
+                       <p className="text-xs text-gray-400">Gestionar ejercicios</p>
+                     </div>
+                   </button>
                    {/* Reportes */}
                    <button
                      onClick={() => {
