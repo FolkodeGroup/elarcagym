@@ -1,11 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { ProductsAPI, SalesAPI } from '../services/api';
+import { ProductsAPI, SalesAPI, ConfigAPI } from '../services/api';
 import { Product } from '../types';
 import { ShoppingCart, Plus, Minus, Trash2, Edit2, Search, AlertTriangle } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
 
 const Admin: React.FC = () => {
+    // Gestión de configuración
+    const [showConfigModal, setShowConfigModal] = useState(false);
+    const [monthlyFee, setMonthlyFee] = useState('35000');
+    const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+
+    // Cargar configuración desde la API
+    const loadConfig = async () => {
+        try {
+            setIsLoadingConfig(true);
+            const config = await ConfigAPI.get('monthly_fee');
+            setMonthlyFee(config.value);
+        } catch (error) {
+            // Si no existe, usar valor por defecto
+            console.log('Config not found, using default');
+            setMonthlyFee('35000');
+        } finally {
+            setIsLoadingConfig(false);
+        }
+    };
+
+    // Guardar configuración
+    const saveConfig = async () => {
+        try {
+            await ConfigAPI.set('monthly_fee', monthlyFee, 'Cuota mensual del gimnasio');
+            setToast({ message: 'Configuración guardada exitosamente', type: 'success' });
+            setShowConfigModal(false);
+        } catch (error) {
+            console.error('Error saving config:', error);
+            setToast({ message: 'Error al guardar configuración', type: 'error' });
+        }
+    };
+
+    useEffect(() => {
+        loadConfig();
+    }, []);
+
     // Gestión de edición/eliminación de categorías
     const [showCategoryManager, setShowCategoryManager] = useState(false);
     const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -226,13 +262,20 @@ const Admin: React.FC = () => {
                 <div className="mb-6">
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-2">
                             <h2 className="text-2xl font-display font-bold text-white">Productos</h2>
-                            <button
-                                className="px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-gray-800 text-gray-200 hover:bg-brand-gold hover:text-black"
-                                style={{ minWidth: '160px' }}
-                                onClick={() => setShowCategoryManager(true)}
-                            >
-                                Gestionar categorías
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    className="px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-gray-800 text-gray-200 hover:bg-brand-gold hover:text-black"
+                                    onClick={() => setShowConfigModal(true)}
+                                >
+                                    ⚙️ Configuración
+                                </button>
+                                <button
+                                    className="px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-gray-800 text-gray-200 hover:bg-brand-gold hover:text-black"
+                                    onClick={() => setShowCategoryManager(true)}
+                                >
+                                    Gestionar categorías
+                                </button>
+                            </div>
                         </div>
                         {/* Modal de gestión de categorías */}
                         {showCategoryManager && !editingCategory && !categoryToDelete && (
@@ -591,6 +634,46 @@ const Admin: React.FC = () => {
                         <div className="flex gap-3">
                             <button className="flex-1 py-2 rounded-xl bg-gray-800 text-gray-400 font-bold text-xs" onClick={() => setProductToDelete(null)}>CANCELAR</button>
                             <button className="flex-1 py-2 rounded-xl bg-red-600 text-white font-bold text-xs" onClick={handleConfirmDeleteProduct}>SÍ, ELIMINAR</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de configuración */}
+            {showConfigModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-[#111] p-6 rounded-3xl border border-gray-800 w-full max-w-md shadow-2xl">
+                        <h3 className="text-xl font-bold text-white mb-6">⚙️ Configuración del Gimnasio</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-2">Cuota Mensual (ARS)</label>
+                                <input
+                                    type="number"
+                                    value={monthlyFee}
+                                    onChange={(e) => setMonthlyFee(e.target.value)}
+                                    className="w-full bg-black border border-gray-700 text-white p-3 rounded-lg text-lg font-mono"
+                                    placeholder="35000"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Este valor se usará automáticamente al registrar pagos de cuota mensual
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button 
+                                className="flex-1 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold hover:bg-gray-700 transition"
+                                onClick={() => setShowConfigModal(false)}
+                            >
+                                CANCELAR
+                            </button>
+                            <button 
+                                className="flex-1 py-3 rounded-xl bg-brand-gold text-black font-black uppercase tracking-tighter shadow-lg shadow-brand-gold/10 hover:bg-yellow-500 transition"
+                                onClick={saveConfig}
+                            >
+                                GUARDAR
+                            </button>
                         </div>
                     </div>
                 </div>

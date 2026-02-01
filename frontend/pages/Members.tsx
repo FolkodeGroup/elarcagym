@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { MembersAPI } from '../services/api';
+import { MembersAPI, ConfigAPI } from '../services/api';
 import { Member, UserStatus, Routine, NutritionData } from '../types';
 import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
 import { 
@@ -83,11 +83,25 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentConcept, setPaymentConcept] = useState(t('cuotaMensual'));
+  const [monthlyFee, setMonthlyFee] = useState('35000');
+  const [previousDebt, setPreviousDebt] = useState(0);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Cargar configuración de cuota mensual
+  const loadMonthlyFee = async () => {
+    try {
+      const config = await ConfigAPI.get('monthly_fee');
+      setMonthlyFee(config.value);
+    } catch (error) {
+      console.log('Using default monthly fee');
+      setMonthlyFee('35000');
+    }
+  };
 
   // --- EFECTOS ---
   useEffect(() => {
     refreshMembers();
+    loadMonthlyFee();
     // eslint-disable-next-line
   }, []);
 
@@ -252,6 +266,63 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       stopCamera();
     };
   }, []);
+
+  // Calcular deuda de meses anteriores
+  const calculatePreviousDebt = (member: Member): number => {
+    if (!member.payments || member.payments.length === 0) {
+      // Si nunca ha pagado, calculamos desde que se unió
+      const joinDate = new Date(member.joinDate);
+      const today = new Date();
+      const monthsDiff = (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth());
+      return monthsDiff > 0 ? monthsDiff * Number(monthlyFee) : 0;
+    }
+
+    // Contar meses sin pago
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    
+    // Verificar cuántos meses atrás tiene pagos
+    const paymentMonths = new Set<string>();
+    member.payments.forEach(p => {
+      const paymentDate = new Date(p.date);
+      if (p.concept === 'Cuota Mensual' || p.concept === t('cuotaMensual')) {
+        const key = `${paymentDate.getFullYear()}-${paymentDate.getMonth()}`;
+        paymentMonths.add(key);
+      }
+    });
+
+    // Contar meses sin pago desde el último pago o desde que se unió
+    let unpaidMonths = 0;
+    const joinDate = new Date(member.joinDate);
+    const startYear = joinDate.getFullYear();
+    const startMonth = joinDate.getMonth();
+
+    for (let year = startYear; year <= currentYear; year++) {
+      const monthStart = year === startYear ? startMonth : 0;
+      const monthEnd = year === currentYear ? currentMonth : 11;
+      
+      for (let month = monthStart; month <= monthEnd; month++) {
+        const key = `${year}-${month}`;
+        if (!paymentMonths.has(key) && !(year === currentYear && month === currentMonth)) {
+          unpaidMonths++;
+        }
+      }
+    }
+
+    return unpaidMonths * Number(monthlyFee);
+  };
+
+  // Abrir modal de pago con valores iniciales
+  const handleOpenPaymentModal = () => {
+    if (selectedMember) {
+      const debt = calculatePreviousDebt(selectedMember);
+      setPreviousDebt(debt);
+      setPaymentAmount(monthlyFee);
+      setPaymentConcept(t('cuotaMensual'));
+      setShowPaymentModal(true);
+    }
+  };
 
   const handleRegisterPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1039,7 +1110,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                                   <CreditCard className="text-brand-gold" /> Pagos de Membresía
                               </h3>
                               <button 
-                                onClick={() => setShowPaymentModal(true)}
+                                onClick={handleOpenPaymentModal}
                                 className="text-xs bg-gray-800 hover:bg-brand-gold hover:text-black text-white px-3 py-1 rounded transition-colors"
                               >
                                   + Registrar Pago
@@ -1080,29 +1151,53 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
                     <h3 className="text-lg font-bold text-white mb-4">Registrar Pago</h3>
                     <form onSubmit={handleRegisterPayment} className="space-y-4">
+                      {/* Mostrar deuda anterior si existe */}
+                      {previousDebt > 0 && (
+                        <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 mb-4">
+                          <p className="text-xs text-red-400 mb-1">Deuda Acumulada</p>
+                          <p className="text-2xl font-mono font-bold text-red-300">${previousDebt.toLocaleString()}</p>
+                          <p className="text-xs text-gray-400 mt-1">Meses impagos anteriores</p>
+                        </div>
+                      )}
+                      
+                      <div>
+                          <label className="text-xs text-gray-400 block mb-1">Concepto</label>
+                          <select 
+                              value={paymentConcept}
+                              onChange={e => {
+                                setPaymentConcept(e.target.value);
+                                // Autocompletar monto según concepto
+                                if (e.target.value === 'Cuota Mensual') {
+                                  setPaymentAmount(monthlyFee);
+                                } else if (e.target.value === 'Deuda Anterior') {
+                                  setPaymentAmount(previousDebt.toString());
+                                } else {
+                                  setPaymentAmount('');
+                                }
+                              }}
+                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                          >
+                              <option>Cuota Mensual</option>
+                              <option>Deuda Anterior</option>
+                              <option>Matrícula</option>
+                              <option>Pase Diario</option>
+                          </select>
+                      </div>
+                      
                       <div>
                           <label className="text-xs text-gray-400 block mb-1">Monto ($)</label>
                           <input 
                               type="number"
                               required
-                              autoFocus
                               value={paymentAmount}
                               onChange={e => setPaymentAmount(e.target.value)}
-                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                              className="w-full bg-black border border-gray-600 text-white p-2 rounded font-mono text-lg"
                           />
-                      </div>
-                      <div>
-                          <label className="text-xs text-gray-400 block mb-1">Concepto</label>
-                          <select 
-                              value={paymentConcept}
-                              onChange={e => setPaymentConcept(e.target.value)}
-                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                          >
-                              <option>Cuota Mensual</option>
-                              <option>Matrícula</option>
-                              <option>Pase Diario</option>
-                              <option>Deuda Anterior</option>
-                          </select>
+                          {paymentConcept === 'Cuota Mensual' && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Cuota configurada: ${Number(monthlyFee).toLocaleString()}
+                            </p>
+                          )}
                       </div>
                       <div className="flex justify-end gap-2 mt-4">
                           <button type="button" onClick={() => setShowPaymentModal(false)} className="px-3 py-2 text-gray-400 text-sm">Cancelar</button>
