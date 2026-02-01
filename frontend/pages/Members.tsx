@@ -138,9 +138,26 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
           lunch: Array.isArray(parsed.lunch) ? parsed.lunch : [],
           afternoonSnack: Array.isArray(parsed.afternoonSnack) ? parsed.afternoonSnack : [],
           dinner: Array.isArray(parsed.dinner) ? parsed.dinner : [],
+          supplements: Array.isArray(parsed.supplements) ? parsed.supplements : [],
+          supplementNotes: typeof parsed.supplementNotes === 'string' ? parsed.supplementNotes : '',
           notes: typeof parsed.notes === 'string' ? parsed.notes : '',
           calories: lastDiet.calories?.toString() || '',
           lastUpdated: lastDiet.generatedAt || ''
+        };
+      }
+      // Si nutritionPlan viene directo del backend, asegurarse de que supplements y supplementNotes existan
+      if (nutritionPlan) {
+        nutritionPlan = {
+          breakfast: Array.isArray(nutritionPlan.breakfast) ? nutritionPlan.breakfast : [],
+          morningSnack: Array.isArray(nutritionPlan.morningSnack) ? nutritionPlan.morningSnack : [],
+          lunch: Array.isArray(nutritionPlan.lunch) ? nutritionPlan.lunch : [],
+          afternoonSnack: Array.isArray(nutritionPlan.afternoonSnack) ? nutritionPlan.afternoonSnack : [],
+          dinner: Array.isArray(nutritionPlan.dinner) ? nutritionPlan.dinner : [],
+          supplements: Array.isArray(nutritionPlan.supplements) ? nutritionPlan.supplements : [],
+          supplementNotes: typeof nutritionPlan.supplementNotes === 'string' ? nutritionPlan.supplementNotes : '',
+          notes: typeof nutritionPlan.notes === 'string' ? nutritionPlan.notes : '',
+          calories: nutritionPlan.calories || '',
+          lastUpdated: nutritionPlan.lastUpdated || ''
         };
       }
       setSelectedMember({ ...member, nutritionPlan });
