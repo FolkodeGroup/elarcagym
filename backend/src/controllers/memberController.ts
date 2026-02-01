@@ -170,39 +170,49 @@ export default function(prisma: any) {
   router.put('/:id', async (req, res) => {
     try {
       const { habitualSchedules, biometrics, routines, diets, payments, ...memberData } = req.body;
-      // Validaciones de inputs (igual que en POST)
+      // Permitir updates parciales: solo validar campos si están presentes
       const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
       const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
-      if (!memberData.firstName || typeof memberData.firstName !== 'string' || !nameRegex.test(memberData.firstName) || !hasLetter.test(memberData.firstName)) {
-        return res.status(400).json({ error: 'Nombre inválido: solo letras y espacios.' });
+      let dniClean = undefined;
+      let email = undefined;
+      let phoneClean = undefined;
+      if ('firstName' in memberData) {
+        if (!memberData.firstName || typeof memberData.firstName !== 'string' || !nameRegex.test(memberData.firstName) || !hasLetter.test(memberData.firstName)) {
+          return res.status(400).json({ error: 'Nombre inválido: solo letras y espacios.' });
+        }
       }
-      if (!memberData.lastName || typeof memberData.lastName !== 'string' || !nameRegex.test(memberData.lastName) || !hasLetter.test(memberData.lastName)) {
-        return res.status(400).json({ error: 'Apellido inválido: solo letras y espacios.' });
+      if ('lastName' in memberData) {
+        if (!memberData.lastName || typeof memberData.lastName !== 'string' || !nameRegex.test(memberData.lastName) || !hasLetter.test(memberData.lastName)) {
+          return res.status(400).json({ error: 'Apellido inválido: solo letras y espacios.' });
+        }
       }
-      // DNI: solo dígitos, máximo 8
-      const dniClean = String(memberData.dni).replace(/\D/g, '');
-      if (!/^[0-9]{1,8}$/.test(dniClean)) {
-        return res.status(400).json({ error: 'DNI inválido: solo números, máximo 8 dígitos.' });
+      if ('dni' in memberData) {
+        dniClean = String(memberData.dni).replace(/\D/g, '');
+        if (!/^[0-9]{1,8}$/.test(dniClean)) {
+          return res.status(400).json({ error: 'DNI inválido: solo números, máximo 8 dígitos.' });
+        }
+        // Verificar unicidad de DNI (excepto si es el mismo miembro)
+        const existingDni = await prisma.member.findUnique({ where: { dni: dniClean } });
+        if (existingDni && existingDni.id !== req.params.id) {
+          return res.status(409).json({ error: 'El DNI ya está registrado.' });
+        }
       }
-      // Email: contiene @ y termina en .com
-      const email = (memberData.email || '').trim();
-      if (!email || !(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
-        return res.status(400).json({ error: 'Email inválido: debe contener @ y terminar en .com.' });
+      if ('email' in memberData) {
+        email = (memberData.email || '').trim();
+        if (!email || !(email.includes('@') && email.toLowerCase().endsWith('.com'))){
+          return res.status(400).json({ error: 'Email inválido: debe contener @ y terminar en .com.' });
+        }
+        // Verificar unicidad de email (excepto si es el mismo miembro)
+        const existingEmail = await prisma.member.findUnique({ where: { email } });
+        if (existingEmail && existingEmail.id !== req.params.id) {
+          return res.status(409).json({ error: 'El email ya está registrado.' });
+        }
       }
-      // Teléfono: solo dígitos
-      const phoneClean = String(memberData.phone).replace(/\D/g, '');
-      if (memberData.phone && !/^[0-9]+$/.test(phoneClean)) {
-        return res.status(400).json({ error: 'Teléfono inválido: solo números.' });
-      }
-      // Verificar unicidad de DNI (excepto si es el mismo miembro)
-      const existingDni = await prisma.member.findUnique({ where: { dni: dniClean } });
-      if (existingDni && existingDni.id !== req.params.id) {
-        return res.status(409).json({ error: 'El DNI ya está registrado.' });
-      }
-      // Verificar unicidad de email (excepto si es el mismo miembro)
-      const existingEmail = await prisma.member.findUnique({ where: { email } });
-      if (existingEmail && existingEmail.id !== req.params.id) {
-        return res.status(409).json({ error: 'El email ya está registrado.' });
+      if ('phone' in memberData) {
+        phoneClean = String(memberData.phone).replace(/\D/g, '');
+        if (memberData.phone && !/^[0-9]+$/.test(phoneClean)) {
+          return res.status(400).json({ error: 'Teléfono inválido: solo números.' });
+        }
       }
       // Si se envían habitualSchedules, actualizar
       if (habitualSchedules) {
@@ -211,14 +221,22 @@ export default function(prisma: any) {
           data: habitualSchedules.map((hs: any) => ({ ...hs, memberId: req.params.id }))
         });
       }
+      // Solo actualizar los campos presentes
+      const updateData: any = {};
+      if ('firstName' in memberData) updateData.firstName = memberData.firstName;
+      if ('lastName' in memberData) updateData.lastName = memberData.lastName;
+      if ('dni' in memberData) updateData.dni = dniClean;
+      if ('email' in memberData) updateData.email = email;
+      if ('phone' in memberData) updateData.phone = phoneClean;
+      if ('phase' in memberData) updateData.phase = memberData.phase;
+      if ('bioObjective' in memberData) updateData.bioObjective = memberData.bioObjective;
+      if ('photoUrl' in req.body) updateData.photoUrl = req.body.photoUrl;
+      if ('status' in memberData) updateData.status = memberData.status;
+      if ('nutritionPlan' in memberData) updateData.nutritionPlan = memberData.nutritionPlan;
+      // ...agrega aquí otros campos si es necesario
       const member = await prisma.member.update({
         where: { id: req.params.id },
-        data: {
-          ...memberData,
-          dni: dniClean,
-          email,
-          phone: phoneClean
-        },
+        data: updateData,
         include: {
           habitualSchedules: true,
           biometrics: { orderBy: { date: 'desc' } },

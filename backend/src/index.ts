@@ -30,7 +30,9 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 app.use(cors());
-app.use(express.json());
+// Aumentar el límite del body a 5mb para permitir imágenes grandes
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ limit: '5mb', extended: true }));
 // Endpoints públicos para QR (deben ir después de declarar app y prisma)
 app.use('/routine-access', routineAccessController(prisma));
 app.use('/routine-token', routineTokenController);

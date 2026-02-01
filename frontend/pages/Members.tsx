@@ -6,7 +6,7 @@ import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../serv
 import { 
     Search, Plus, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, 
     ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X, 
-    FileSpreadsheet, Apple, Eye, Share2, Coffee, Sun, Utensils, Moon 
+    FileSpreadsheet, Apple, Eye, Share2, Coffee, Sun, Utensils, Moon, Image 
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { SiGmail } from 'react-icons/si';
@@ -109,7 +109,13 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     try {
       const data = await MembersAPI.list();
       setMembers(data);
-      // selectedMember se actualizará automáticamente si es necesario
+      // Actualizar selectedMember si está presente para reflejar cambios inmediatos
+      if (selectedMember) {
+        const updatedMember = data.find(m => m.id === selectedMember.id);
+        if (updatedMember) {
+          setSelectedMember(updatedMember);
+        }
+      }
     } catch (err) {
       setToast({ message: t('errorCargarSocios'), type: 'error' });
     }
@@ -207,7 +213,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         const base64 = reader.result as string;
         try {
           await MembersAPI.update(selectedMember.id, { photoUrl: base64 });
+          // Actualizar el estado local inmediatamente para reflejar el cambio
+          setSelectedMember({ ...selectedMember, photoUrl: base64 });
           await refreshMembers();
+          setToast({ message: t('fotoActualizada') || 'Foto actualizada correctamente', type: 'success' });
         } catch (err) {
           setToast({ message: t('errorGuardarFoto'), type: 'error' });
         }
@@ -251,6 +260,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     const dataUrl = canvas.toDataURL('image/jpeg');
     try {
       await MembersAPI.update(selectedMember.id, { photoUrl: dataUrl });
+      // Actualizar el estado local inmediatamente para reflejar el cambio
+      setSelectedMember({ ...selectedMember, photoUrl: dataUrl });
       stopCamera();
       setShowCameraModal(false);
       await refreshMembers();
@@ -838,14 +849,17 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                 )}
               </div>
               <div className="absolute bottom-0 right-0 flex gap-1">
-                <label className="bg-brand-gold text-black p-2 rounded-full cursor-pointer hover:bg-yellow-500 transition-colors shadow-lg">
-                  <Camera size={18} title="Subir foto" />
+                <label 
+                  className="bg-brand-gold text-black p-2 rounded-full cursor-pointer hover:bg-yellow-500 transition-colors shadow-lg"
+                  title="Seleccionar imagen desde el dispositivo"
+                >
+                  <Image size={18} />
                   <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
                 </label>
                 <button 
                   onClick={() => { setShowCameraModal(true); startCamera(); }}
                   className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
-                  title="Tomar foto con cámara"
+                  title="Tomar foto con la cámara"
                 >
                   <Camera size={18} />
                 </button>
