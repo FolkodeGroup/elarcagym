@@ -163,6 +163,20 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       setSelectedMember({ ...member, nutritionPlan });
   };
 
+  const handleDeleteMember = async (memberId: string, memberName: string) => {
+    if (!confirm(`¿Está seguro que desea eliminar a ${memberName}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    try {
+      await MembersAPI.delete(memberId);
+      await refreshMembers();
+      setSelectedMember(null);
+      setToast({ message: 'Socio eliminado correctamente', type: 'success' });
+    } catch (err) {
+      setToast({ message: 'Error al eliminar socio', type: 'error' });
+    }
+  };
+
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     // Validaciones antes de intentar crear
@@ -522,8 +536,9 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   // Counts for dashboard cards
   const totalCount = members.length;
-  const alDiaCount = members.filter(m => isCurrentOnPayment(m)).length;
-  const debtorsCount = members.filter(m => isDebtorByPayment(m)).length;
+  const activeCount = members.filter(m => m.status === UserStatus.ACTIVE).length;
+  const alDiaCount = members.filter(m => m.status === UserStatus.ACTIVE && isCurrentOnPayment(m)).length;
+  const debtorsCount = activeCount - alDiaCount;
   const dueSoonCount = members.filter(m => isPaymentDueSoon(m)).length;
   const inactiveCount = members.filter(m => m.status === UserStatus.INACTIVE).length;
 
@@ -1735,10 +1750,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                      ${isCurrentOnPayment(member) ? 'bg-green-900 text-green-200' : 
-                        isDebtorByPayment(member) ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-300'}`}>
-                      {isCurrentOnPayment(member) ? t('alDia') : 
-                       isDebtorByPayment(member) ? t('moroso') : t('inactivo')}
+                      ${member.status === UserStatus.INACTIVE ? 'bg-gray-700 text-gray-300' :
+                        isCurrentOnPayment(member) ? 'bg-green-900 text-green-200' : 
+                        isDebtorByPayment(member) ? 'bg-red-900 text-red-200' : 'bg-yellow-900 text-yellow-200'}`}>
+                      {member.status === UserStatus.INACTIVE ? t('inactivo') :
+                       isCurrentOnPayment(member) ? t('alDia') : 
+                       isDebtorByPayment(member) ? t('moroso') : t('pendiente')}
                     </span>
                   </td>
                   <td className="p-4 text-right space-x-2" onClick={e => e.stopPropagation()}>
@@ -1765,6 +1782,27 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                         <FaWhatsapp size={16} />
                       </button>
                     )}
+                    <button
+                      className="p-2 text-blue-400 hover:text-blue-300 bg-blue-900/20 hover:bg-blue-900/40 rounded transition"
+                      title="Editar"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMemberClick(member);
+                        setShowEditModal(true);
+                      }}
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      className="p-2 text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 rounded transition"
+                      title="Eliminar"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteMember(member.id, `${member.firstName} ${member.lastName}`);
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
                   </td>
                 </tr>
               ))}
