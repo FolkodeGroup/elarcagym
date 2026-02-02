@@ -23,9 +23,9 @@ const Toast: React.FC<ToastProps> = ({ message, type = 'success', duration = 300
   }, [duration, onClose]);
 
   const bgColor = {
-    success: 'bg-green-600',
-    error: 'bg-red-600',
-    info: 'bg-blue-600'
+    success: 'bg-green-700 border-green-300',
+    error: 'bg-red-700 border-red-300',
+    info: 'bg-blue-700 border-blue-300'
   }[type];
 
   const icon = {
@@ -36,20 +36,22 @@ const Toast: React.FC<ToastProps> = ({ message, type = 'success', duration = 300
 
   return (
     <div
-      className={`fixed top-4 right-4 z-40 flex items-center gap-3 px-4 py-3 rounded-lg text-white shadow-lg transition-all duration-300 transform ${bgColor} ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
+      className={`fixed top-8 right-8 z-50 flex items-center gap-4 px-6 py-4 rounded-xl border-2 text-white shadow-2xl transition-all duration-300 transform ${bgColor} ${
+        isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
       }`}
+      style={{ minWidth: 340, maxWidth: 420, fontSize: '1.15rem', fontWeight: 700, letterSpacing: '0.01em' }}
     >
       {icon}
-      <span className="text-sm font-medium">{message}</span>
+      <span className="flex-1" style={{ wordBreak: 'break-word' }}>{message}</span>
       <button
         onClick={() => {
           setIsVisible(false);
           setTimeout(onClose, 300);
         }}
-        className="ml-2 hover:opacity-80"
+        className="ml-2 hover:opacity-80 focus:outline-none"
+        aria-label="Cerrar notificación"
       >
-        <X size={16} />
+        <X size={18} />
       </button>
     </div>
   );

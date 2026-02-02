@@ -1,5 +1,12 @@
 export const translations = {
   es: {
+            // Mensajes de error de validación
+            'errorNombreInvalido': 'El nombre ingresado no es válido. Solo se permiten letras y espacios.',
+            'errorApellidoInvalido': 'El apellido ingresado no es válido. Solo se permiten letras y espacios.',
+            'errorDniInvalido': 'El DNI ingresado no es válido. Debe contener solo números y hasta 8 dígitos.',
+            'errorEmailInvalido': 'El email ingresado no es válido. Debe tener formato usuario@dominio.com.',
+            'errorTelefonoInvalido': 'El teléfono ingresado no es válido. Solo se permiten números.',
+            'errorDniDuplicado': 'El DNI introducido ya está registrado.',
           'cuotaMensual': 'Cuota Mensual',
           'noCamara': 'No se pudo acceder a la cámara.',
           'fotoCapturada': 'Foto capturada exitosamente.',
@@ -152,6 +159,13 @@ export const translations = {
     'reporteVentasElArcaGym': 'REPORTE DE VENTAS - EL ARCA GYM',
   },
   en: {
+            // Validation error messages
+            'errorNombreInvalido': 'The entered first name is not valid. Only letters and spaces are allowed.',
+            'errorApellidoInvalido': 'The entered last name is not valid. Only letters and spaces are allowed.',
+            'errorDniInvalido': 'The entered ID is not valid. Only numbers up to 8 digits are allowed.',
+            'errorEmailInvalido': 'The entered email is not valid. It must be in the format user@domain.com.',
+            'errorTelefonoInvalido': 'The entered phone number is not valid. Only numbers are allowed.',
+            'errorDniDuplicado': 'The entered ID is already registered.',
           'cuotaMensual': 'Monthly Fee',
           'noCamara': 'Could not access the camera.',
           'fotoCapturada': 'Photo captured successfully.',
@@ -304,6 +318,13 @@ export const translations = {
     'reporteVentasElArcaGym': 'SALES REPORT - EL ARCA GYM',
   },
   pt: {
+            // Mensagens de erro de validação
+            'errorNombreInvalido': 'O nome inserido não é válido. Apenas letras e espaços são permitidos.',
+            'errorApellidoInvalido': 'O sobrenome inserido não é válido. Apenas letras e espaços são permitidos.',
+            'errorDniInvalido': 'O ID inserido não é válido. Apenas números com até 8 dígitos são permitidos.',
+            'errorEmailInvalido': 'O email inserido não é válido. Deve ter o formato usuario@dominio.com.',
+            'errorTelefonoInvalido': 'O telefone inserido não é válido. Apenas números são permitidos.',
+            'errorDniDuplicado': 'O ID inserido já está registrado.',
           'cuotaMensual': 'Mensalidade',
           'noCamara': 'Não foi possível acessar a câmera.',
           'fotoCapturada': 'Foto capturada com sucesso.',
