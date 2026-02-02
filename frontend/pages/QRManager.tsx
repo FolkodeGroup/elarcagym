@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { QrCode, Printer, Smartphone, Info, Copy } from 'lucide-react';
 import { RoutineAccessAPI } from '../services/api';
+import Toast from '../components/Toast';
 
 const QRManager: React.FC = () => {
   // Simulación: datos de socio y slot para demo QR (en producción, estos vendrían de la UI o selección)
@@ -9,9 +10,11 @@ const QRManager: React.FC = () => {
   const loading = false;
   const error = '';
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(qrUrl);
-    alert("Enlace copiado: " + qrUrl);
+    setToast({ message: `Enlace copiado: ${qrUrl}`, type: 'info' });
   };
 
   return (
@@ -92,6 +95,9 @@ const QRManager: React.FC = () => {
           </ul>
         </div>
       </div>
+      {toast && (
+        <Toast message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} />
+      )}
     </div>
   );
 };

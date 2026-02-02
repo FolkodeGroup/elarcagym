@@ -170,38 +170,38 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
     const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
     if (!newMember.firstName || !nameRegex.test(newMember.firstName) || !hasLetter.test(newMember.firstName)) {
-      window.alert(t('errorNombreInvalido') || 'Nombre inválido');
+      setToast({ message: t('errorNombreInvalido'), type: 'error' });
       return;
     }
     if (!newMember.lastName || !nameRegex.test(newMember.lastName) || !hasLetter.test(newMember.lastName)) {
-      window.alert(t('errorApellidoInvalido') || 'Apellido inválido');
+      setToast({ message: t('errorApellidoInvalido'), type: 'error' });
       return;
     }
 
     // DNI: solo dígitos, máximo 8
     const dniClean = String(newMember.dni).replace(/\D/g, '');
     if (!/^[0-9]{1,8}$/.test(dniClean)) {
-      window.alert(t('errorDniInvalido') || 'DNI inválido (máx 8 dígitos)');
+      setToast({ message: t('errorDniInvalido'), type: 'error' });
       return;
     }
 
     // Email simple: contiene @ y termina en .com
     const email = (newMember.email || '').trim();
     if (email && !(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
-      window.alert(t('errorEmailInvalido') || 'Email inválido');
+      setToast({ message: t('errorEmailInvalido'), type: 'error' });
       return;
     }
 
     // Teléfono: solo dígitos
     const phoneClean = String(newMember.phone).replace(/\D/g, '');
     if (newMember.phone && !/^[0-9]+$/.test(phoneClean)) {
-      window.alert(t('errorTelefonoInvalido') || 'Teléfono inválido');
+      setToast({ message: t('errorTelefonoInvalido'), type: 'error' });
       return;
     }
 
     // DNI duplicado
     if (members.some(m => String(m.dni) === dniClean)) {
-      window.alert('El Dni introducido ya esta registrado');
+      setToast({ message: t('errorDniDuplicado'), type: 'error' });
       return;
     }
 
@@ -394,34 +394,34 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
       const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
       if (!editMember.firstName || !nameRegex.test(editMember.firstName) || !hasLetter.test(editMember.firstName)) {
-        window.alert(t('errorNombreInvalido') || 'Nombre inválido');
+        setToast({ message: t('errorNombreInvalido'), type: 'error' });
         return;
       }
       if (!editMember.lastName || !nameRegex.test(editMember.lastName) || !hasLetter.test(editMember.lastName)) {
-        window.alert(t('errorApellidoInvalido') || 'Apellido inválido');
+        setToast({ message: t('errorApellidoInvalido'), type: 'error' });
         return;
       }
       // DNI: solo dígitos, máximo 8
       const dniClean = String(editMember.dni).replace(/\D/g, '');
       if (!/^[0-9]{1,8}$/.test(dniClean)) {
-        window.alert(t('errorDniInvalido') || 'DNI inválido (máx 8 dígitos)');
+        setToast({ message: t('errorDniInvalido'), type: 'error' });
         return;
       }
       // Email simple: contiene @ y termina en .com
       const email = (editMember.email || '').trim();
       if (email && !(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
-        window.alert(t('errorEmailInvalido') || 'Email inválido');
+        setToast({ message: t('errorEmailInvalido'), type: 'error' });
         return;
       }
       // Teléfono: solo dígitos
       const phoneClean = String(editMember.phone).replace(/\D/g, '');
       if (editMember.phone && !/^[0-9]+$/.test(phoneClean)) {
-        window.alert(t('errorTelefonoInvalido') || 'Teléfono inválido');
+        setToast({ message: t('errorTelefonoInvalido'), type: 'error' });
         return;
       }
       // DNI duplicado (en otro socio)
       if (members.some(m => String(m.dni) === dniClean && m.id !== selectedMember.id)) {
-        window.alert('El Dni introducido ya esta registrado');
+        setToast({ message: t('errorDniDuplicado'), type: 'error' });
         return;
       }
       try {
