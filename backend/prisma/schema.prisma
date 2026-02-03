@@ -188,3 +188,54 @@ model Config {
   description       String?
   updatedAt         DateTime @updatedAt
 }
+
+// ===================== SISTEMA DE USUARIOS Y ROLES =====================
+
+enum UserRole {
+  ADMIN     // Administrador - acceso total
+  TRAINER   // Profesor/Entrenador - acceso limitado
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  firstName     String
+  lastName      String
+  dni           String   @unique
+  phone         String?
+  role          UserRole @default(TRAINER)
+  isActive      Boolean  @default(true)
+  photoUrl      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
+  
+  // Relación con permisos personalizados
+  permissions   UserPermission[]
+  
+  // Rutinas creadas por este usuario (entrenador)
+  createdRoutines String[] // IDs de rutinas creadas
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique   // ej: "members.view", "members.edit", "sales.create"
+  name        String             // Nombre legible: "Ver Socios"
+  description String?
+  module      String             // Módulo: "members", "sales", "routines", etc.
+  
+  userPermissions UserPermission[]
+}
+
+model UserPermission {
+  id           String   @id @default(uuid())
+  userId       String
+  permissionId String
+  granted      Boolean  @default(true)  // true = permitido, false = denegado explícitamente
+  
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, permissionId])
+}

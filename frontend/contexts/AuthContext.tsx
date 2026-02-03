@@ -1,20 +1,30 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { AuthAPI, clearToken } from '../services/api';
 
+type UserRole = 'ADMIN' | 'TRAINER' | 'MEMBER';
+
 interface User {
   id: string;
   email: string;
   name?: string;
-  role?: 'ADMIN' | 'TRAINER' | 'MEMBER';
+  firstName?: string;
+  lastName?: string;
+  role: UserRole;
+  permissions?: string[];
+  photoUrl?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAdmin: boolean;
+  isTrainer: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   error: string | null;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,8 +44,12 @@ function decodeToken(token: string): User | null {
     return {
       id: decoded.id,
       email: decoded.email,
-      name: decoded.name,
-      role: decoded.role || 'ADMIN',
+      name: decoded.name || `${decoded.firstName || ''} ${decoded.lastName || ''}`.trim(),
+      firstName: decoded.firstName,
+      lastName: decoded.lastName,
+      role: decoded.role || 'MEMBER',
+      permissions: decoded.permissions || [],
+      photoUrl: decoded.photoUrl,
     };
   } catch (e) {
     return null;
@@ -96,13 +110,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setError(null);
   }, []);
 
+  // Verificar si el usuario tiene un permiso específico
+  const hasPermission = useCallback((permission: string): boolean => {
+    if (!user) return false;
+    // Admin tiene todos los permisos
+    if (user.role === 'ADMIN') return true;
+    // Verificar en la lista de permisos
+    return user.permissions?.includes(permission) || false;
+  }, [user]);
+
+  // Verificar si el usuario tiene al menos uno de los permisos
+  const hasAnyPermission = useCallback((permissions: string[]): boolean => {
+    if (!user) return false;
+    // Admin tiene todos los permisos
+    if (user.role === 'ADMIN') return true;
+    // Verificar si tiene al menos uno
+    return permissions.some(p => user.permissions?.includes(p));
+  }, [user]);
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
     isLoading,
+    isAdmin: user?.role === 'ADMIN',
+    isTrainer: user?.role === 'TRAINER',
     login,
     logout,
     error,
+    hasPermission,
+    hasAnyPermission,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
