@@ -19,7 +19,9 @@ import {
   Sun,
   Moon,
   ShoppingCart,
-  Apple // New icon for Nutrition
+  Apple,
+  User,
+  UserCog
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from './Toast';
@@ -44,10 +46,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
   const [showAudit, setShowAudit] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const menuItems = [
     { id: 'dashboard', label: t('panelPrincipal'), icon: Activity },
@@ -61,8 +64,13 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
     { id: 'Ingresos', label: t('ingresosVentas'), icon: DollarSign },
   ];
 
+  // Agregar opción de gestión de usuarios solo para administradores
+  if (isAdmin) {
+    menuItems.push({ id: 'users_management', label: 'Usuarios', icon: UserCog });
+  }
+
   return (
-    <div className="min-h-screen bg-brand-dark text-white flex overflow-hidden" onClick={() => adminMenuOpen && setAdminMenuOpen(false)}>
+    <div className="min-h-screen bg-brand-dark text-white flex overflow-hidden" onClick={() => { adminMenuOpen && setAdminMenuOpen(false); showUserMenu && setShowUserMenu(false); }}>
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -140,10 +148,63 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
           </button>
           
           <h2 className="text-xl font-display font-semibold text-white uppercase tracking-wider hidden md:block">
-            {menuItems.find(i => i.id === currentPage)?.label}
+            {menuItems.find(i => i.id === currentPage)?.label || (currentPage === 'user_profile' ? 'Mi Perfil' : '')}
           </h2>
 
           <div className="flex items-center space-x-4 relative">
+             {/* User Profile Button */}
+             <div className="relative">
+               <button 
+                 onClick={() => setShowUserMenu(!showUserMenu)}
+                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800/50 hover:bg-gray-700 transition"
+               >
+                 <div className="w-8 h-8 rounded-full bg-brand-gold/20 flex items-center justify-center">
+                   <User size={18} className="text-brand-gold" />
+                 </div>
+                 <div className="hidden md:block text-left">
+                   <p className="text-sm text-white font-medium truncate max-w-[120px]">
+                     {user?.name || user?.firstName || 'Usuario'}
+                   </p>
+                   <p className="text-xs text-gray-400">
+                     {user?.role === 'ADMIN' ? 'Administrador' : 'Profesor'}
+                   </p>
+                 </div>
+                 <ChevronDown size={16} className="text-gray-400 hidden md:block" />
+               </button>
+
+               {/* User Dropdown Menu */}
+               {showUserMenu && (
+                 <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-14 w-56 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-2xl z-50 overflow-hidden">
+                   <div className="p-3 border-b border-gray-800">
+                     <p className="text-white font-medium">{user?.name || `${user?.firstName} ${user?.lastName}`}</p>
+                     <p className="text-xs text-gray-400">{user?.email}</p>
+                   </div>
+                   <div className="py-2">
+                     <button
+                       onClick={() => {
+                         setShowUserMenu(false);
+                         onNavigate('user_profile');
+                       }}
+                       className="w-full px-4 py-2 flex items-center gap-3 text-gray-300 hover:bg-gray-800 transition"
+                     >
+                       <User size={16} />
+                       <span>Mi Perfil</span>
+                     </button>
+                     <button
+                       onClick={() => {
+                         setShowUserMenu(false);
+                         onLogout();
+                       }}
+                       className="w-full px-4 py-2 flex items-center gap-3 text-red-400 hover:bg-red-900/20 transition"
+                     >
+                       <LogOut size={16} />
+                       <span>Cerrar Sesión</span>
+                     </button>
+                   </div>
+                 </div>
+               )}
+             </div>
+
              <button 
                onClick={() => setAdminMenuOpen(!adminMenuOpen)}
                className="h-10 w-10 rounded-lg bg-brand-gold flex items-center justify-center text-black hover:bg-yellow-400 transition relative hover:scale-110 group"

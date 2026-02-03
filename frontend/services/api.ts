@@ -85,7 +85,24 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
 
 // ==================== AUTH API ====================
 export const AuthAPI = {
-  login: async (email: string, password: string): Promise<{ token: string }> => {
+  // Login unificado - intenta primero con usuarios, si falla con socios
+  login: async (email: string, password: string): Promise<{ token: string; user?: any }> => {
+    // Primero intentar login como usuario del sistema (admin/trainer)
+    try {
+      const userResult = await apiFetch<{ token: string; user: any }>('/users/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      if (userResult.token) {
+        setToken(userResult.token);
+        return userResult;
+      }
+    } catch (e) {
+      // Si falla, intentar login como socio (legacy)
+      console.log('Login de usuario falló, intentando como socio...');
+    }
+    
+    // Fallback: login como socio (sistema anterior)
     const result = await apiFetch<{ token: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
@@ -104,6 +121,88 @@ export const AuthAPI = {
   },
   
   isAuthenticated: () => !!getToken(),
+};
+
+// ==================== USERS API (Sistema de Usuarios) ====================
+export interface SystemUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  dni: string;
+  phone?: string;
+  role: 'ADMIN' | 'TRAINER';
+  isActive: boolean;
+  photoUrl?: string;
+  createdAt: string;
+  lastLoginAt?: string;
+  permissions: string[];
+}
+
+export interface Permission {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  module: string;
+}
+
+export const UsersAPI = {
+  // Login de usuario
+  login: async (email: string, password: string): Promise<{ token: string; user: SystemUser }> => {
+    const result = await apiFetch<{ token: string; user: SystemUser }>('/users/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    if (result.token) {
+      setToken(result.token);
+    }
+    return result;
+  },
+  
+  // Listar usuarios
+  list: (): Promise<SystemUser[]> => apiFetch('/users'),
+  
+  // Obtener usuario por ID
+  get: (id: string): Promise<SystemUser> => apiFetch(`/users/${id}`),
+  
+  // Crear usuario
+  create: (data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    dni: string;
+    phone?: string;
+    role?: 'ADMIN' | 'TRAINER';
+    permissions?: string[];
+    photoUrl?: string;
+  }): Promise<SystemUser> => apiFetch('/users', { method: 'POST', body: JSON.stringify(data) }),
+  
+  // Actualizar usuario
+  update: (id: string, data: Partial<SystemUser & { password?: string; permissions?: string[] }>): Promise<SystemUser> => 
+    apiFetch(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  
+  // Eliminar usuario
+  delete: (id: string): Promise<void> => apiFetch(`/users/${id}`, { method: 'DELETE' }),
+  
+  // Obtener todos los permisos disponibles
+  getAllPermissions: (): Promise<{ permissions: Permission[]; grouped: Record<string, Permission[]> }> => 
+    apiFetch('/users/permissions/all'),
+  
+  // Actualizar permisos de un usuario
+  updatePermissions: (userId: string, permissions: string[]): Promise<{ message: string; permissions: string[] }> => 
+    apiFetch(`/users/${userId}/permissions`, { method: 'PUT', body: JSON.stringify({ permissions }) }),
+  
+  // Obtener perfil del usuario actual
+  getMyProfile: (): Promise<SystemUser> => apiFetch('/users/me/profile'),
+  
+  // Cambiar contraseña
+  changePassword: (currentPassword: string, newPassword: string): Promise<{ message: string }> => 
+    apiFetch('/users/me/password', { 
+      method: 'PUT', 
+      body: JSON.stringify({ currentPassword, newPassword }) 
+    }),
 };
 
 // ==================== PUBLIC API (sin autenticación) ====================

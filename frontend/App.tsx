@@ -11,6 +11,8 @@ import Ingresos from './pages/Ingresos';
 import Reservas from './pages/Reservas';
 import RoutineSelfService from './pages/RoutineSelfService';
 import ExercisesAdmin from './pages/ExercisesAdmin';
+import UsersManagement from './pages/UsersManagement';
+import UserProfile from './pages/UserProfile';
 import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -109,6 +111,8 @@ const AppContent: React.FC = () => {
       case 'Ingresos': return <Ingresos />;
       case 'reservas': return <Reservas />;
       case 'exercises_admin': return <ExercisesAdmin />;
+      case 'users_management': return <UsersManagement />;
+      case 'user_profile': return <UserProfile />;
       default: return <Dashboard onNavigate={handleNavigate} />;
     }
   };
