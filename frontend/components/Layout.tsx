@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from './Toast';
+import NotificationBell from './NotificationBell';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { UserStatus } from '../types';
@@ -152,6 +153,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
           </h2>
 
           <div className="flex items-center space-x-4 relative">
+             {/* Notification Bell */}
+             <NotificationBell onNavigate={onNavigate} />
+             
              {/* User Profile Button */}
              <div className="relative">
                <button 
@@ -458,13 +462,6 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                     <option value="en">English</option>
                     <option value="pt">Português</option>
                   </select>
-                </div>
-
-                <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="w-4 h-4" />
-                    <span className="text-white font-semibold">{t('notificaciones')}</span>
-                  </label>
                 </div>
 
                 <button
