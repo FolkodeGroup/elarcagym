@@ -1,42 +1,4 @@
-// Función para subir foto
-const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  // ...implementación...
-};
 
-// Función para iniciar cámara
-const startCamera = async () => {
-  // ...implementación...
-};
-
-// Función para detener cámara
-const stopCamera = () => {
-  // ...implementación...
-};
-
-// Función para capturar foto
-const capturePhoto = async () => {
-  // ...implementación...
-};
-
-// Función para registrar pago
-const handleRegisterPayment = async (e: React.FormEvent) => {
-  // ...implementación...
-};
-
-// Función para eliminar miembro (modal)
-const handleDeleteMember = (memberId: string, memberName: string) => {
-  // ...implementación...
-};
-
-// Función para confirmar eliminación
-const confirmDeleteMember = async () => {
-  // ...implementación...
-};
-
-// Función para agregar miembro
-const handleAddMember = async (e: React.FormEvent) => {
-  // ...implementación...
-};
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { MembersAPI, ConfigAPI } from '../services/api';
@@ -77,9 +39,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   // Camera refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  // const streamRef = useRef<MediaStream | null>(null); // Remove unused ref
-  
-  // const fileInputRef = useRef<HTMLInputElement>(null); // Remove unused ref
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
   const [visibleDayByRoutine, setVisibleDayByRoutine] = useState<Record<string, number>>({});
@@ -295,6 +256,176 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         msg = member ? `${member.firstName} ${member.lastName} ha sido marcado como ACTIVO.` : 'El socio ha sido marcado como ACTIVO.';
       }
       setToast({ message: msg, type: 'success' });
+    } catch (err) {
+      setToast({ message: t('errorGuardarSocio'), type: 'error' });
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if(e.target.files && e.target.files[0] && selectedMember) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        try {
+          await MembersAPI.update(selectedMember.id, { photoUrl: base64 });
+          // Actualizar el estado local inmediatamente para reflejar el cambio
+          setSelectedMember({ ...selectedMember, photoUrl: base64 });
+          await refreshMembers();
+          setToast({ message: t('fotoActualizada') || 'Foto actualizada correctamente', type: 'success' });
+        } catch (err) {
+          setToast({ message: t('errorGuardarFoto'), type: 'error' });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      setToast({ message: t('noCamara'), type: 'error' });
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const capturePhoto = async () => {
+    if (!videoRef.current || !selectedMember) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    try {
+      await MembersAPI.update(selectedMember.id, { photoUrl: dataUrl });
+      // Actualizar el estado local inmediatamente para reflejar el cambio
+      setSelectedMember({ ...selectedMember, photoUrl: dataUrl });
+      stopCamera();
+      setShowCameraModal(false);
+      await refreshMembers();
+      setToast({ message: t('fotoCapturada'), type: 'success' });
+    } catch (err) {
+      setToast({ message: t('errorGuardarFoto'), type: 'error' });
+    }
+  };
+
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  const handleRegisterPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if(selectedMember) {
+      try {
+        await MembersAPI.addPayment(selectedMember.id, {
+          amount: Number(paymentAmount),
+          concept: paymentConcept,
+          method: 'Efectivo',
+          date: new Date().toISOString()
+        });
+        setShowPaymentModal(false);
+        setPaymentAmount('');
+        await refreshMembers();
+        setToast({ message: t('cambiosGuardados'), type: 'success' });
+      } catch (err) {
+        setToast({ message: t('errorGuardarSocio'), type: 'error' });
+      }
+    }
+  };
+
+  const handleDeleteMember = (memberId: string, memberName: string) => {
+    setDeleteConfirm({ id: memberId, name: memberName });
+  };
+
+  const confirmDeleteMember = async () => {
+    if (!deleteConfirm) return;
+    try {
+      await MembersAPI.delete(deleteConfirm.id);
+      await refreshMembers();
+      setSelectedMember(null);
+      setDeleteConfirm(null);
+      setToast({ message: 'Socio eliminado correctamente', type: 'success' });
+    } catch (err) {
+      setToast({ message: 'Error al eliminar socio', type: 'error' });
+    }
+  };
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Validaciones antes de intentar crear
+    // Nombre y apellido: solo letras y espacios, deben contener al menos una letra
+    const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
+    const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
+    if (!newMember.firstName || !nameRegex.test(newMember.firstName) || !hasLetter.test(newMember.firstName)) {
+      setToast({ message: t('errorNombreInvalido'), type: 'error' });
+      return;
+    }
+    if (!newMember.lastName || !nameRegex.test(newMember.lastName) || !hasLetter.test(newMember.lastName)) {
+      setToast({ message: t('errorApellidoInvalido'), type: 'error' });
+      return;
+    }
+
+    // DNI: solo dígitos, máximo 8
+    const dniClean = String(newMember.dni).replace(/\D/g, '');
+    if (!/^[0-9]{1,8}$/.test(dniClean)) {
+      setToast({ message: t('errorDniInvalido'), type: 'error' });
+      return;
+    }
+
+    // Email simple: contiene @ y termina en .com
+    const email = (newMember.email || '').trim();
+    if (email && !(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
+      setToast({ message: t('errorEmailInvalido'), type: 'error' });
+      return;
+    }
+
+    // Teléfono: solo dígitos
+    const phoneClean = String(newMember.phone).replace(/\D/g, '');
+    if (newMember.phone && !/^[0-9]+$/.test(phoneClean)) {
+      setToast({ message: t('errorTelefonoInvalido'), type: 'error' });
+      return;
+    }
+
+    // DNI duplicado
+    if (members.some(m => String(m.dni) === dniClean)) {
+      setToast({ message: 'El DNI introducido ya está registrado', type: 'error' });
+      return;
+    }
+
+    try {
+      await MembersAPI.create({
+        ...newMember,
+        dni: dniClean,
+        email,
+        phone: phoneClean,
+        phase: newMember.phase,
+        habitualSchedules: newMember.habitualSchedules
+      });
+      setShowAddModal(false);
+      setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
+      await refreshMembers();
+      setToast({ message: t('cambiosGuardados'), type: 'success' });
     } catch (err) {
       setToast({ message: t('errorGuardarSocio'), type: 'error' });
     }
@@ -1223,8 +1354,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
               {/* Edit Member Modal */}
               {showEditModal && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                  <div className="absolute inset-0" onClick={() => setShowEditModal(false)} />
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowEditModal(false)}>
                   <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm" onClick={e => e.stopPropagation()}>
                     <h3 className="text-lg font-bold text-white mb-4">Editar Cliente</h3>
                     <form onSubmit={handleSaveEditMember} className="space-y-4">
@@ -1653,8 +1783,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
       {/* Add Member Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="absolute inset-0" onClick={() => setShowAddModal(false)} />
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowAddModal(false)}>
           <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-lg border border-gray-700" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-white mb-4">{t('registrarSocio')}</h3>
             <form onSubmit={handleAddMember} className="space-y-4">
