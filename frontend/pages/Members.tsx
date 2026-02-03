@@ -1224,7 +1224,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
               {/* Edit Member Modal */}
               {showEditModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                  <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
+                  <div className="absolute inset-0" onClick={() => setShowEditModal(false)} />
+                  <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm" onClick={e => e.stopPropagation()}>
                     <h3 className="text-lg font-bold text-white mb-4">Editar Cliente</h3>
                     <form onSubmit={handleSaveEditMember} className="space-y-4">
                                   {/* Fase de objetivo */}
@@ -1653,7 +1654,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       {/* Add Member Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-lg border border-gray-700">
+          <div className="absolute inset-0" onClick={() => setShowAddModal(false)} />
+          <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-lg border border-gray-700" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-white mb-4">{t('registrarSocio')}</h3>
             <form onSubmit={handleAddMember} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">

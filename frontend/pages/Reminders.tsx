@@ -191,7 +191,7 @@ const Reminders: React.FC = () => {
             setShowAddModal(false);
             setIsDirty(false);
           }} />
-          <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md">
+          <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h4 className="text-lg font-bold text-white mb-4">Nuevo Recordatorio</h4>
             <div className="space-y-3">
               <div>
@@ -268,7 +268,7 @@ const Reminders: React.FC = () => {
             setShowEditModal(false);
             setIsDirty(false);
           }} />
-          <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md">
+          <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h4 className="text-lg font-bold text-white mb-4">Editar Recordatorio</h4>
             <div className="space-y-3">
               <div>
@@ -341,7 +341,7 @@ const Reminders: React.FC = () => {
       {showDeleteConfirm && reminderToDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowDeleteConfirm(false)} />
-          <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-sm">
+          <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <h4 className="text-lg font-bold text-white mb-4">Confirmar borrado</h4>
             <p className="text-gray-400 mb-4">¿Deseas borrar este recordatorio? Esta acción no se puede deshacer.</p>
             <div className="flex justify-end gap-2">

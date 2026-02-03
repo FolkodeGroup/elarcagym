@@ -281,7 +281,7 @@ const Admin: React.FC = () => {
                         {showCategoryManager && !editingCategory && !categoryToDelete && (
                             <div className="fixed inset-0 z-50 flex items-center justify-center">
                                 <div className="absolute inset-0 bg-black/60" onClick={() => setShowCategoryManager(false)} />
-                                <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md">
+                                <div className="bg-[#0b0b0b] p-6 rounded-lg border border-gray-800 z-10 w-full max-w-md" onClick={e => e.stopPropagation()}>
                                     <h4 className="text-lg font-bold mb-4 text-white">Categorías</h4>
                                     <ul className="mb-4">
                                         {categories
@@ -305,7 +305,7 @@ const Admin: React.FC = () => {
                         {editingCategory && (
                             <div className="fixed inset-0 z-60 flex items-center justify-center">
                                 <div className="absolute inset-0 bg-black/70" onClick={() => { setEditingCategory(null); setShowCategoryManager(true); }} />
-                                <div className="bg-[#111] p-6 rounded-lg border border-gray-800 z-20 w-full max-w-sm">
+                                <div className="bg-[#111] p-6 rounded-lg border border-gray-800 z-20 w-full max-w-sm" onClick={e => e.stopPropagation()}>
                                     <h4 className="text-lg font-bold mb-2 text-white">Editar categoría</h4>
                                     <input className="w-full bg-black border border-gray-700 p-2 rounded text-white mb-3" value={editCategoryValue} onChange={e => setEditCategoryValue(e.target.value)} />
                                     <div className="flex gap-2 justify-end">
@@ -324,7 +324,7 @@ const Admin: React.FC = () => {
                                 return (
                                     <div className="fixed inset-0 z-60 flex items-center justify-center">
                                         <div className="absolute inset-0 bg-black/70" onClick={() => { setCategoryToDelete(null); setShowCategoryManager(true); }} />
-                                        <div className="bg-[#111] p-6 rounded-lg border border-gray-800 z-20 w-full max-w-sm">
+                                        <div className="bg-[#111] p-6 rounded-lg border border-gray-800 z-20 w-full max-w-sm" onClick={e => e.stopPropagation()}>
                                             <h4 className="text-lg font-bold mb-2 text-white">Eliminar categoría</h4>
                                             <p className="text-white mb-3">¿A qué categoría deseas reasignar los productos de <b>{translateCategory(categoryToDelete)}</b>?</p>
                                             <select className="w-full bg-black border border-gray-700 p-2 rounded text-white mb-3" value={reassignCategory} onChange={e => setReassignCategory(e.target.value)}>
@@ -344,7 +344,7 @@ const Admin: React.FC = () => {
                                 return (
                                     <div className="fixed inset-0 z-60 flex items-center justify-center">
                                         <div className="absolute inset-0 bg-black/70" onClick={() => { setCategoryToDelete(null); setShowCategoryManager(true); }} />
-                                        <div className="bg-[#111] p-6 rounded-lg border border-gray-800 z-20 w-full max-w-sm">
+                                        <div className="bg-[#111] p-6 rounded-lg border border-gray-800 z-20 w-full max-w-sm" onClick={e => e.stopPropagation()}>
                                             <h4 className="text-lg font-bold mb-2 text-white">Eliminar categoría</h4>
                                             <p className="text-white mb-3">¿Seguro que deseas eliminar la categoría <b>{translateCategory(categoryToDelete)}</b>? No hay productos en esta categoría.</p>
                                             <div className="flex gap-2 justify-end">
@@ -491,7 +491,7 @@ const Admin: React.FC = () => {
             {showAddModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-                    <div className="bg-[#0b0b0b] p-6 rounded-3xl border border-gray-800 z-10 w-full max-w-md shadow-2xl">
+                    <div className="bg-[#0b0b0b] p-6 rounded-3xl border border-gray-800 z-10 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
                         <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-6">Nuevo Producto</h4>
                         <div className="space-y-4">
                             <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Nombre" value={newProductForm.name} onChange={e => setNewProductForm({...newProductForm, name: e.target.value})} />
@@ -558,7 +558,7 @@ const Admin: React.FC = () => {
             {showEditModal && editingProduct && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEditModal(false)} />
-                    <div className="bg-[#0b0b0b] p-6 rounded-3xl border border-gray-800 z-10 w-full max-w-md shadow-2xl">
+                    <div className="bg-[#0b0b0b] p-6 rounded-3xl border border-gray-800 z-10 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
                         <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-6">Editar Producto</h4>
                         <div className="space-y-4">
                             <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Nombre" value={editProductForm.name} onChange={e => setEditProductForm({...editProductForm, name: e.target.value})} />
@@ -623,7 +623,8 @@ const Admin: React.FC = () => {
 
             {productToDelete && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-[#111] p-6 rounded-3xl border border-gray-800 w-full max-w-sm shadow-2xl">
+                    <div className="absolute inset-0" onClick={() => setProductToDelete(null)} />
+                    <div className="bg-[#111] p-6 rounded-3xl border border-gray-800 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-3 mb-4 text-red-500">
                             <AlertTriangle size={24} />
                             <h4 className="text-lg font-bold">¿Eliminar producto?</h4>
@@ -642,7 +643,8 @@ const Admin: React.FC = () => {
             {/* Modal de configuración */}
             {showConfigModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-[#111] p-6 rounded-3xl border border-gray-800 w-full max-w-md shadow-2xl">
+                    <div className="absolute inset-0" onClick={() => setShowConfigModal(false)} />
+                    <div className="bg-[#111] p-6 rounded-3xl border border-gray-800 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
                         <h3 className="text-xl font-bold text-white mb-6">⚙️ Configuración del Gimnasio</h3>
                         
                         <div className="space-y-4">

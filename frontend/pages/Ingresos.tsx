@@ -339,7 +339,8 @@ const Ingresos = () => {
             {/* Modal de Confirmación de Eliminación */}
             {showDeleteModal && ventaAEliminar && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-md w-full p-6">
+                    <div className="absolute inset-0" onClick={() => setShowDeleteModal(false)} />
+                    <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-xl font-bold text-white">{t('confirmarEliminacion')}</h3>
                             <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-white">
