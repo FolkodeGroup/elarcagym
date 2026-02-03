@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import sgMail from '@sendgrid/mail';
 
 // Cargar la API Key desde variables de entorno
