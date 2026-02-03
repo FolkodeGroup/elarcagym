@@ -58,6 +58,11 @@ const UsersManagement: React.FC = () => {
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedUser, setSelectedUser] = useState<SystemUser | null>(null);
+
+  // Resetear showPassword al abrir/cerrar modal
+  useEffect(() => {
+    setShowPassword(false);
+  }, [showUserModal]);
   const [editingUser, setEditingUser] = useState<Partial<SystemUser & { password?: string }>>({});
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
