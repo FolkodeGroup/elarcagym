@@ -110,7 +110,8 @@ const ExercisesAdmin: React.FC = () => {
       )}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
+          <div className="absolute inset-0" onClick={() => setShowModal(false)} />
+          <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-4">{editExercise ? 'Editar' : 'Nuevo'} Ejercicio</h3>
             <div className="space-y-4">
               <div>
