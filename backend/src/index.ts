@@ -5,6 +5,8 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger.js';
 import express from 'express';
 import cors from 'cors';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import { PrismaClient } from './generated/prisma/client/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 
@@ -20,6 +22,7 @@ import exerciseMasterController from './controllers/exerciseMasterController.js'
 import authController from './controllers/authController.js';
 import configController from './controllers/configController.js';
 import userController from './controllers/userController.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import { authenticateToken, requireAdmin, requirePermission } from './middleware/auth.js';
 import routineTokenController from './controllers/routineTokenController.js';
 import routineAccessController from './controllers/routineAccessController.js';
@@ -27,8 +30,35 @@ import routineAccessController from './controllers/routineAccessController.js';
 
 
 const app = express();
+const httpServer = createServer(app);
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
+
+// Configurar Socket.io para notificaciones en tiempo real
+io.on('connection', (socket) => {
+  console.log('Cliente conectado:', socket.id);
+
+  // Autenticación del socket
+  socket.on('authenticate', (userId: string) => {
+    socket.join(`user_${userId}`);
+    console.log(`Usuario ${userId} autenticado en socket ${socket.id}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Cliente desconectado:', socket.id);
+  });
+});
+
+// Hacer io accesible globalmente para emitir notificaciones
+(global as any).io = io;
 
 app.use(cors());
 // Aumentar el límite del body a 5mb para permitir imágenes grandes
@@ -89,8 +119,10 @@ app.use('/reminders', authenticateToken, reminderController(prisma));
 app.use('/slots', authenticateToken, slotController(prisma));
 app.use('/exercises', authenticateToken, exerciseMasterController(prisma));
 app.use('/config', authenticateToken, configController(prisma));
+app.use('/notifications', notificationRoutes);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Servidor backend corriendo en puerto ${PORT}`);
+  console.log(`WebSocket de notificaciones activo`);
 });
