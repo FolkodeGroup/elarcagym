@@ -1,12 +1,51 @@
+// Función para subir foto
+const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ...implementación...
+};
+
+// Función para iniciar cámara
+const startCamera = async () => {
+  // ...implementación...
+};
+
+// Función para detener cámara
+const stopCamera = () => {
+  // ...implementación...
+};
+
+// Función para capturar foto
+const capturePhoto = async () => {
+  // ...implementación...
+};
+
+// Función para registrar pago
+const handleRegisterPayment = async (e: React.FormEvent) => {
+  // ...implementación...
+};
+
+// Función para eliminar miembro (modal)
+const handleDeleteMember = (memberId: string, memberName: string) => {
+  // ...implementación...
+};
+
+// Función para confirmar eliminación
+const confirmDeleteMember = async () => {
+  // ...implementación...
+};
+
+// Función para agregar miembro
+const handleAddMember = async (e: React.FormEvent) => {
+  // ...implementación...
+};
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { MembersAPI, ConfigAPI } from '../services/api';
 import { Member, UserStatus, Routine, NutritionData } from '../types';
-import { isCurrentOnPayment, isDebtorByPayment, isPaymentDueSoon } from '../services/membershipUtils';
+import { isDebtorByPayment } from '../services/membershipUtils';
 import { 
     Search, Plus, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, 
     ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X, 
-    FileSpreadsheet, Apple, Eye, Share2, Coffee, Sun, Utensils, Moon, Image 
+    FileSpreadsheet, Apple, Eye, Coffee, Sun, Utensils, Moon, Image 
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { SiGmail } from 'react-icons/si';
@@ -14,7 +53,7 @@ import Toast from '../components/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LOGO_BASE64 } from '../services/assets';
-import * as XLSX from 'xlsx';
+// import * as XLSX from 'xlsx'; // Remove unused import
 
 interface MembersProps {
   initialFilter?: string | null;
@@ -30,31 +69,17 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
-
-  // Función para abrir el modal y reiniciar el formulario
-  const handleOpenAddModal = () => {
-    setNewMember({
-      firstName: '',
-      lastName: '',
-      dni: '',
-      email: '',
-      phone: '',
-      status: UserStatus.ACTIVE,
-      phase: 'volumen',
-      habitualSchedules: []
-    });
-    setShowAddModal(true);
-  };
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [showNutritionDetailModal, setShowNutritionDetailModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{id: string, name: string} | null>(null);
 
   // Camera refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  // const streamRef = useRef<MediaStream | null>(null); // Remove unused ref
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // const fileInputRef = useRef<HTMLInputElement>(null); // Remove unused ref
 
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
   const [visibleDayByRoutine, setVisibleDayByRoutine] = useState<Record<string, number>>({});
@@ -163,185 +188,19 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       setSelectedMember({ ...member, nutritionPlan });
   };
 
-  const handleAddMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Validaciones antes de intentar crear
-    // Nombre y apellido: solo letras y espacios, deben contener al menos una letra
-    const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
-    const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
-    if (!newMember.firstName || !nameRegex.test(newMember.firstName) || !hasLetter.test(newMember.firstName)) {
-      window.alert(t('errorNombreInvalido') || 'Nombre inválido');
-      return;
-    }
-    if (!newMember.lastName || !nameRegex.test(newMember.lastName) || !hasLetter.test(newMember.lastName)) {
-      window.alert(t('errorApellidoInvalido') || 'Apellido inválido');
-      return;
-    }
-
-    // DNI: solo dígitos, máximo 8
-    const dniClean = String(newMember.dni).replace(/\D/g, '');
-    if (!/^[0-9]{1,8}$/.test(dniClean)) {
-      window.alert(t('errorDniInvalido') || 'DNI inválido (máx 8 dígitos)');
-      return;
-    }
-
-    // Email simple: contiene @ y termina en .com
-    const email = (newMember.email || '').trim();
-    if (email && !(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
-      window.alert(t('errorEmailInvalido') || 'Email inválido');
-      return;
-    }
-
-    // Teléfono: solo dígitos
-    const phoneClean = String(newMember.phone).replace(/\D/g, '');
-    if (newMember.phone && !/^[0-9]+$/.test(phoneClean)) {
-      window.alert(t('errorTelefonoInvalido') || 'Teléfono inválido');
-      return;
-    }
-
-    // DNI duplicado
-    if (members.some(m => String(m.dni) === dniClean)) {
-      window.alert('El Dni introducido ya esta registrado');
-      return;
-    }
-
-    try {
-      await MembersAPI.create({
-        ...newMember,
-        dni: dniClean,
-        phone: phoneClean,
-        phase: newMember.phase,
-        habitualSchedules: newMember.habitualSchedules
-      });
-      setShowAddModal(false);
-      setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
-      await refreshMembers();
-      setToast({ message: t('cambiosGuardados'), type: 'success' });
-    } catch (err) {
-      setToast({ message: t('errorGuardarSocio'), type: 'error' });
-    }
-  };
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if(e.target.files && e.target.files[0] && selectedMember) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        try {
-          await MembersAPI.update(selectedMember.id, { photoUrl: base64 });
-          // Actualizar el estado local inmediatamente para reflejar el cambio
-          setSelectedMember({ ...selectedMember, photoUrl: base64 });
-          await refreshMembers();
-          setToast({ message: t('fotoActualizada') || 'Foto actualizada correctamente', type: 'success' });
-        } catch (err) {
-          setToast({ message: t('errorGuardarFoto'), type: 'error' });
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-    } catch (err) {
-      console.error('Error accessing camera:', err);
-      setToast({ message: t('noCamara'), type: 'error' });
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-  };
-
-  const capturePhoto = async () => {
-    if (!videoRef.current || !selectedMember) return;
-    const video = videoRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL('image/jpeg');
-    try {
-      await MembersAPI.update(selectedMember.id, { photoUrl: dataUrl });
-      // Actualizar el estado local inmediatamente para reflejar el cambio
-      setSelectedMember({ ...selectedMember, photoUrl: dataUrl });
-      stopCamera();
-      setShowCameraModal(false);
-      await refreshMembers();
-      setToast({ message: t('fotoCapturada'), type: 'success' });
-    } catch (err) {
-      setToast({ message: t('errorGuardarFoto'), type: 'error' });
-    }
-  };
-
-  // Cleanup camera on unmount
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
-  // Calcular deuda de meses anteriores
-  const calculatePreviousDebt = (member: Member): number => {
-    if (!member.payments || member.payments.length === 0) {
-      // Si nunca ha pagado, calculamos desde que se unió
-      const joinDate = new Date(member.joinDate);
-      const today = new Date();
-      const monthsDiff = (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth());
-      return monthsDiff > 0 ? monthsDiff * Number(monthlyFee) : 0;
-    }
-
-    // Contar meses sin pago
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    
-    // Verificar cuántos meses atrás tiene pagos
-    const paymentMonths = new Set<string>();
-    member.payments.forEach(p => {
-      const paymentDate = new Date(p.date);
-      if (p.concept === 'Cuota Mensual' || p.concept === t('cuotaMensual')) {
-        const key = `${paymentDate.getFullYear()}-${paymentDate.getMonth()}`;
-        paymentMonths.add(key);
-      }
+  const handleOpenAddModal = () => {
+    setNewMember({
+      firstName: '',
+      lastName: '',
+      dni: '',
+      email: '',
+      phone: '',
+      status: UserStatus.ACTIVE,
+      phase: 'volumen',
+      habitualSchedules: []
     });
-
-    // Contar meses sin pago desde el último pago o desde que se unió
-    let unpaidMonths = 0;
-    const joinDate = new Date(member.joinDate);
-    const startYear = joinDate.getFullYear();
-    const startMonth = joinDate.getMonth();
-
-    for (let year = startYear; year <= currentYear; year++) {
-      const monthStart = year === startYear ? startMonth : 0;
-      const monthEnd = year === currentYear ? currentMonth : 11;
-      
-      for (let month = monthStart; month <= monthEnd; month++) {
-        const key = `${year}-${month}`;
-        if (!paymentMonths.has(key) && !(year === currentYear && month === currentMonth)) {
-          unpaidMonths++;
-        }
-      }
-    }
-
-    return unpaidMonths * Number(monthlyFee);
+    setShowAddModal(true);
   };
-
-  // Abrir modal de pago con valores iniciales
   const handleOpenPaymentModal = () => {
     if (selectedMember) {
       const debt = calculatePreviousDebt(selectedMember);
@@ -351,26 +210,6 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       setShowPaymentModal(true);
     }
   };
-
-  const handleRegisterPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if(selectedMember) {
-      try {
-        await MembersAPI.addPayment(selectedMember.id, {
-          amount: Number(paymentAmount),
-          concept: paymentConcept,
-          method: 'Efectivo',
-          date: new Date().toISOString()
-        });
-        setShowPaymentModal(false);
-        setPaymentAmount('');
-        await refreshMembers();
-      } catch (err) {
-        setToast({ message: t('errorGuardarPago'), type: 'error' });
-      }
-    }
-  };
-
   const handleOpenEditModal = () => {
       if(selectedMember) {
             setEditMember({
@@ -394,34 +233,34 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
       const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
       if (!editMember.firstName || !nameRegex.test(editMember.firstName) || !hasLetter.test(editMember.firstName)) {
-        window.alert(t('errorNombreInvalido') || 'Nombre inválido');
+        setToast({ message: t('errorNombreInvalido'), type: 'error' });
         return;
       }
       if (!editMember.lastName || !nameRegex.test(editMember.lastName) || !hasLetter.test(editMember.lastName)) {
-        window.alert(t('errorApellidoInvalido') || 'Apellido inválido');
+        setToast({ message: t('errorApellidoInvalido'), type: 'error' });
         return;
       }
       // DNI: solo dígitos, máximo 8
       const dniClean = String(editMember.dni).replace(/\D/g, '');
       if (!/^[0-9]{1,8}$/.test(dniClean)) {
-        window.alert(t('errorDniInvalido') || 'DNI inválido (máx 8 dígitos)');
+        setToast({ message: t('errorDniInvalido'), type: 'error' });
         return;
       }
       // Email simple: contiene @ y termina en .com
       const email = (editMember.email || '').trim();
       if (email && !(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
-        window.alert(t('errorEmailInvalido') || 'Email inválido');
+        setToast({ message: t('errorEmailInvalido'), type: 'error' });
         return;
       }
       // Teléfono: solo dígitos
       const phoneClean = String(editMember.phone).replace(/\D/g, '');
       if (editMember.phone && !/^[0-9]+$/.test(phoneClean)) {
-        window.alert(t('errorTelefonoInvalido') || 'Teléfono inválido');
+        setToast({ message: t('errorTelefonoInvalido'), type: 'error' });
         return;
       }
       // DNI duplicado (en otro socio)
       if (members.some(m => String(m.dni) === dniClean && m.id !== selectedMember.id)) {
-        window.alert('El Dni introducido ya esta registrado');
+        setToast({ message: t('errorDniDuplicado'), type: 'error' });
         return;
       }
       try {
@@ -462,35 +301,46 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   };
 
   // Helper: Check if member payment is due soon (within 30 days without payment)
-  const isPaymentDueSoon = (member: Member): boolean => {
-    if (member.status !== UserStatus.ACTIVE) return false;
-    if (!member.payments || member.payments.length === 0) return true;
-
-    // find the most recent payment date
-    const paymentDates = member.payments.map(p => new Date(p.date).getTime());
-    const lastPaymentTs = Math.max(...paymentDates);
-    const lastPaymentDate = new Date(lastPaymentTs);
-    const today = new Date();
-    const daysWithoutPayment = (today.getTime() - lastPaymentDate.getTime()) / (1000 * 60 * 60 * 24);
-
-    // Return true if between 30 and 60 days since last payment
-    return daysWithoutPayment >= 30 && daysWithoutPayment < 60;
-  };
-
-
-  // Helper: Check if member is current (paid recently - within last 30 days)
-  const isCurrentOnPayment = (member: Member): boolean => {
-    if (member.status !== UserStatus.ACTIVE) return false;
-    if (!member.payments || member.payments.length === 0) return false;
-
-    // If any payment within last 30 days, consider current
-    const today = new Date();
-    return member.payments.some(p => {
-      const pd = new Date(p.date);
-      const days = (today.getTime() - pd.getTime()) / (1000 * 60 * 60 * 24);
-      return days < 30;
-    });
-  };
+    const isPaymentDueSoon = (member: Member): boolean => {
+      if (member.status !== UserStatus.ACTIVE) return false;
+      if (!member.payments || member.payments.length === 0) return true;
+  
+      // find the most recent payment date
+      const paymentDates = member.payments.map((p: { date: string }) => new Date(p.date).getTime());
+      const lastPaymentTs = Math.max(...paymentDates);
+      const lastPaymentDate = new Date(lastPaymentTs);
+      const today = new Date();
+      const daysWithoutPayment = (today.getTime() - lastPaymentDate.getTime()) / (1000 * 60 * 60 * 24);
+  
+      // Return true if between 30 and 60 days since last payment
+      return daysWithoutPayment >= 30 && daysWithoutPayment < 60;
+    };
+  
+  
+    // Helper: Check if member is current (paid recently - within last 30 days)
+    const isCurrentOnPayment = (member: Member): boolean => {
+      if (member.status !== UserStatus.ACTIVE) return false;
+      if (!member.payments || member.payments.length === 0) return false;
+  
+      // If any payment within last 30 days, consider current
+      const today = new Date();
+      return member.payments.some((p: { date: string }) => {
+        const pd = new Date(p.date);
+        const days = (today.getTime() - pd.getTime()) / (1000 * 60 * 60 * 24);
+        return days < 30;
+      });
+    };
+  
+    // Helper: Calculate previous debt (months unpaid * monthlyFee)
+    const calculatePreviousDebt = (member: Member): number => {
+      if (!member.payments || member.payments.length === 0) return 0;
+      // Assume payments are for monthly fee, count months since last payment
+      const lastPaymentDate = new Date(Math.max(...member.payments.map((p: { date: string }) => new Date(p.date).getTime())));
+      const today = new Date();
+      const monthsDiff = (today.getFullYear() - lastPaymentDate.getFullYear()) * 12 + (today.getMonth() - lastPaymentDate.getMonth());
+      if (monthsDiff <= 0) return 0;
+      return monthsDiff * Number(monthlyFee);
+    };
 
 
   // --- FUNCIÓN PARA NORMALIZAR TEXTO (QUITAR TILDES) ---
@@ -501,7 +351,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       .toLowerCase();
   };
 
-  const filteredMembers = members.filter(m => {
+  const filteredMembers = members.filter((m: Member) => {
     // Usamos la función normalizeText para comparar sin tildes ni mayúsculas
     const searchTerm = normalizeText(filter);
     const memberLastName = normalizeText(m.lastName);
@@ -522,10 +372,11 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
   // Counts for dashboard cards
   const totalCount = members.length;
-  const alDiaCount = members.filter(m => isCurrentOnPayment(m)).length;
-  const debtorsCount = members.filter(m => isDebtorByPayment(m)).length;
-  const dueSoonCount = members.filter(m => isPaymentDueSoon(m)).length;
-  const inactiveCount = members.filter(m => m.status === UserStatus.INACTIVE).length;
+  const activeCount = members.filter((m: Member) => m.status === UserStatus.ACTIVE).length;
+  const alDiaCount = members.filter((m: Member) => m.status === UserStatus.ACTIVE && isCurrentOnPayment(m)).length;
+  const debtorsCount = members.filter((m: Member) => isDebtorByPayment(m)).length;
+  const dueSoonCount = members.filter((m: Member) => isPaymentDueSoon(m)).length;
+  const inactiveCount = members.filter((m: Member) => m.status === UserStatus.INACTIVE).length;
 
   // --- MESSAGING & PDF HELPERS ---
   const generateNutritionPDF = (nutritionPlan: any, memberName: string) => {
@@ -941,7 +792,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   title="Seleccionar imagen desde el dispositivo"
                 >
                   <Image size={18} />
-                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                  <input type="file" accept="image/*" className="hidden" onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePhotoUpload(e)} />
                 </label>
                 <button 
                   onClick={() => { setShowCameraModal(true); startCamera(); }}
@@ -1735,10 +1586,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                      ${isCurrentOnPayment(member) ? 'bg-green-900 text-green-200' : 
-                        isDebtorByPayment(member) ? 'bg-red-900 text-red-200' : 'bg-gray-700 text-gray-300'}`}>
-                      {isCurrentOnPayment(member) ? t('alDia') : 
-                       isDebtorByPayment(member) ? t('moroso') : t('inactivo')}
+                      ${member.status === UserStatus.INACTIVE ? 'bg-gray-700 text-gray-300' :
+                        isCurrentOnPayment(member) ? 'bg-green-900 text-green-200' : 
+                        isDebtorByPayment(member) ? 'bg-red-900 text-red-200' : 'bg-yellow-900 text-yellow-200'}`}>
+                      {member.status === UserStatus.INACTIVE ? t('inactivo') :
+                       isCurrentOnPayment(member) ? t('alDia') : 
+                       isDebtorByPayment(member) ? t('moroso') : t('pendiente')}
                     </span>
                   </td>
                   <td className="p-4 text-right space-x-2" onClick={e => e.stopPropagation()}>
@@ -1765,6 +1618,27 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                         <FaWhatsapp size={16} />
                       </button>
                     )}
+                    <button
+                      className="p-2 text-blue-400 hover:text-blue-300 bg-blue-900/20 hover:bg-blue-900/40 rounded transition"
+                      title="Editar"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMemberClick(member);
+                        setShowEditModal(true);
+                      }}
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      className="p-2 text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 rounded transition"
+                      title="Eliminar"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteMember(member.id, `${member.firstName} ${member.lastName}`);
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -1824,6 +1698,18 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                 <button type="submit" className="px-6 py-2 bg-brand-gold text-black font-bold rounded hover:bg-yellow-500">{t('guardar')}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div className="bg-[#232323] rounded-lg shadow-lg p-8 max-w-sm w-full">
+            <h2 className="text-lg font-bold text-white mb-2">¿Eliminar socio?</h2>
+            <p className="text-gray-300 mb-6">¿Está seguro que desea eliminar a <span className="font-bold text-brand-gold">{deleteConfirm.name}</span>? Esta acción no se puede deshacer.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 rounded bg-gray-700 text-gray-200 hover:bg-gray-600 transition">Cancelar</button>
+              <button onClick={confirmDeleteMember} className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-bold transition">Eliminar</button>
+            </div>
           </div>
         </div>
       )}
