@@ -53,6 +53,10 @@ const UserProfile: React.FC = () => {
     phone: '',
   });
 
+  // Imagen de perfil
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -164,15 +168,37 @@ const UserProfile: React.FC = () => {
             {/* Avatar */}
             <div className="relative">
               <div className="w-24 h-24 rounded-xl bg-gray-700 border-4 border-[#1a1a1a] flex items-center justify-center overflow-hidden">
-                {profile.photoUrl ? (
+                {selectedImage ? (
+                  <img src={selectedImage} alt="preview" className="w-full h-full object-cover" />
+                ) : profile.photoUrl ? (
                   <img src={profile.photoUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <User size={40} className="text-gray-400" />
                 )}
               </div>
-              <button className="absolute bottom-0 right-0 w-8 h-8 bg-brand-gold rounded-lg flex items-center justify-center text-black hover:bg-yellow-400 transition">
+              <button
+                className="absolute bottom-0 right-0 w-8 h-8 bg-brand-gold rounded-lg flex items-center justify-center text-black hover:bg-yellow-400 transition"
+                onClick={() => fileInputRef.current?.click()}
+                title="Cambiar foto de perfil"
+              >
                 <Camera size={16} />
               </button>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = ev => {
+                      setSelectedImage(ev.target?.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
             </div>
 
             {/* Name and Role */}
@@ -446,3 +472,4 @@ const UserProfile: React.FC = () => {
 };
 
 export default UserProfile;
+  
