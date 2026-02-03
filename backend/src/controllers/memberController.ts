@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendEmail } from '../utils/sendEmail';
 
 export default function(prisma: any) {
   const router = Router();
@@ -36,35 +37,6 @@ export default function(prisma: any) {
     try {
       const member = await prisma.member.findUnique({
         where: { id: req.params.id },
-        include: {
-          habitualSchedules: true,
-          biometrics: { orderBy: { date: 'desc' } },
-          routines: {
-            include: {
-              days: {
-                include: {
-                  exercises: true
-                }
-              }
-            },
-            orderBy: { createdAt: 'desc' }
-          },
-          diets: { orderBy: { generatedAt: 'desc' } },
-          payments: { orderBy: { date: 'desc' } }
-        }
-      });
-      if (!member) return res.status(404).json({ error: 'Member not found' });
-      res.json(member);
-    } catch (e) {
-      res.status(500).json({ error: (e as Error).message });
-    }
-  });
-
-  // Obtener un miembro por DNI
-  router.get('/dni/:dni', async (req, res) => {
-    try {
-      const member = await prisma.member.findUnique({
-        where: { dni: req.params.dni },
         include: {
           habitualSchedules: true,
           biometrics: { orderBy: { date: 'desc' } },
@@ -148,6 +120,18 @@ export default function(prisma: any) {
           payments: true
         }
       });
+
+      // Notificar a la administradora Veronica
+      try {
+        await sendEmail({
+          to: 'veronica@elarcagym.com',
+          subject: 'Nuevo socio registrado',
+          text: `Se ha registrado un nuevo socio:\nNombre: ${member.firstName} ${member.lastName}\nDNI: ${member.dni}`
+        });
+      } catch (err) {
+        console.error('Error enviando email a Veronica:', err);
+      }
+
       res.status(201).json(member);
     } catch (e) {
       // Prisma error de unicidad
@@ -169,16 +153,18 @@ export default function(prisma: any) {
     }
   });
 
-  // Actualizar un miembro
-  router.put('/:id', async (req, res) => {
+  // Actualizar un miembro (PATCH)
+  router.patch('/:id', async (req, res) => {
     try {
-      const { habitualSchedules, biometrics, routines, diets, payments, ...memberData } = req.body;
-      // Permitir updates parciales: solo validar campos si están presentes
+      const { habitualSchedules, ...memberData } = req.body;
+      // Validaciones de inputs
       const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
       const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
+      
       let dniClean = undefined;
       let email = undefined;
       let phoneClean = undefined;
+      
       if ('firstName' in memberData) {
         if (!memberData.firstName || typeof memberData.firstName !== 'string' || !nameRegex.test(memberData.firstName) || !hasLetter.test(memberData.firstName)) {
           return res.status(400).json({ error: 'Nombre inválido: solo letras y espacios.' });
