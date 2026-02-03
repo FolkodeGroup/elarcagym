@@ -731,7 +731,8 @@ const Operations: React.FC = () => {
       {/* Delete Routine Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#111] max-w-md w-full rounded-lg border border-gray-700 p-6">
+          <div className="absolute inset-0" onClick={() => { setShowDeleteModal(false); setRoutineToDelete(null); }} />
+          <div className="bg-[#111] max-w-md w-full rounded-lg border border-gray-700 p-6" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-2">¿Eliminar rutina?</h3>
             <p className="text-sm text-gray-300 mb-4">
               ¿Estás seguro de que deseas eliminar la rutina "{routineToDelete?.name}"? Esta acción no se puede deshacer.
