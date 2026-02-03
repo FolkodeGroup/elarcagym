@@ -663,19 +663,79 @@ const Admin: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex gap-3 mt-6">
-                            <button 
-                                className="flex-1 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold hover:bg-gray-700 transition"
-                                onClick={() => setShowConfigModal(false)}
+                        <div className="flex flex-col gap-3 mt-6">
+                            <div className="flex gap-3">
+                                <button 
+                                    className="flex-1 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold hover:bg-gray-700 transition"
+                                    onClick={() => setShowConfigModal(false)}
+                                >
+                                    CANCELAR
+                                </button>
+                                <button 
+                                    className="flex-1 py-3 rounded-xl bg-brand-gold text-black font-black uppercase tracking-tighter shadow-lg shadow-brand-gold/10 hover:bg-yellow-500 transition"
+                                    onClick={saveConfig}
+                                >
+                                    GUARDAR
+                                </button>
+                            </div>
+                            <button
+                                className="w-full py-3 rounded-xl bg-green-600 text-white font-bold uppercase tracking-tighter shadow-lg hover:bg-green-700 transition flex items-center justify-center gap-2 mt-2"
+                                onClick={async () => {
+                                    try {
+                                        const token = localStorage.getItem('auth_token');
+                                        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/config/backup/export-excel`, {
+                                            method: 'GET',
+                                            headers: token ? { Authorization: `Bearer ${token}` } : {},
+                                        });
+                                        if (!res.ok) throw new Error('Error al descargar respaldo');
+                                        const blob = await res.blob();
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = 'respaldo-el-arca-gym.xlsx';
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        a.remove();
+                                        window.URL.revokeObjectURL(url);
+                                        setToast({ message: 'Respaldo descargado correctamente.', type: 'success' });
+                                    } catch (error) {
+                                        setToast({ message: 'Error al descargar respaldo.', type: 'error' });
+                                    }
+                                }}
                             >
-                                CANCELAR
+                                📥 Descargar Respaldo Completo
                             </button>
-                            <button 
-                                className="flex-1 py-3 rounded-xl bg-brand-gold text-black font-black uppercase tracking-tighter shadow-lg shadow-brand-gold/10 hover:bg-yellow-500 transition"
-                                onClick={saveConfig}
+                            <form
+                                className="w-full flex flex-col gap-2 mt-2"
+                                onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    const input = document.getElementById('import-respaldo-input') as HTMLInputElement;
+                                    if (!input.files || input.files.length === 0) {
+                                        setToast({ message: 'Selecciona un archivo Excel.', type: 'error' });
+                                        return;
+                                    }
+                                    const file = input.files[0];
+                                    const formData = new FormData();
+                                    formData.append('file', file);
+                                    try {
+                                        const token = localStorage.getItem('auth_token');
+                                        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/config/backup/import-excel`, {
+                                            method: 'POST',
+                                            headers: token ? { Authorization: `Bearer ${token}` } : {},
+                                            body: formData,
+                                        });
+                                        if (!res.ok) throw new Error('Error al importar respaldo');
+                                        const result = await res.json();
+                                        setToast({ message: 'Respaldo importado correctamente.', type: 'success' });
+                                    } catch (error) {
+                                        setToast({ message: 'Error al importar respaldo.', type: 'error' });
+                                    }
+                                }}
                             >
-                                GUARDAR
-                            </button>
+                                <label htmlFor="import-respaldo-input" className="block text-sm text-gray-400 mb-1">Importar respaldo Excel</label>
+                                <input id="import-respaldo-input" type="file" accept=".xlsx" className="w-full bg-black border border-gray-700 text-white p-2 rounded-lg" />
+                                <button type="submit" className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold uppercase tracking-tighter shadow-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 mt-2">📤 Importar Respaldo</button>
+                            </form>
                         </div>
                     </div>
                 </div>

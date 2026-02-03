@@ -24,7 +24,12 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
   if (!token) return res.status(401).json({ error: 'Token requerido' });
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Token inválido' });
+    if (err) {
+      console.error('Token inválido:', token, err);
+      return res.status(403).json({ error: 'Token inválido' });
+    }
+    console.log('Token recibido:', token);
+    console.log('Usuario decodificado:', user);
     req.user = user as AuthUser;
     next();
   });
