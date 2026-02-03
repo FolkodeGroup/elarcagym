@@ -28,8 +28,6 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
       console.error('Token inválido:', token, err);
       return res.status(403).json({ error: 'Token inválido' });
     }
-    console.log('Token recibido:', token);
-    console.log('Usuario decodificado:', user);
     req.user = user as AuthUser;
     next();
   });
