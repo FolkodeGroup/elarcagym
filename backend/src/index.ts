@@ -19,7 +19,8 @@ import slotController from './controllers/slotController.js';
 import exerciseMasterController from './controllers/exerciseMasterController.js';
 import authController from './controllers/authController.js';
 import configController from './controllers/configController.js';
-import { authenticateToken } from './middleware/auth.js';
+import userController from './controllers/userController.js';
+import { authenticateToken, requireAdmin, requirePermission } from './middleware/auth.js';
 import routineTokenController from './controllers/routineTokenController.js';
 import routineAccessController from './controllers/routineAccessController.js';
 
@@ -40,8 +41,11 @@ app.use('/routine-token', routineTokenController);
 // Documentación Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Rutas de autenticación (públicas)
+// Rutas de autenticación (públicas) - legacy para socios
 app.use('/auth', authController(prisma));
+
+// Rutas de usuarios (login y CRUD) - nuevo sistema de usuarios
+app.use('/users', userController(prisma));
 
 // Ruta pública para consulta de rutinas por DNI (Portal del Socio)
 app.get('/public/member-routine/:dni', async (req, res) => {
