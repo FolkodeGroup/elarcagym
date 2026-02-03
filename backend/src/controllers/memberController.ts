@@ -107,10 +107,18 @@ export default function(prisma: any) {
       if (!/^[0-9]{1,8}$/.test(dniClean)) {
         return res.status(400).json({ error: 'DNI inválido: solo números, máximo 8 dígitos.' });
       }
-      // Email: contiene @ y termina en .com
-      const email = (memberData.email || '').trim();
-      if (!email || !(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
-        return res.status(400).json({ error: 'Email inválido: debe contener @ y terminar en .com.' });
+      // Email: contiene @ y termina en .com (opcional)
+      let email = undefined;
+      if (memberData.email) {
+        email = memberData.email.trim();
+        if (!(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
+          return res.status(400).json({ error: 'Email inválido: debe contener @ y terminar en .com.' });
+        }
+        // Verificar unicidad de email si se proporciona
+        const existingEmail = await prisma.member.findUnique({ where: { email } });
+        if (existingEmail) {
+          return res.status(409).json({ error: 'El email ya está registrado.' });
+        }
       }
       // Teléfono: solo dígitos
       const phoneClean = String(memberData.phone).replace(/\D/g, '');
@@ -121,11 +129,6 @@ export default function(prisma: any) {
       const existingDni = await prisma.member.findUnique({ where: { dni: dniClean } });
       if (existingDni) {
         return res.status(409).json({ error: 'El DNI ya está registrado.' });
-      }
-      // Verificar unicidad de email
-      const existingEmail = await prisma.member.findUnique({ where: { email } });
-      if (existingEmail) {
-        return res.status(409).json({ error: 'El email ya está registrado.' });
       }
       const member = await prisma.member.create({
         data: {
