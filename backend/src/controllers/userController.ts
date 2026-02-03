@@ -292,7 +292,7 @@ export default function(prisma: any) {
    *     summary: Actualizar usuario
    *     tags: [Users]
    */
-  router.put('/:id', async (req: any, res) => {
+  router.put('/:id', authenticateToken, async (req: any, res) => {
     try {
       const { id } = req.params;
       const { email, password, firstName, lastName, dni, phone, role, isActive, permissions, photoUrl } = req.body;
