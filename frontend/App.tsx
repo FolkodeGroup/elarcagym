@@ -13,6 +13,8 @@ import RoutineSelfService from './pages/RoutineSelfService';
 import ExercisesAdmin from './pages/ExercisesAdmin';
 import UsersManagement from './pages/UsersManagement';
 import UserProfile from './pages/UserProfile';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
 import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -113,6 +115,8 @@ const AppContent: React.FC = () => {
       case 'exercises_admin': return <ExercisesAdmin />;
       case 'users_management': return <UsersManagement />;
       case 'user_profile': return <UserProfile />;
+      case 'terms': return <Terms />;
+      case 'privacy': return <Privacy />;
       default: return <Dashboard onNavigate={handleNavigate} />;
     }
   };

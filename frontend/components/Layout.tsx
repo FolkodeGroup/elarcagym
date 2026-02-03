@@ -684,14 +684,24 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
                 <div className="bg-gray-800/50 p-4 rounded-lg space-y-2">
                   <p className="text-white"><strong>Versión:</strong> 1.0.0</p>
-                  <p className="text-white"><strong>Lanzamiento:</strong> Enero 2026</p>
+                  <p className="text-white"><strong>Lanzamiento:</strong> Febrero 2026</p>
                   <p className="text-white"><strong>Desarrollado por:</strong> Folkode</p>
                 </div>
 
                 <div className="text-xs text-gray-500 space-y-1">
                   <p>© 2026 El Arca Gym. Todos los derechos reservados.</p>
-                  <p className="cursor-pointer text-cyan-400 hover:underline">Términos de Servicio</p>
-                  <p className="cursor-pointer text-cyan-400 hover:underline">Política de Privacidad</p>
+                  <button 
+                    onClick={() => { setShowAbout(false); onNavigate('terms'); }} 
+                    className="block cursor-pointer text-cyan-400 hover:underline text-left mt-1"
+                  >
+                    {t('terminosServicio')}
+                  </button>
+                  <button 
+                    onClick={() => { setShowAbout(false); onNavigate('privacy'); }} 
+                    className="block cursor-pointer text-cyan-400 hover:underline text-left mt-1"
+                  >
+                    {t('politicaPrivacidad')}
+                  </button>
                 </div>
               </div>
             </div>
