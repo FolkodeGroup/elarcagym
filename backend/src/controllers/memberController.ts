@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendEmail } from '../utils/sendEmail';
 
 export default function(prisma: any) {
   const router = Router();
@@ -60,35 +61,6 @@ export default function(prisma: any) {
     }
   });
 
-  // Obtener un miembro por DNI
-  router.get('/dni/:dni', async (req, res) => {
-    try {
-      const member = await prisma.member.findUnique({
-        where: { dni: req.params.dni },
-        include: {
-          habitualSchedules: true,
-          biometrics: { orderBy: { date: 'desc' } },
-          routines: {
-            include: {
-              days: {
-                include: {
-                  exercises: true
-                }
-              }
-            },
-            orderBy: { createdAt: 'desc' }
-          },
-          diets: { orderBy: { generatedAt: 'desc' } },
-          payments: { orderBy: { date: 'desc' } }
-        }
-      });
-      if (!member) return res.status(404).json({ error: 'Member not found' });
-      res.json(member);
-    } catch (e) {
-      res.status(500).json({ error: (e as Error).message });
-    }
-  });
-
   // Crear un nuevo miembro
   router.post('/', async (req, res) => {
     try {
@@ -107,10 +79,18 @@ export default function(prisma: any) {
       if (!/^[0-9]{1,8}$/.test(dniClean)) {
         return res.status(400).json({ error: 'DNI inválido: solo números, máximo 8 dígitos.' });
       }
-      // Email: contiene @ y termina en .com
-      const email = (memberData.email || '').trim();
-      if (!email || !(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
-        return res.status(400).json({ error: 'Email inválido: debe contener @ y terminar en .com.' });
+      // Email: contiene @ y termina en .com (opcional)
+      let email = undefined;
+      if (memberData.email) {
+        email = memberData.email.trim();
+        if (!(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
+          return res.status(400).json({ error: 'Email inválido: debe contener @ y terminar en .com.' });
+        }
+        // Verificar unicidad de email si se proporciona
+        const existingEmail = await prisma.member.findUnique({ where: { email } });
+        if (existingEmail) {
+          return res.status(409).json({ error: 'El email ya está registrado.' });
+        }
       }
       // Teléfono: solo dígitos
       const phoneClean = String(memberData.phone).replace(/\D/g, '');
@@ -121,11 +101,6 @@ export default function(prisma: any) {
       const existingDni = await prisma.member.findUnique({ where: { dni: dniClean } });
       if (existingDni) {
         return res.status(409).json({ error: 'El DNI ya está registrado.' });
-      }
-      // Verificar unicidad de email
-      const existingEmail = await prisma.member.findUnique({ where: { email } });
-      if (existingEmail) {
-        return res.status(409).json({ error: 'El email ya está registrado.' });
       }
       const member = await prisma.member.create({
         data: {
@@ -145,6 +120,18 @@ export default function(prisma: any) {
           payments: true
         }
       });
+
+      // Notificar a la administradora Veronica
+      try {
+        await sendEmail({
+          to: 'veronica@elarcagym.com',
+          subject: 'Nuevo socio registrado',
+          text: `Se ha registrado un nuevo socio:\nNombre: ${member.firstName} ${member.lastName}\nDNI: ${member.dni}`
+        });
+      } catch (err) {
+        console.error('Error enviando email a Veronica:', err);
+      }
+
       res.status(201).json(member);
     } catch (e) {
       // Prisma error de unicidad
@@ -166,16 +153,18 @@ export default function(prisma: any) {
     }
   });
 
-  // Actualizar un miembro
-  router.put('/:id', async (req, res) => {
+  // Actualizar un miembro (PATCH)
+  router.patch('/:id', async (req, res) => {
     try {
-      const { habitualSchedules, biometrics, routines, diets, payments, ...memberData } = req.body;
-      // Permitir updates parciales: solo validar campos si están presentes
+      const { habitualSchedules, ...memberData } = req.body;
+      // Validaciones de inputs
       const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
       const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
+      
       let dniClean = undefined;
       let email = undefined;
       let phoneClean = undefined;
+      
       if ('firstName' in memberData) {
         if (!memberData.firstName || typeof memberData.firstName !== 'string' || !nameRegex.test(memberData.firstName) || !hasLetter.test(memberData.firstName)) {
           return res.status(400).json({ error: 'Nombre inválido: solo letras y espacios.' });
