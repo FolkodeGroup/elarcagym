@@ -499,21 +499,74 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
               </div>
 
               <div className="space-y-4">
+
                 <div className="bg-green-900/20 border border-green-800 p-4 rounded-lg">
                   <p className="text-white font-semibold mb-3">Exportar Datos</p>
-                  <p className="text-sm text-gray-300 mb-3">Descarga un respaldo completo de todos tus datos en formato JSON</p>
-                  <button className="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 transition">
+                  <p className="text-sm text-gray-300 mb-3">Descarga un respaldo completo de todos tus datos en formato Excel (.xlsx)</p>
+                  <button
+                    className="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 transition"
+                    onClick={async () => {
+                      try {
+                        const token = localStorage.getItem('auth_token');
+                        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/config/backup/export-excel`, {
+                          method: 'GET',
+                          headers: token ? { Authorization: `Bearer ${token}` } : {},
+                        });
+                        if (!res.ok) throw new Error('Error al descargar respaldo');
+                        const blob = await res.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'respaldo-el-arca-gym.xlsx';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                        setToast({ message: 'Respaldo descargado correctamente.', type: 'success' });
+                      } catch (error) {
+                        setToast({ message: 'Error al descargar respaldo.', type: 'error' });
+                      }
+                    }}
+                  >
                     📥 Descargar Respaldo Completo
                   </button>
                 </div>
 
                 <div className="bg-blue-900/20 border border-blue-800 p-4 rounded-lg">
                   <p className="text-white font-semibold mb-3">Importar Datos</p>
-                  <p className="text-sm text-gray-300 mb-3">Carga un archivo de respaldo anterior</p>
-                  <input type="file" accept=".json" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2 mb-3" />
-                  <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition">
-                    📤 Importar Respaldo
-                  </button>
+                  <p className="text-sm text-gray-300 mb-3">Carga un archivo de respaldo anterior en formato Excel (.xlsx)</p>
+                  <form
+                    className="w-full flex flex-col gap-2"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const input = document.getElementById('import-respaldo-input-layout') as HTMLInputElement;
+                      if (!input.files || input.files.length === 0) {
+                        setToast({ message: 'Selecciona un archivo Excel.', type: 'error' });
+                        return;
+                      }
+                      const file = input.files[0];
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      try {
+                        const token = localStorage.getItem('auth_token');
+                        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/config/backup/import-excel`, {
+                          method: 'POST',
+                          headers: token ? { Authorization: `Bearer ${token}` } : {},
+                          body: formData,
+                        });
+                        if (!res.ok) throw new Error('Error al importar respaldo');
+                        await res.json();
+                        setToast({ message: 'Respaldo importado correctamente.', type: 'success' });
+                      } catch (error) {
+                        setToast({ message: 'Error al importar respaldo.', type: 'error' });
+                      }
+                    }}
+                  >
+                    <input id="import-respaldo-input-layout" type="file" accept=".xlsx" className="w-full bg-black text-white border border-gray-700 rounded px-3 py-2 mb-3" />
+                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition">
+                      📤 Importar Respaldo
+                    </button>
+                  </form>
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
