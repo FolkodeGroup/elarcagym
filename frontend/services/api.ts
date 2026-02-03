@@ -414,3 +414,39 @@ export const ConfigAPI = {
   delete: (key: string): Promise<void> => 
     apiFetch(`/config/${key}`, { method: 'DELETE' }),
 };
+
+// ==================== NOTIFICATIONS API ====================
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  link?: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export const NotificationsAPI = {
+  // Obtener todas las notificaciones del usuario
+  list: (): Promise<Notification[]> => apiFetch('/notifications'),
+  
+  // Obtener contador de no leídas
+  getUnreadCount: (): Promise<{ count: number }> => apiFetch('/notifications/unread-count'),
+  
+  // Marcar como leída
+  markAsRead: (id: string): Promise<Notification> => 
+    apiFetch(`/notifications/${id}/read`, { method: 'PUT' }),
+  
+  // Marcar todas como leídas
+  markAllAsRead: (): Promise<{ message: string }> => 
+    apiFetch('/notifications/mark-all-read', { method: 'PUT' }),
+  
+  // Eliminar notificación
+  delete: (id: string): Promise<void> => 
+    apiFetch(`/notifications/${id}`, { method: 'DELETE' }),
+  
+  // Crear notificación (solo para testing/admin)
+  create: (data: { userId: string; title: string; message: string; type?: string; link?: string }): Promise<Notification> => 
+    apiFetch('/notifications', { method: 'POST', body: JSON.stringify(data) }),
+};
