@@ -127,12 +127,20 @@ PUT /users/me/password         - Cambiar contraseña
 
 ⚠️ **IMPORTANTE:** Cambiar la contraseña después del primer login.
 
+
 ### Entrenador Demo
 - **Nombre:** Emmanuel Fernando Paredes
 - **Email:** ariel_ale75@hotmail.com
 - **Contraseña:** Entrenador123
 - **DNI:** 31282905
 - **Teléfono:** 1139244649
+
+### Profesora
+- **Nombre:** Florencia Solange Ceballos
+- **Email:** florenciaceballos295@gmail.com
+- **Contraseña:** Entrenador123
+- **DNI:** 36916483
+- **Teléfono:** 1123474373
 
 ## Flujo de Autenticación
 

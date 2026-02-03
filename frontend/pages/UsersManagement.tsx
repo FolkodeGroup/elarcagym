@@ -389,14 +389,22 @@ const UsersManagement: React.FC = () => {
 
       {/* Modal: Crear/Editar Usuario */}
       {showUserModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1a1a1a] max-w-lg w-full rounded-xl border border-gray-700 overflow-hidden">
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowUserModal(false);
+            setSelectedUser(null);
+          }}
+        >
+          <div
+            className="bg-[#1a1a1a] max-w-lg w-full rounded-xl border border-gray-700 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="bg-gradient-to-r from-brand-gold to-yellow-500 p-4">
               <h2 className="text-xl font-bold text-black">
                 {selectedUser ? 'Editar Usuario' : 'Nuevo Usuario'}
               </h2>
             </div>
-            
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               {/* Email */}
               <div>
