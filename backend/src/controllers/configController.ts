@@ -117,20 +117,16 @@ export default function(prisma: any) {
     });
   router.get('/backup/export-excel', async (req, res) => {
     try {
-      console.log('Iniciando exportación de respaldo Excel...');
-      
       // Función para truncar campos de texto largos (límite de Excel: 32767 caracteres)
       const truncateData = (data: any[]) => {
-        const MAX_CELL_LENGTH = 32000; // Dejamos margen de seguridad
+        const MAX_CELL_LENGTH = 32000;
         return data.map(item => {
           const truncated: any = {};
           for (const key in item) {
             let value = item[key];
-            // Convertir objetos/arrays a JSON string
             if (value !== null && typeof value === 'object') {
               value = JSON.stringify(value);
             }
-            // Truncar strings largos
             if (typeof value === 'string' && value.length > MAX_CELL_LENGTH) {
               truncated[key] = value.substring(0, MAX_CELL_LENGTH) + '... [TRUNCADO]';
             } else {
@@ -141,35 +137,20 @@ export default function(prisma: any) {
         });
       };
 
-      // Obtener datos principales
-      console.log('Consultando miembros...');
       const members = await prisma.member.findMany();
-      console.log('Miembros consultados:', members.length);
-      console.log('Consultando productos...');
       const products = await prisma.product.findMany();
-      console.log('Productos consultados:', products.length);
-      console.log('Consultando ventas...');
       const sales = await prisma.sale.findMany();
-      console.log('Ventas consultadas:', sales.length);
-      console.log('Consultando reservas...');
       const reservations = await prisma.reservation.findMany();
-      console.log('Reservas consultadas:', reservations.length);
 
-      // Truncar datos largos
-      console.log('Procesando datos para Excel...');
       const truncatedMembers = truncateData(members);
       const truncatedProducts = truncateData(products);
       const truncatedSales = truncateData(sales);
       const truncatedReservations = truncateData(reservations);
 
-      // Preparar workbook
-      console.log('Creando workbook...');
       const XLSX = await import('xlsx');
       const wb = XLSX.utils.book_new();
       wb.Props = { Title: 'Respaldo Completo El Arca Gym', Author: 'Sistema El Arca Gym', CreatedDate: new Date() };
 
-      // Convertir cada entidad a hoja
-      console.log('Agregando hojas al workbook...');
       wb.SheetNames.push('Miembros');
       wb.Sheets['Miembros'] = XLSX.utils.json_to_sheet(truncatedMembers);
       wb.SheetNames.push('Productos');
@@ -179,15 +160,10 @@ export default function(prisma: any) {
       wb.SheetNames.push('Reservas');
       wb.Sheets['Reservas'] = XLSX.utils.json_to_sheet(truncatedReservations);
 
-      // Generar archivo Excel en memoria
-      console.log('Generando buffer de Excel...');
       const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      console.log('Buffer generado, tamaño:', buffer.length);
       res.setHeader('Content-Disposition', 'attachment; filename="respaldo-el-arca-gym.xlsx"');
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      console.log('Enviando archivo Excel al cliente...');
       res.send(buffer);
-      console.log('Exportación completada exitosamente.');
     } catch (e) {
       console.error('Error en export-excel:', e);
       res.status(500).json({ error: (e as Error).message });
