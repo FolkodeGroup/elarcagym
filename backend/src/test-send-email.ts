@@ -1,5 +1,5 @@
 // Script de prueba para envío de email
-import { sendEmail } from './utils/sendEmail';
+import { sendEmail } from './utils/sendEmail.js';
 
 async function main() {
   try {
