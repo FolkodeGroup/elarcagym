@@ -342,9 +342,36 @@ const Reservas: React.FC = () => {
                                 <div className="flex flex-wrap gap-2">
                                     {slotRes.map(res => (
                                         <div key={res.id} className="flex items-center gap-2 bg-black/60 border border-gray-800 px-3 py-1.5 rounded-lg group/item">
-                                            <span className={`text-xs font-bold ${res.attended === false ? 'line-through text-red-500 opacity-50' : 'text-gray-200'}`}>
-                                                {res.clientName}
-                                            </span>
+                                            {(() => {
+                                              // Obtener slot info para la reserva
+                                              const slotInfo = slot;
+                                              let color = 'text-gray-200';
+                                              let tooltip = 'Turno pendiente';
+                                              if (res.attended === true) {
+                                                color = 'text-green-500 font-bold';
+                                                tooltip = 'Asistencia registrada';
+                                              } else {
+                                                // Calcular si el turno está vencido
+                                                if (slotInfo) {
+                                                  const slotDateTime = new Date(`${slotInfo.date}T${slotInfo.time}`);
+                                                  const now = new Date();
+                                                  const diffMs = now.getTime() - slotDateTime.getTime();
+                                                  const diffHrs = diffMs / (1000 * 60 * 60);
+                                                  if (diffHrs > 2) {
+                                                    color = 'text-red-500 font-bold';
+                                                    tooltip = 'Ausente: no registró asistencia en el plazo';
+                                                  }
+                                                }
+                                              }
+                                              return (
+                                                <span
+                                                  className={`text-xs ${color}`}
+                                                  title={tooltip}
+                                                >
+                                                  {res.clientName}
+                                                </span>
+                                              );
+                                            })()}
                                             <div className="flex items-center gap-1 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                                 <button 
                                                   title="Editar notas/seguimiento"
