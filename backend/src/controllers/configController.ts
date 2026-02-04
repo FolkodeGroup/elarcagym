@@ -70,12 +70,15 @@ export default function(prisma: any) {
         // Procesar cada hoja
         const importResults: any = {};
         for (const sheetName of workbook.SheetNames) {
-          const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+          const sheet = workbook.Sheets[sheetName];
+          if (!sheet) continue;
+          
+          const data = XLSX.utils.sheet_to_json(sheet) as any[];
           // Insertar/actualizar según la hoja
           if (sheetName === 'Miembros') {
             for (const member of data) {
               await prisma.member.upsert({
-                where: { id: member.id },
+                where: { id: (member as any).id },
                 update: member,
                 create: member
               });
@@ -84,7 +87,7 @@ export default function(prisma: any) {
           } else if (sheetName === 'Productos') {
             for (const product of data) {
               await prisma.product.upsert({
-                where: { id: product.id },
+                where: { id: (product as any).id },
                 update: product,
                 create: product
               });
@@ -93,7 +96,7 @@ export default function(prisma: any) {
           } else if (sheetName === 'Ventas') {
             for (const sale of data) {
               await prisma.sale.upsert({
-                where: { id: sale.id },
+                where: { id: (sale as any).id },
                 update: sale,
                 create: sale
               });
@@ -102,7 +105,7 @@ export default function(prisma: any) {
           } else if (sheetName === 'Reservas') {
             for (const reservation of data) {
               await prisma.reservation.upsert({
-                where: { id: reservation.id },
+                where: { id: (reservation as any).id },
                 update: reservation,
                 create: reservation
               });
