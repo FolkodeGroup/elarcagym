@@ -6,7 +6,12 @@ import Toast from '../components/Toast';
 
 const QRManager: React.FC = () => {
   // Simulación: datos de socio y slot para demo QR (en producción, estos vendrían de la UI o selección)
-  const qrUrl = `${window.location.origin}/rutina`;
+  // Forzar IP local en desarrollo para que el QR funcione en la red
+  const LOCAL_IP = '192.168.1.102'; // Cambia si tu IP cambia
+  const qrUrl =
+    process.env.NODE_ENV === 'development'
+      ? `http://${LOCAL_IP}:3000/rutina`
+      : `${window.location.origin}/rutina`;
   const loading = false;
   const error = '';
 

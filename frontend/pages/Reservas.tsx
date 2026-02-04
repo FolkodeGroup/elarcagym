@@ -340,18 +340,96 @@ const Reservas: React.FC = () => {
                               </button>
                             </div>
                                 <div className="flex flex-wrap gap-2">
-                                    {slotRes.map(res => (
-                                        <div key={res.id} className="flex items-center gap-2 bg-black/60 border border-gray-800 px-3 py-1.5 rounded-lg group/item">
-                                            <span className={`text-xs font-bold ${res.attended === false ? 'line-through text-red-500 opacity-50' : 'text-gray-200'}`}>
-                                                {res.clientName}
-                                            </span>
+                                    {slotRes.map(res => {
+                                        // Calcular el estado del turno y si se puede cambiar asistencia
+                                        const slotInfo = slot;
+                                        const slotDateStr = typeof slotInfo.date === 'string' 
+                                          ? slotInfo.date.split('T')[0] 
+                                          : getLocalDateString(new Date(slotInfo.date));
+                                        const slotDateTime = new Date(`${slotDateStr}T${slotInfo.time}`);
+                                        const now = new Date();
+                                        const diffMs = now.getTime() - slotDateTime.getTime();
+                                        const diffHrs = diffMs / (1000 * 60 * 60);
+                                        
+                                        // Estados posibles
+                                        const isExpired = diffHrs > 2; // Más de 2 horas desde el turno
+                                        const hasStarted = diffMs >= 0; // El turno ya empezó
+                                        const canChangeAttendance = hasStarted && !isExpired; // Dentro de la ventana de 2 horas
+                                        
+                                        // Determinar color y tooltip
+                                        let containerClass = 'bg-black/60 border-gray-800';
+                                        let nameClass = 'text-gray-200';
+                                        let tooltip = 'Turno pendiente';
+                                        
+                                        if (res.attended === true) {
+                                          // Asistió - verde
+                                          containerClass = 'bg-green-900/40 border-green-700';
+                                          nameClass = 'text-green-400 font-bold';
+                                          tooltip = 'Asistencia registrada ✓';
+                                        } else if (res.attended === false) {
+                                          // Marcado como no asistió
+                                          containerClass = 'bg-red-900/40 border-red-700';
+                                          nameClass = 'text-red-400 line-through opacity-60';
+                                          tooltip = 'No asistió';
+                                        } else if (isExpired) {
+                                          // Expiró sin registrar asistencia
+                                          containerClass = 'bg-red-900/20 border-red-800/50';
+                                          nameClass = 'text-red-500 font-bold';
+                                          tooltip = 'Ausente: no registró asistencia en las 2 horas';
+                                        }
+                                        
+                                        return (
+                                        <div key={res.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg group/item border ${containerClass}`}>
+                                          <span
+                                            className={`text-xs px-2 py-1 rounded-full ${nameClass}`}
+                                            title={tooltip}
+                                          >
+                                            {res.clientName}
+                                          </span>
                                             <div className="flex items-center gap-1 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                                <button onClick={(e) => { e.stopPropagation(); setEditingReservation(res); setEditFormData({clientName: res.clientName, notes: res.notes || ''}); setShowEditModal(true); }} className="text-gray-500 hover:text-brand-gold"><StickyNote size={12}/></button>
-                                                <button onClick={async (e) => { e.stopPropagation(); await ReservationsAPI.update(res.id, { attended: res.attended === false ? true : false }); loadData(); }} className={res.attended === false ? 'text-green-500' : 'text-red-500'}><UserX size={12}/></button>
-                                                <button onClick={(e) => { e.stopPropagation(); setSelectedReservation(res); setShowDeleteConfirm(true); }} className="text-red-500"><X size={12}/></button>
+                                                <button 
+                                                  title="Editar notas/seguimiento"
+                                                  onClick={(e) => { e.stopPropagation(); setEditingReservation(res); setEditFormData({clientName: res.clientName, notes: res.notes || ''}); setShowEditModal(true); }} 
+                                                  className="text-gray-500 hover:text-brand-gold">
+                                                  <StickyNote size={12}/>
+                                                </button>
+                                                {(canChangeAttendance && res.attended !== true) ? (
+                                                  <button 
+                                                    title={res.attended === true ? 'Marcar como no asistió' : 'Marcar como asistió'}
+                                                    onClick={async (e) => { 
+                                                      e.stopPropagation(); 
+                                                      try {
+                                                        await ReservationsAPI.update(res.id, { attended: res.attended === true ? false : true }); 
+                                                        loadData(); 
+                                                      } catch (err: any) {
+                                                        setToast({ message: err.message || 'Error al cambiar asistencia', type: 'error' });
+                                                      }
+                                                    }} 
+                                                    className={res.attended === true ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'}>
+                                                    {res.attended === true ? <UserX size={12}/> : <UserCheck size={12}/>} 
+                                                  </button>
+                                                ) : (
+                                                  <button 
+                                                    title={
+                                                      res.attended === true
+                                                        ? 'Ya asistió, no se puede marcar como ausente'
+                                                        : (isExpired ? 'No se puede cambiar (más de 2 horas)' : 'El turno aún no comenzó')
+                                                    }
+                                                    className="text-gray-600 cursor-not-allowed opacity-50"
+                                                    disabled>
+                                                    <UserX size={12}/>
+                                                  </button>
+                                                )}
+                                                <button 
+                                                  title="Quitar socio del turno"
+                                                  onClick={(e) => { e.stopPropagation(); setSelectedReservation(res); setShowDeleteConfirm(true); }} 
+                                                  className="text-red-500">
+                                                  <X size={12}/>
+                                                </button>
                                             </div>
                                         </div>
-                                    ))}
+                                      );
+                                    })}
                                 </div>
                             </div>
                         ) : (
@@ -372,8 +450,10 @@ const Reservas: React.FC = () => {
       {/* MODAL: ADMINISTRAR CUPO */}
       {showQuickAdd && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-          <div className="absolute inset-0" onClick={() => setShowQuickAdd(false)} />
-          <div className="bg-[#0f0f0f] w-full max-w-lg rounded-2xl border border-gray-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+          {/* Overlay detrás del modal */}
+          <div className="absolute inset-0 z-0" onClick={() => setShowQuickAdd(false)} />
+          {/* Modal principal delante */}
+          <div className="bg-[#0f0f0f] w-full max-w-lg rounded-2xl border border-gray-800 shadow-2xl overflow-hidden z-10" onClick={e => e.stopPropagation()}>
             <div className="h-1.5 bg-brand-gold w-full"></div>
             <div className="p-6">
                 <div className="flex justify-between items-start mb-6">

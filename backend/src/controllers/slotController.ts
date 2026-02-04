@@ -80,9 +80,11 @@ export default function(prisma: any) {
   router.post('/', async (req, res) => {
     try {
       const { date, time, duration, status, target, color } = req.body;
+      // Convertir la fecha y hora a formato ISO con zona horaria local
+      const localDateTime = `${date}T${time}:00-03:00`;
       const slot = await prisma.slot.create({
         data: {
-          date: new Date(date),
+          date: localDateTime,
           time,
           duration: duration || 60,
           status: status || 'available',
@@ -103,12 +105,16 @@ export default function(prisma: any) {
   router.put('/:id', async (req, res) => {
     try {
       const { date, ...rest } = req.body;
+      // Convertir la fecha y hora a formato ISO con zona horaria local si se actualiza
+      let updateData = { ...rest };
+      if (date && rest.time) {
+        updateData.date = `${date}T${rest.time}:00-03:00`;
+      } else if (date) {
+        updateData.date = `${date}T00:00:00-03:00`;
+      }
       const slot = await prisma.slot.update({
         where: { id: req.params.id },
-        data: {
-          ...rest,
-          date: date ? new Date(date) : undefined
-        },
+        data: updateData,
         include: {
           reservations: {
             include: {
