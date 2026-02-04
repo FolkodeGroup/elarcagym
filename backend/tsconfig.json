@@ -2,7 +2,7 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    "rootDir": ".",
+    "rootDir": "./src",
     "outDir": "./dist",
     
 
@@ -44,6 +44,6 @@
     "skipLibCheck": true,
     "moduleResolution": "node"
   },
-  "exclude": ["src/generated"],
-  "include": ["src", "src/prisma.config.ts", "scripts"]
+  "exclude": ["src/generated", "node_modules", "dist", "scripts"],
+  "include": ["src", "src/prisma.config.ts"]
 }
