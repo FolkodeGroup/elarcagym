@@ -1,35 +1,39 @@
 import express from 'express';
-import { 
-  getNotifications, 
-  getUnreadCount, 
-  markAsRead, 
-  markAllAsRead,
-  createNotification,
-  deleteNotification
-} from '../controllers/notificationController.js';
+import notificationController from '../controllers/notificationController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
-const router = express.Router();
+export default function notificationRoutes(prisma: any) {
+  const {
+    getNotifications,
+    getUnreadCount,
+    markAsRead,
+    markAllAsRead,
+    createNotification,
+    deleteNotification
+  } = notificationController(prisma);
 
-// Todas las rutas requieren autenticación
-router.use(authenticateToken);
+  const router = express.Router();
 
-// Obtener todas las notificaciones del usuario
-router.get('/', getNotifications);
+  // Todas las rutas requieren autenticación
+  router.use(authenticateToken);
 
-// Obtener contador de no leídas
-router.get('/unread-count', getUnreadCount);
+  // Obtener todas las notificaciones del usuario
+  router.get('/', getNotifications);
 
-// Marcar todas como leídas
-router.put('/mark-all-read', markAllAsRead);
+  // Obtener contador de no leídas
+  router.get('/unread-count', getUnreadCount);
 
-// Marcar una como leída
-router.put('/:id/read', markAsRead);
+  // Marcar todas como leídas
+  router.put('/mark-all-read', markAllAsRead);
 
-// Crear notificación (solo para admins, puedes agregar middleware de admin si quieres)
-router.post('/', createNotification);
+  // Marcar una como leída
+  router.put('/:id/read', markAsRead);
 
-// Eliminar notificación
-router.delete('/:id', deleteNotification);
+  // Crear notificación (solo para admins, puedes agregar middleware de admin si quieres)
+  router.post('/', createNotification);
 
-export default router;
+  // Eliminar notificación
+  router.delete('/:id', deleteNotification);
+
+  return router;
+}

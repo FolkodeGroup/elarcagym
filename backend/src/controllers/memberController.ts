@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sendEmail } from '../utils/sendEmail';
+import { sendNotificationToAdmins } from '../utils/notificationService.js';
 
 export default function(prisma: any) {
   const router = Router();
@@ -102,6 +102,7 @@ export default function(prisma: any) {
       if (existingDni) {
         return res.status(409).json({ error: 'El DNI ya está registrado.' });
       }
+
       const member = await prisma.member.create({
         data: {
           ...memberData,
@@ -120,6 +121,18 @@ export default function(prisma: any) {
           payments: true
         }
       });
+
+      // Notificar a los administradores
+      try {
+        await sendNotificationToAdmins({
+          title: 'Nuevo socio registrado',
+          message: `${member.firstName} ${member.lastName} se ha registrado`,
+          type: 'success',
+          link: 'members'
+        });
+      } catch (err) {
+        console.error('Error enviando notificación a admins:', err);
+      }
 
       // Notificar a la administradora Veronica
       // try {
