@@ -73,13 +73,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   // Obtener turnos de hoy con reservaciones
   const getTodaySlots = () => {
+    const TIME_ZONE = 'America/Argentina/Buenos_Aires';
     const now = new Date();
-    const todayLocal = getLocalDateString(now);
-    
+    const nowLocal = new Date(now.toLocaleString('en-US', { timeZone: TIME_ZONE }));
+    const todayLocal = getLocalDateString(nowLocal);
+
     return slots
       .filter(s => {
         const slotDate = typeof s.date === 'string' ? s.date.split('T')[0] : getLocalDateString(new Date(s.date));
-        return slotDate === todayLocal;
+        if (slotDate !== todayLocal) return false;
+        // Calcular si el slot sigue vigente (no vencido)
+        const slotTime = s.time.length === 5 ? `${s.time}:00` : s.time;
+        const slotDateTime = new Date(`${slotDate}T${slotTime}`);
+        const slotDateTimeLocal = new Date(slotDateTime.toLocaleString('en-US', { timeZone: TIME_ZONE }));
+        const diffMs = nowLocal.getTime() - slotDateTimeLocal.getTime();
+        // Mostrar si no han pasado más de 2 horas desde el horario reservado
+        return diffMs <= 2 * 60 * 60 * 1000;
       })
       .filter(s => reservations.some(r => r.slotId === s.id))
       .sort((a, b) => a.time.localeCompare(b.time));
