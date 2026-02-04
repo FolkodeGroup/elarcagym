@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sendEmail } from '../utils/sendEmail';
+import { sendNotificationToAdmins } from '../utils/notificationService.js';
 
 export default function(prisma: any) {
   const router = Router();
@@ -102,6 +102,7 @@ export default function(prisma: any) {
       if (existingDni) {
         return res.status(409).json({ error: 'El DNI ya está registrado.' });
       }
+
       const member = await prisma.member.create({
         data: {
           ...memberData,
@@ -121,16 +122,28 @@ export default function(prisma: any) {
         }
       });
 
-      // Notificar a la administradora Veronica
+      // Notificar a los administradores
       try {
-        await sendEmail({
-          to: 'veronica@elarcagym.com',
-          subject: 'Nuevo socio registrado',
-          text: `Se ha registrado un nuevo socio:\nNombre: ${member.firstName} ${member.lastName}\nDNI: ${member.dni}`
+        await sendNotificationToAdmins({
+          title: 'Nuevo socio registrado',
+          message: `${member.firstName} ${member.lastName} se ha registrado`,
+          type: 'success',
+          link: 'members'
         });
       } catch (err) {
-        console.error('Error enviando email a Veronica:', err);
+        console.error('Error enviando notificación a admins:', err);
       }
+
+      // Notificar a la administradora Veronica
+      // try {
+      //   await sendEmail({
+      //     to: 'veronica@elarcagym.com',
+      //     subject: 'Nuevo socio registrado',
+      //     text: `Se ha registrado un nuevo socio:\nNombre: ${member.firstName} ${member.lastName}\nDNI: ${member.dni}`
+      //   });
+      // } catch (err) {
+      //   console.error('Error enviando email a Veronica:', err);
+      // }
 
       res.status(201).json(member);
     } catch (e) {
