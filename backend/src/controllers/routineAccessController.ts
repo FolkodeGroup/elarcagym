@@ -160,10 +160,17 @@ export default function(prisma: any) {
       console.log('[SELFSERVICE] Reservas del socio:', allReservations.length);
       
       // Filtrar reservas de hoy
-      const todayReservations = allReservations.filter((r: ReservationWithSlot) => {
-        const slotDate = new Date(r.slot.date);
-        return slotDate >= startOfDay && slotDate <= endOfDay;
-      });
+        // Filtrar reservas cuyo slot corresponde al día local de Buenos Aires
+        const todayReservations = allReservations.filter((r: ReservationWithSlot) => {
+          // Convertir slot.date a la zona de Buenos Aires
+          const slotDateLocal = toZonedTime(new Date(r.slot.date), TIME_ZONE);
+          const nowLocal = toZonedTime(now, TIME_ZONE);
+          return (
+            slotDateLocal.getFullYear() === nowLocal.getFullYear() &&
+            slotDateLocal.getMonth() === nowLocal.getMonth() &&
+            slotDateLocal.getDate() === nowLocal.getDate()
+          );
+        });
       
       console.log('[SELFSERVICE] Reservas de hoy:', todayReservations.length);
 
