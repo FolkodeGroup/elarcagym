@@ -122,15 +122,15 @@ export default function(prisma: any) {
       });
 
       // Notificar a la administradora Veronica
-      try {
-        await sendEmail({
-          to: 'veronica@elarcagym.com',
-          subject: 'Nuevo socio registrado',
-          text: `Se ha registrado un nuevo socio:\nNombre: ${member.firstName} ${member.lastName}\nDNI: ${member.dni}`
-        });
-      } catch (err) {
-        console.error('Error enviando email a Veronica:', err);
-      }
+      // try {
+      //   await sendEmail({
+      //     to: 'veronica@elarcagym.com',
+      //     subject: 'Nuevo socio registrado',
+      //     text: `Se ha registrado un nuevo socio:\nNombre: ${member.firstName} ${member.lastName}\nDNI: ${member.dni}`
+      //   });
+      // } catch (err) {
+      //   console.error('Error enviando email a Veronica:', err);
+      // }
 
       res.status(201).json(member);
     } catch (e) {
