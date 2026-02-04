@@ -4,13 +4,14 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
+    "build": "npx prisma generate && tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "seed": "tsx src/seed.ts",
     "seed:users": "tsx src/seed-users.ts",
-    "db:migrate": "npx prisma migrate dev",
-    "db:generate": "npx prisma generate"
+    "db:migrate": "npx prisma migrate deploy",
+    "db:generate": "npx prisma generate",
+    "postinstall": "npx prisma generate"
   },
   "keywords": [],
   "author": "",
@@ -38,6 +39,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
     "@types/node": "^25.2.0",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
