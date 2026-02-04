@@ -126,7 +126,7 @@ app.use('/config', authenticateToken, configController(prisma));
 app.use('/notifications', notificationRoutes(prisma));
 
 const PORT = process.env.PORT || 4000;
-httpServer.listen(PORT, () => {
-  console.log(`Servidor backend corriendo en puerto ${PORT}`);
+httpServer.listen({ port: PORT, host: '0.0.0.0' }, () => {
+  console.log(`Servidor backend corriendo en puerto ${PORT} (0.0.0.0)`);
   console.log(`WebSocket de notificaciones activo`);
 });
