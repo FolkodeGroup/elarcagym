@@ -1,8 +1,17 @@
-import { PrismaClient } from '../generated/prisma/client/client.js';
-import { PrismaPg } from '@prisma/adapter-pg';
+// Usar la instancia global de Prisma en lugar de crear una nueva
+// La instancia se establece desde index.ts
+let prismaInstance: any = null;
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+export function setPrismaInstance(prisma: any) {
+  prismaInstance = prisma;
+}
+
+function getPrisma() {
+  if (!prismaInstance) {
+    throw new Error('Prisma instance not initialized. Call setPrismaInstance first.');
+  }
+  return prismaInstance;
+}
 
 interface NotificationData {
   userId: string;
@@ -19,6 +28,8 @@ interface NotificationData {
  */
 export async function sendNotification(data: NotificationData) {
   try {
+    const prisma = getPrisma();
+    
     // Crear notificación en la base de datos
     const notification = await prisma.notification.create({
       data: {
@@ -58,6 +69,8 @@ export async function sendNotificationToMany(userIds: string[], data: Omit<Notif
  */
 export async function sendNotificationToAdmins(data: Omit<NotificationData, 'userId'>) {
   try {
+    const prisma = getPrisma();
+    
     const admins = await prisma.user.findMany({
       where: { role: 'ADMIN', isActive: true },
       select: { id: true },

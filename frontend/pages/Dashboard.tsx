@@ -14,6 +14,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
 
+import { showNativeNotification } from '../services/nativeNotification';
+
 interface DashboardProps {
   onNavigate: (page: string, filter?: string) => void;
 }
@@ -52,11 +54,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     loadData();
   }, []);
 
+    // const handleTestNotification = () => {
+    //   showNativeNotification('¡Notificación nativa!', {
+    //     body: 'Esto es una prueba de notificación nativa.',
+    //     icon: '/public/favicon_io/favicon.ico',
+    //   });
+    // };
+
   // Usar lógica consistente con Members.tsx
   const activeMembers = members.filter(m => m.status === UserStatus.ACTIVE).length;
   const currentMembers = members.filter(m => m.status === UserStatus.ACTIVE && isCurrentOnPayment(m)).length;
   // Morosos = Activos - Al Día
   const debtors = activeMembers - currentMembers;
+
+  // ...existing code...
+
+
 
   // Obtener turnos de hoy con reservaciones
   const getTodaySlots = () => {
