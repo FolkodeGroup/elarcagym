@@ -393,7 +393,7 @@ const Reservas: React.FC = () => {
                                                   className="text-gray-500 hover:text-brand-gold">
                                                   <StickyNote size={12}/>
                                                 </button>
-                                                {canChangeAttendance ? (
+                                                {(canChangeAttendance && res.attended !== true) ? (
                                                   <button 
                                                     title={res.attended === true ? 'Marcar como no asistió' : 'Marcar como asistió'}
                                                     onClick={async (e) => { 
@@ -406,11 +406,15 @@ const Reservas: React.FC = () => {
                                                       }
                                                     }} 
                                                     className={res.attended === true ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'}>
-                                                    {res.attended === true ? <UserX size={12}/> : <UserCheck size={12}/>}
+                                                    {res.attended === true ? <UserX size={12}/> : <UserCheck size={12}/>} 
                                                   </button>
                                                 ) : (
                                                   <button 
-                                                    title={isExpired ? 'No se puede cambiar (más de 2 horas)' : 'El turno aún no comenzó'}
+                                                    title={
+                                                      res.attended === true
+                                                        ? 'Ya asistió, no se puede marcar como ausente'
+                                                        : (isExpired ? 'No se puede cambiar (más de 2 horas)' : 'El turno aún no comenzó')
+                                                    }
                                                     className="text-gray-600 cursor-not-allowed opacity-50"
                                                     disabled>
                                                     <UserX size={12}/>
