@@ -110,15 +110,40 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   // Obtener ausencias SOLO del día de la fecha
   const getRecentAbsences = () => {
+    // Usar zona horaria Buenos Aires
+    const TIME_ZONE = 'America/Argentina/Buenos_Aires';
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    // Convertir a la zona local
+    const nowLocal = new Date(
+      now.toLocaleString('en-US', { timeZone: TIME_ZONE })
+    );
+    const todayLocalStr = nowLocal.toISOString().slice(0, 10);
+
     return reservations.filter(r => {
-      if (r.attended !== false || !r.slotId) return false;
+      // Mostrar como ausente si NO tiene attended:true (incluye null, undefined, false)
+      if (r.attended === true || !r.slotId) return false;
       const slot = slots.find(s => s.id === r.slotId);
       if (!slot) return false;
-      const slotDate = new Date(slot.date);
-      const slotDateStr = slotDate.toISOString().slice(0, 10);
-      return slotDateStr === todayStr;
+      // Convertir slot.date a la zona de Buenos Aires
+      const slotDateLocal = new Date(
+        new Date(slot.date).toLocaleString('en-US', { timeZone: TIME_ZONE })
+      );
+      const slotDateStr = slotDateLocal.toISOString().slice(0, 10);
+      // Solo turnos del día local
+      if (slotDateStr !== todayLocalStr) return false;
+      // Calcular si el turno ya expiró (más de 2 horas desde el horario reservado)
+      // slot.time puede ser HH:mm o HH:mm:ss
+      const slotTime = slot.time.length === 5 ? `${slot.time}:00` : slot.time;
+      const slotDateTime = new Date(
+        `${slotDateStr}T${slotTime}`
+      );
+      const slotDateTimeLocal = new Date(
+        slotDateTime.toLocaleString('en-US', { timeZone: TIME_ZONE })
+      );
+      const diffMs = nowLocal.getTime() - slotDateTimeLocal.getTime();
+      const diffHrs = diffMs / (1000 * 60 * 60);
+      // Mostrar como ausente si pasaron más de 2 horas y no tiene attended:true
+      return diffHrs > 2;
     }).sort((a, b) => {
       const slotA = slots.find(s => s.id === a.slotId);
       const slotB = slots.find(s => s.id === b.slotId);
