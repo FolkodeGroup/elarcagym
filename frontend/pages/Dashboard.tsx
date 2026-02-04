@@ -108,15 +108,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     onNavigate('Ingresos');
   };
 
-  // Obtener ausencias recientes (últimos 7 días)
+  // Obtener ausencias SOLO del día de la fecha
   const getRecentAbsences = () => {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
     return reservations.filter(r => {
       if (r.attended !== false || !r.slotId) return false;
       const slot = slots.find(s => s.id === r.slotId);
       if (!slot) return false;
       const slotDate = new Date(slot.date);
-      return slotDate >= sevenDaysAgo;
+      const slotDateStr = slotDate.toISOString().slice(0, 10);
+      return slotDateStr === todayStr;
     }).sort((a, b) => {
       const slotA = slots.find(s => s.id === a.slotId);
       const slotB = slots.find(s => s.id === b.slotId);
@@ -125,7 +127,39 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     });
   };
 
-  const ausenciasRecientes = getRecentAbsences();
+  // Estado local para ausencias mostradas
+  const [ausenciasMostradas, setAusenciasMostradas] = useState<Reservation[]>([]);
+  // Para resetear la lista al final del día
+  useEffect(() => {
+    const now = new Date();
+    const resetHour = 23;
+    const resetMinute = 0;
+    const resetSecond = 0;
+    const nextReset = new Date(now.getFullYear(), now.getMonth(), now.getDate(), resetHour, resetMinute, resetSecond, 0);
+    if (now > nextReset) {
+      // Si ya pasó la hora de reset, programar para el día siguiente
+      nextReset.setDate(nextReset.getDate() + 1);
+    }
+    const timeout = setTimeout(() => {
+      setAusenciasMostradas(getRecentAbsencesFiltered());
+    }, nextReset.getTime() - now.getTime());
+    return () => clearTimeout(timeout);
+  }, [reservations, slots]);
+
+  // Filtrar ausencias para no mostrar después de las 23hs
+  const getRecentAbsencesFiltered = () => {
+    const ausencias = getRecentAbsences();
+    const now = new Date();
+    if (now.getHours() >= 23) {
+      return [];
+    }
+    return ausencias;
+  };
+
+  // Inicializar ausencias mostradas al cargar
+  useEffect(() => {
+    setAusenciasMostradas(getRecentAbsencesFiltered());
+  }, [reservations, slots]);
   
   return (
     <div className="space-y-6">
@@ -246,18 +280,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               No Asistieron
             </h3>
             <span className="text-xs bg-red-500/20 border border-red-500/40 px-2 py-1 rounded text-red-400 font-bold">
-              {ausenciasRecientes.length}
+              {ausenciasMostradas.length}
             </span>
           </div>
           <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
-            {ausenciasRecientes.length === 0 ? (
+            {ausenciasMostradas.length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-8">Sin ausencias registradas</p>
             ) : (
-              ausenciasRecientes.map(r => {
+              ausenciasMostradas.map(r => {
                 const slot = slots.find(s => s.id === r.slotId);
                 const socio = members.find(m => m.id === r.memberId);
                 const phone = socio?.phone || '';
-                
                 return (
                   <div key={r.id} className="bg-black/40 p-3 rounded border border-red-700/50 hover:border-red-600 transition flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -270,33 +303,41 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                       )}
                       {phone && <p className="text-xs text-gray-500 mt-0.5">📱 {phone}</p>}
                     </div>
-                    {phone && (
+                    <div className="flex flex-col gap-1">
+                      {phone && (
+                        <button
+                          className="px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
+                          title="Enviar mensaje por WhatsApp y eliminar"
+                          onClick={() => {
+                            // Normalizar número para WhatsApp
+                            let wpp = phone.replace(/\D/g, '');
+                            if (wpp.startsWith('549')) {
+                              // Ya está correcto
+                            } else if (wpp.startsWith('54')) {
+                              wpp = '549' + wpp.substring(2);
+                            } else if (wpp.startsWith('0')) {
+                              wpp = '549' + wpp.substring(1);
+                            } else {
+                              wpp = '549' + wpp;
+                            }
+                            const memberName = r.clientName.split(' ')[0];
+                            const slotInfo = slot ? `${new Date(slot.date).toLocaleDateString('es-AR')} a las ${slot.time}` : 'tu turno';
+                            const message = `Hola ${memberName}, notamos que no pudiste asistir a ${slotInfo}. ¿Todo bien? ¿Te gustaría reagendar?`;
+                            window.open(`https://wa.me/${wpp}?text=${encodeURIComponent(message)}`, '_blank');
+                            setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id));
+                          }}
+                        >
+                          💬 WhatsApp y eliminar
+                        </button>
+                      )}
                       <button
-                        className="px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
-                        title="Enviar mensaje por WhatsApp"
-                        onClick={() => {
-                          // Normalizar número para WhatsApp
-                          let wpp = phone.replace(/\D/g, '');
-                          if (wpp.startsWith('549')) {
-                            // Ya está correcto
-                          } else if (wpp.startsWith('54')) {
-                            wpp = '549' + wpp.substring(2);
-                          } else if (wpp.startsWith('0')) {
-                            wpp = '549' + wpp.substring(1);
-                          } else {
-                            wpp = '549' + wpp;
-                          }
-                          
-                          const memberName = r.clientName.split(' ')[0];
-                          const slotInfo = slot ? `${new Date(slot.date).toLocaleDateString('es-AR')} a las ${slot.time}` : 'tu turno';
-                          const message = `Hola ${memberName}, notamos que no pudiste asistir a ${slotInfo}. ¿Todo bien? ¿Te gustaría reagendar?`;
-                          
-                          window.open(`https://wa.me/${wpp}?text=${encodeURIComponent(message)}`, '_blank');
-                        }}
+                        className="px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
+                        title="Eliminar de la lista"
+                        onClick={() => setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id))}
                       >
-                        💬 WhatsApp
+                        🗑 Eliminar
                       </button>
-                    )}
+                    </div>
                   </div>
                 );
               })
