@@ -26,6 +26,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import { authenticateToken, requireAdmin, requirePermission } from './middleware/auth.js';
 import routineTokenController from './controllers/routineTokenController.js';
 import routineAccessController from './controllers/routineAccessController.js';
+import { setPrismaInstance } from './utils/notificationService.js';
 
 
 
@@ -41,6 +42,9 @@ const io = new SocketIOServer(httpServer, {
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
+
+// Inicializar la instancia de Prisma para el servicio de notificaciones
+setPrismaInstance(prisma);
 
 // Configurar Socket.io para notificaciones en tiempo real
 io.on('connection', (socket) => {
@@ -119,7 +123,7 @@ app.use('/reminders', authenticateToken, reminderController(prisma));
 app.use('/slots', authenticateToken, slotController(prisma));
 app.use('/exercises', authenticateToken, exerciseMasterController(prisma));
 app.use('/config', authenticateToken, configController(prisma));
-app.use('/notifications', notificationRoutes);
+app.use('/notifications', notificationRoutes(prisma));
 
 const PORT = process.env.PORT || 4000;
 httpServer.listen(PORT, () => {
