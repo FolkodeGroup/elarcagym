@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { showNativeNotification } from '../services/nativeNotification';
 import { Bell, X, Check, CheckCheck, Trash2 } from 'lucide-react';
 import { type Notification as NotificationData, NotificationsAPI } from '../services/api';
 import { io, Socket } from 'socket.io-client';
@@ -65,13 +66,11 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
       setNotifications(prev => [notification, ...prev]);
       setUnreadCount(prev => prev + 1);
       
-      // Mostrar notificación del navegador si está permitido
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(notification.title, {
-          body: notification.message,
-          icon: '/favicon.ico',
-        });
-      }
+      // Mostrar notificación nativa usando la función utilitaria
+      showNativeNotification(notification.title, {
+        body: notification.message,
+        icon: '/favicon_io/favicon.ico',
+      });
     });
 
     socket.on('disconnect', () => {
