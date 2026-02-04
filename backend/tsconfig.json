@@ -1,7 +1,6 @@
 {
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
-    "verbatimModuleSyntax": true,
     // File Layout
     "rootDir": ".",
     "outDir": "./dist",
@@ -12,6 +11,8 @@
     "module": "commonjs",
     "target": "esnext",
     "types": ["node"],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
@@ -40,7 +41,8 @@
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "moduleResolution": "node"
   },
   "exclude": ["src/generated"],
   "include": ["src", "src/prisma.config.ts", "scripts"]
