@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { verifyRoutineToken } from '../utils/routineToken.js';
-import { isWithinGymRadius } from '../config/gymLocation.js';
+const { isWithinGymRadius } = require('../config/gymLocation');
 
 export default function(prisma: any) {
   const router = Router();
