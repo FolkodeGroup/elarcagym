@@ -557,8 +557,14 @@ const UsersManagement: React.FC = () => {
 
       {/* Modal: Gestionar Permisos */}
       {showPermissionsModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1a1a1a] max-w-2xl w-full rounded-xl border border-gray-700 overflow-hidden">
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowPermissionsModal(false)}
+        >
+          <div
+            className="bg-[#1a1a1a] max-w-2xl w-full rounded-xl border border-gray-700 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="bg-gradient-to-r from-purple-600 to-purple-500 p-4">
               <h2 className="text-xl font-bold text-white">Permisos de {selectedUser.firstName}</h2>
               <p className="text-purple-200 text-sm">Selecciona los permisos que tendrá este usuario</p>
