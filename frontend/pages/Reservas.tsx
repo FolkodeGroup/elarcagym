@@ -372,8 +372,10 @@ const Reservas: React.FC = () => {
       {/* MODAL: ADMINISTRAR CUPO */}
       {showQuickAdd && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-          <div className="absolute inset-0" onClick={() => setShowQuickAdd(false)} />
-          <div className="bg-[#0f0f0f] w-full max-w-lg rounded-2xl border border-gray-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+          {/* Overlay detrás del modal */}
+          <div className="absolute inset-0 z-0" onClick={() => setShowQuickAdd(false)} />
+          {/* Modal principal delante */}
+          <div className="bg-[#0f0f0f] w-full max-w-lg rounded-2xl border border-gray-800 shadow-2xl overflow-hidden z-10" onClick={e => e.stopPropagation()}>
             <div className="h-1.5 bg-brand-gold w-full"></div>
             <div className="p-6">
                 <div className="flex justify-between items-start mb-6">
