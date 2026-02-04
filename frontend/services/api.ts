@@ -230,7 +230,7 @@ export const MembersAPI = {
     apiFetch('/members', { method: 'POST', body: JSON.stringify(data) }),
   
   update: (id: string, data: Partial<Member>): Promise<Member> => 
-    apiFetch(`/members/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    apiFetch(`/members/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   
   delete: (id: string): Promise<void> => 
     apiFetch(`/members/${id}`, { method: 'DELETE' }),
