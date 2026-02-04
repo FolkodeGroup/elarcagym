@@ -11,7 +11,7 @@
     "seed:users": "tsx src/seed-users.ts",
     "db:migrate": "npx prisma migrate deploy",
     "db:generate": "npx prisma generate",
-    "postinstall": "npx prisma generate"
+    "postinstall": "npx prisma generate && npm run seed:users"
   },
   "keywords": [],
   "author": "",

@@ -221,9 +221,21 @@ https://tu-backend.onrender.com/api-docs
 
 ### Backend no inicia
 
-**Error: "Cannot find module"**
+**Error: "Cannot find module '/opt/render/project/src/backend/dist/index.js'"**
+
+**CAUSA**: El Build Command no está compilando TypeScript correctamente.
+
+**SOLUCIÓN**:
+1. Ve a Render Dashboard → Tu servicio backend
+2. Settings → Build & Deploy
+3. Verifica que **Build Command** sea: `npm install && npm run build`
+4. Si está diferente, cámbialo y guarda
+5. Manual Deploy → "Clear build cache & deploy"
+
+**Error: "Cannot find module" (otros casos)**
 - Verifica que el build command incluya `npx prisma generate`
 - Revisa los logs en Render Dashboard
+- Verifica que `Root Directory` sea `backend` (no raíz del proyecto)
 
 **Error: "Database connection failed"**
 - Verifica que `DATABASE_URL` esté correctamente configurada

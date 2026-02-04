@@ -39,8 +39,8 @@ git push origin deployment
    - Region: **Oregon (US West)**
    - Branch: `deployment`
    - Root Directory: `backend`
-   - Build: `npm install && npm run build`
-   - Start: `npm start`
+   - **Build Command**: `npm install && npm run build` ⚠️ IMPORTANTE
+   - **Start Command**: `npm start`
    - Plan: **Free**
 
 4. **Variables de Entorno**:
@@ -121,6 +121,16 @@ Abre: `https://tu-app.vercel.app`
 
 ## 🆘 Problemas?
 
+### Error: "Cannot find module '/opt/render/project/src/backend/dist/index.js'"
+**Causa**: El Build Command no compiló TypeScript.
+
+**Solución**:
+1. Ve a Render → Tu servicio → Settings → Build & Deploy
+2. Cambia **Build Command** a: `npm install && npm run build`
+3. Click "Save Changes"
+4. Manual Deploy → "Clear build cache & deploy"
+
+### Otros problemas comunes:
 1. Backend no inicia → Revisa logs en Render
 2. Frontend no conecta → Verifica `VITE_API_URL` y `FRONTEND_URL`
 3. CORS error → Verifica que las URLs coincidan exactamente

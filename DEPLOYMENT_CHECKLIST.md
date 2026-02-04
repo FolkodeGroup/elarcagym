@@ -36,8 +36,8 @@ Usa este checklist para desplegar tu app en Render + Vercel.
    - Branch: `deployment` (o tu rama principal)
    - Root Directory: `backend`
    - Runtime: Node
-   - Build Command: `npm install && npm run build`
-   - Start Command: `npm start`
+   - **Build Command**: `npm install && npm run build` ⚠️ **CRÍTICO - No olvides esto**
+   - **Start Command**: `npm start`
    - Plan: **Free**
 
 5. [ ] **Configura Variables de Entorno** (Click "Advanced"):
