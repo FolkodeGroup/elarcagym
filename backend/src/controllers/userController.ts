@@ -463,10 +463,13 @@ export default function(prisma: any) {
    *     summary: Actualizar permisos de un usuario
    *     tags: [Users]
    */
-  router.put('/:id/permissions', async (req: any, res) => {
+  router.put('/:id/permissions', authenticateToken, async (req: any, res) => {
     try {
       const { id } = req.params;
       const { permissions } = req.body; // Array de códigos de permisos
+
+      // LOG PARA DEPURAR
+      console.log('Usuario autenticado en permisos:', req.user);
 
       // Solo admin puede modificar permisos
       if (req.user?.role !== 'ADMIN') {
