@@ -346,9 +346,24 @@ const Reservas: React.FC = () => {
                                                 {res.clientName}
                                             </span>
                                             <div className="flex items-center gap-1 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                                <button onClick={(e) => { e.stopPropagation(); setEditingReservation(res); setEditFormData({clientName: res.clientName, notes: res.notes || ''}); setShowEditModal(true); }} className="text-gray-500 hover:text-brand-gold"><StickyNote size={12}/></button>
-                                                <button onClick={async (e) => { e.stopPropagation(); await ReservationsAPI.update(res.id, { attended: res.attended === false ? true : false }); loadData(); }} className={res.attended === false ? 'text-green-500' : 'text-red-500'}><UserX size={12}/></button>
-                                                <button onClick={(e) => { e.stopPropagation(); setSelectedReservation(res); setShowDeleteConfirm(true); }} className="text-red-500"><X size={12}/></button>
+                                                <button 
+                                                  title="Editar notas/seguimiento"
+                                                  onClick={(e) => { e.stopPropagation(); setEditingReservation(res); setEditFormData({clientName: res.clientName, notes: res.notes || ''}); setShowEditModal(true); }} 
+                                                  className="text-gray-500 hover:text-brand-gold">
+                                                  <StickyNote size={12}/>
+                                                </button>
+                                                <button 
+                                                  title={res.attended === false ? 'Marcar como asistió' : 'Marcar como no asistió'}
+                                                  onClick={async (e) => { e.stopPropagation(); await ReservationsAPI.update(res.id, { attended: res.attended === false ? true : false }); loadData(); }} 
+                                                  className={res.attended === false ? 'text-green-500' : 'text-red-500'}>
+                                                  <UserX size={12}/>
+                                                </button>
+                                                <button 
+                                                  title="Quitar socio del turno"
+                                                  onClick={(e) => { e.stopPropagation(); setSelectedReservation(res); setShowDeleteConfirm(true); }} 
+                                                  className="text-red-500">
+                                                  <X size={12}/>
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
