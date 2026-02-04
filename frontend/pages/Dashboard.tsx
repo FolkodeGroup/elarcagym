@@ -294,7 +294,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     {slot.target && <p className="text-xs text-gray-400 mt-0.5">📌 {slot.target}</p>}
                     <div className="mt-2 flex flex-wrap gap-1">
                       {slotReservations.map(r => (
-                        <span key={r.id} className="text-xs bg-brand-gold/20 border border-brand-gold/40 px-2 py-1 rounded text-brand-gold truncate max-w-32">
+                        <span
+                          key={r.id}
+                          className={`text-xs px-2 py-1 rounded truncate max-w-32 border font-bold
+                            ${r.attended === true
+                              ? 'bg-green-500/30 text-green-700 border-green-400'
+                              : 'bg-brand-gold/20 text-brand-gold border-brand-gold/40'}
+                          `}
+                        >
                           {r.clientName}
                         </span>
                       ))}
