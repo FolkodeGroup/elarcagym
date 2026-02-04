@@ -1,5 +1,5 @@
 // Configuración de la ubicación del gimnasio
-const GYM_LOCATION = {
+export const GYM_LOCATION = {
   // Coordenadas del gimnasio El Arca
   latitude: -34.76058070354081,  // Ajustar con coordenadas reales
   longitude: -58.345231758538894, // Ajustar con coordenadas reales
@@ -14,7 +14,7 @@ const GYM_LOCATION = {
  * @param lon2 Longitud del punto 2
  * @returns Distancia en metros
  */
-function calculateDistance(
+export function calculateDistance(
   lat1: number,
   lon1: number,
   lat2: number,
@@ -40,7 +40,7 @@ function calculateDistance(
  * @param userLon Longitud del usuario
  * @returns true si el usuario está dentro del radio, false si no
  */
-function isWithinGymRadius(userLat: number, userLon: number): boolean {
+export function isWithinGymRadius(userLat: number, userLon: number): boolean {
   const distance = calculateDistance(
     GYM_LOCATION.latitude,
     GYM_LOCATION.longitude,
@@ -50,10 +50,4 @@ function isWithinGymRadius(userLat: number, userLon: number): boolean {
   console.log(`[GEOLOCATION] Distancia al gimnasio: ${distance.toFixed(2)} metros`);
   return distance <= GYM_LOCATION.radiusMeters;
 }
-
-module.exports = {
-  GYM_LOCATION,
-  calculateDistance,
-  isWithinGymRadius
-};
 
