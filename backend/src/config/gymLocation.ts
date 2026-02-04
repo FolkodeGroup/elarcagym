@@ -50,3 +50,4 @@ export function isWithinGymRadius(userLat: number, userLon: number): boolean {
   console.log(`[GEOLOCATION] Distancia al gimnasio: ${distance.toFixed(2)} metros`);
   return distance <= GYM_LOCATION.radiusMeters;
 }
+

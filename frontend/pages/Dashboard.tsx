@@ -73,13 +73,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   // Obtener turnos de hoy con reservaciones
   const getTodaySlots = () => {
+    const TIME_ZONE = 'America/Argentina/Buenos_Aires';
     const now = new Date();
-    const todayLocal = getLocalDateString(now);
-    
+    const nowLocal = new Date(now.toLocaleString('en-US', { timeZone: TIME_ZONE }));
+    const todayLocal = getLocalDateString(nowLocal);
+
     return slots
       .filter(s => {
         const slotDate = typeof s.date === 'string' ? s.date.split('T')[0] : getLocalDateString(new Date(s.date));
-        return slotDate === todayLocal;
+        if (slotDate !== todayLocal) return false;
+        // Calcular si el slot sigue vigente (no vencido)
+        const slotTime = s.time.length === 5 ? `${s.time}:00` : s.time;
+        const slotDateTime = new Date(`${slotDate}T${slotTime}`);
+        const slotDateTimeLocal = new Date(slotDateTime.toLocaleString('en-US', { timeZone: TIME_ZONE }));
+        const diffMs = nowLocal.getTime() - slotDateTimeLocal.getTime();
+        // Mostrar si no han pasado más de 2 horas desde el horario reservado
+        return diffMs <= 2 * 60 * 60 * 1000;
       })
       .filter(s => reservations.some(r => r.slotId === s.id))
       .sort((a, b) => a.time.localeCompare(b.time));
@@ -108,15 +117,42 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     onNavigate('Ingresos');
   };
 
-  // Obtener ausencias recientes (últimos 7 días)
+  // Obtener ausencias SOLO del día de la fecha
   const getRecentAbsences = () => {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    // Usar zona horaria Buenos Aires
+    const TIME_ZONE = 'America/Argentina/Buenos_Aires';
+    const now = new Date();
+    // Convertir a la zona local
+    const nowLocal = new Date(
+      now.toLocaleString('en-US', { timeZone: TIME_ZONE })
+    );
+    const todayLocalStr = nowLocal.toISOString().slice(0, 10);
+
     return reservations.filter(r => {
-      if (r.attended !== false || !r.slotId) return false;
+      // Mostrar como ausente si NO tiene attended:true (incluye null, undefined, false)
+      if (r.attended === true || !r.slotId) return false;
       const slot = slots.find(s => s.id === r.slotId);
       if (!slot) return false;
-      const slotDate = new Date(slot.date);
-      return slotDate >= sevenDaysAgo;
+      // Convertir slot.date a la zona de Buenos Aires
+      const slotDateLocal = new Date(
+        new Date(slot.date).toLocaleString('en-US', { timeZone: TIME_ZONE })
+      );
+      const slotDateStr = slotDateLocal.toISOString().slice(0, 10);
+      // Solo turnos del día local
+      if (slotDateStr !== todayLocalStr) return false;
+      // Calcular si el turno ya expiró (más de 2 horas desde el horario reservado)
+      // slot.time puede ser HH:mm o HH:mm:ss
+      const slotTime = slot.time.length === 5 ? `${slot.time}:00` : slot.time;
+      const slotDateTime = new Date(
+        `${slotDateStr}T${slotTime}`
+      );
+      const slotDateTimeLocal = new Date(
+        slotDateTime.toLocaleString('en-US', { timeZone: TIME_ZONE })
+      );
+      const diffMs = nowLocal.getTime() - slotDateTimeLocal.getTime();
+      const diffHrs = diffMs / (1000 * 60 * 60);
+      // Mostrar como ausente si pasaron más de 2 horas y no tiene attended:true
+      return diffHrs > 2;
     }).sort((a, b) => {
       const slotA = slots.find(s => s.id === a.slotId);
       const slotB = slots.find(s => s.id === b.slotId);
@@ -125,7 +161,39 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     });
   };
 
-  const ausenciasRecientes = getRecentAbsences();
+  // Estado local para ausencias mostradas
+  const [ausenciasMostradas, setAusenciasMostradas] = useState<Reservation[]>([]);
+  // Para resetear la lista al final del día
+  useEffect(() => {
+    const now = new Date();
+    const resetHour = 23;
+    const resetMinute = 0;
+    const resetSecond = 0;
+    const nextReset = new Date(now.getFullYear(), now.getMonth(), now.getDate(), resetHour, resetMinute, resetSecond, 0);
+    if (now > nextReset) {
+      // Si ya pasó la hora de reset, programar para el día siguiente
+      nextReset.setDate(nextReset.getDate() + 1);
+    }
+    const timeout = setTimeout(() => {
+      setAusenciasMostradas(getRecentAbsencesFiltered());
+    }, nextReset.getTime() - now.getTime());
+    return () => clearTimeout(timeout);
+  }, [reservations, slots]);
+
+  // Filtrar ausencias para no mostrar después de las 23hs
+  const getRecentAbsencesFiltered = () => {
+    const ausencias = getRecentAbsences();
+    const now = new Date();
+    if (now.getHours() >= 23) {
+      return [];
+    }
+    return ausencias;
+  };
+
+  // Inicializar ausencias mostradas al cargar
+  useEffect(() => {
+    setAusenciasMostradas(getRecentAbsencesFiltered());
+  }, [reservations, slots]);
   
   return (
     <div className="space-y-6">
@@ -226,7 +294,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     {slot.target && <p className="text-xs text-gray-400 mt-0.5">📌 {slot.target}</p>}
                     <div className="mt-2 flex flex-wrap gap-1">
                       {slotReservations.map(r => (
-                        <span key={r.id} className="text-xs bg-brand-gold/20 border border-brand-gold/40 px-2 py-1 rounded text-brand-gold truncate max-w-32">
+                        <span
+                          key={r.id}
+                          className={`text-xs px-2 py-1 rounded truncate max-w-32 border font-bold
+                            ${r.attended === true
+                              ? 'bg-green-500/30 text-green-700 border-green-400'
+                              : 'bg-brand-gold/20 text-brand-gold border-brand-gold/40'}
+                          `}
+                        >
                           {r.clientName}
                         </span>
                       ))}
@@ -246,18 +321,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               No Asistieron
             </h3>
             <span className="text-xs bg-red-500/20 border border-red-500/40 px-2 py-1 rounded text-red-400 font-bold">
-              {ausenciasRecientes.length}
+              {ausenciasMostradas.length}
             </span>
           </div>
           <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
-            {ausenciasRecientes.length === 0 ? (
+            {ausenciasMostradas.length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-8">Sin ausencias registradas</p>
             ) : (
-              ausenciasRecientes.map(r => {
+              ausenciasMostradas.map(r => {
                 const slot = slots.find(s => s.id === r.slotId);
                 const socio = members.find(m => m.id === r.memberId);
                 const phone = socio?.phone || '';
-                
                 return (
                   <div key={r.id} className="bg-black/40 p-3 rounded border border-red-700/50 hover:border-red-600 transition flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -270,33 +344,41 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                       )}
                       {phone && <p className="text-xs text-gray-500 mt-0.5">📱 {phone}</p>}
                     </div>
-                    {phone && (
+                    <div className="flex flex-col gap-1">
+                      {phone && (
+                        <button
+                          className="px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
+                          title="Enviar mensaje por WhatsApp y eliminar"
+                          onClick={() => {
+                            // Normalizar número para WhatsApp
+                            let wpp = phone.replace(/\D/g, '');
+                            if (wpp.startsWith('549')) {
+                              // Ya está correcto
+                            } else if (wpp.startsWith('54')) {
+                              wpp = '549' + wpp.substring(2);
+                            } else if (wpp.startsWith('0')) {
+                              wpp = '549' + wpp.substring(1);
+                            } else {
+                              wpp = '549' + wpp;
+                            }
+                            const memberName = r.clientName.split(' ')[0];
+                            const slotInfo = slot ? `${new Date(slot.date).toLocaleDateString('es-AR')} a las ${slot.time}` : 'tu turno';
+                            const message = `Hola ${memberName}, notamos que no pudiste asistir a ${slotInfo}. ¿Todo bien? ¿Te gustaría reagendar?`;
+                            window.open(`https://wa.me/${wpp}?text=${encodeURIComponent(message)}`, '_blank');
+                            setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id));
+                          }}
+                        >
+                          💬 WhatsApp y eliminar
+                        </button>
+                      )}
                       <button
-                        className="px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
-                        title="Enviar mensaje por WhatsApp"
-                        onClick={() => {
-                          // Normalizar número para WhatsApp
-                          let wpp = phone.replace(/\D/g, '');
-                          if (wpp.startsWith('549')) {
-                            // Ya está correcto
-                          } else if (wpp.startsWith('54')) {
-                            wpp = '549' + wpp.substring(2);
-                          } else if (wpp.startsWith('0')) {
-                            wpp = '549' + wpp.substring(1);
-                          } else {
-                            wpp = '549' + wpp;
-                          }
-                          
-                          const memberName = r.clientName.split(' ')[0];
-                          const slotInfo = slot ? `${new Date(slot.date).toLocaleDateString('es-AR')} a las ${slot.time}` : 'tu turno';
-                          const message = `Hola ${memberName}, notamos que no pudiste asistir a ${slotInfo}. ¿Todo bien? ¿Te gustaría reagendar?`;
-                          
-                          window.open(`https://wa.me/${wpp}?text=${encodeURIComponent(message)}`, '_blank');
-                        }}
+                        className="px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
+                        title="Eliminar de la lista"
+                        onClick={() => setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id))}
                       >
-                        💬 WhatsApp
+                        🗑 Eliminar
                       </button>
-                    )}
+                    </div>
                   </div>
                 );
               })
