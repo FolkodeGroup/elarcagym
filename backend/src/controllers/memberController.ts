@@ -456,6 +456,12 @@ export default function(prisma: any) {
   // Agregar pago a un miembro
   router.post('/:memberId/payments', async (req, res) => {
     try {
+      // Validar existencia del miembro
+      const member = await prisma.member.findUnique({ where: { id: req.params.memberId } });
+      if (!member) {
+        return res.status(400).json({ error: 'El miembro no existe' });
+      }
+
       const payment = await prisma.paymentLog.create({
         data: {
           ...req.body,
@@ -463,16 +469,15 @@ export default function(prisma: any) {
           date: req.body.date ? new Date(req.body.date) : new Date()
         }
       });
-      
+
       // Actualizar estado del miembro a ACTIVE si estaba DEBTOR o INACTIVE
-      const member = await prisma.member.findUnique({ where: { id: req.params.memberId } });
-      if (member && (member.status === 'DEBTOR' || member.status === 'INACTIVE')) {
+      if (member.status === 'DEBTOR' || member.status === 'INACTIVE') {
         await prisma.member.update({
           where: { id: req.params.memberId },
           data: { status: 'ACTIVE' }
         });
       }
-      
+
       res.status(201).json(payment);
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
