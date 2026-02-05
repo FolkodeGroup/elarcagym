@@ -316,8 +316,8 @@ const dateToInput = (dateStr: string) => {
                             <div className="border-t border-gray-800 pt-6">
                                 <h4 className="text-xs font-black text-gray-500 uppercase mb-4 tracking-widest">Extremidades (cm)</h4>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <InputGroup label="CD (Cuádricept D)" value={formData.rightThigh} onChange={(v:any) => setFormData({...formData, rightThigh: v})} />
-                                    <InputGroup label="Ci (Cuádricept I)" value={formData.leftThigh} onChange={(v:any) => setFormData({...formData, leftThigh: v})} />
+                                    <InputGroup label="CD (Cuádriceps D)" value={formData.rightThigh} onChange={(v:any) => setFormData({...formData, rightThigh: v})} />
+                                    <InputGroup label="Ci (Cuádriceps I)" value={formData.leftThigh} onChange={(v:any) => setFormData({...formData, leftThigh: v})} />
                                     <InputGroup label="GD (Gemelo D)" value={formData.rightCalf} onChange={(v:any) => setFormData({...formData, rightCalf: v})} />
                                     <InputGroup label="Gi (Gemelo I)" value={formData.leftCalf} onChange={(v:any) => setFormData({...formData, leftCalf: v})} />
                                     <InputGroup label="BD (Brazo D)" value={formData.rightArm} onChange={(v:any) => setFormData({...formData, rightArm: v})} />
