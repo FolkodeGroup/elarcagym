@@ -289,8 +289,8 @@ const dateToInput = (dateStr: string) => {
             {/* MODAL FORMULARIO */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
-                    <div className="absolute inset-0" onClick={() => setShowModal(false)} />
-                    <div className="bg-[#111] p-8 rounded-2xl border border-gray-800 w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="absolute inset-0 z-0" onClick={() => setShowModal(false)} />
+                    <div className="relative z-10 bg-[#111] p-8 rounded-2xl border border-gray-800 w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
                             <h3 className="text-2xl font-bold text-white uppercase tracking-tighter">Cargar Control Biométrico</h3>
                             <button onClick={() => setShowModal(false)} className="hover:text-red-500 transition-colors"><X size={32}/></button>
