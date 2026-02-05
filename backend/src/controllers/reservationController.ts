@@ -8,18 +8,25 @@ const WINDOW_MS = 2 * 60 * 60 * 1000; // 2 horas en milisegundos
  * Calcula el tiempo del slot en UTC (combinando fecha y hora del slot con zona horaria de Buenos Aires)
  */
 function getSlotTimeInUTC(slot: { date: Date | string; time: string }): Date {
-  const slotDate = new Date(slot.date);
-  const year = slotDate.getFullYear();
-  const month = String(slotDate.getMonth() + 1).padStart(2, '0');
-  const day = String(slotDate.getDate()).padStart(2, '0');
-  const slotDateTimeStr = `${year}-${month}-${day}T${slot.time}:00`;
+  // Si slot.date es un string, usarlo directamente (se espera formato 'YYYY-MM-DD')
+  // Si es un Date, convertir a formato 'YYYY-MM-DD' en UTC
+  let dateStr: string;
+  if (typeof slot.date === 'string') {
+    dateStr = slot.date.slice(0, 10); // Tomar solo 'YYYY-MM-DD'
+  } else {
+    const year = slot.date.getUTCFullYear();
+    const month = String(slot.date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(slot.date.getUTCDate()).padStart(2, '0');
+    dateStr = `${year}-${month}-${day}`;
+  }
+  const slotDateTimeStr = `${dateStr}T${slot.time}:00`;
   return fromZonedTime(slotDateTimeStr, TIME_ZONE);
 }
 
 /**
  * Verifica si se puede marcar como "no asistió" (dentro de 2 horas del horario reservado)
  */
-function canMarkAsNotAttended(slot: { date: Date | string; time: string }, now: Date = new Date()): { allowed: boolean; reason?: string } {
+export function canMarkAsNotAttended(slot: { date: Date | string; time: string }, now: Date = new Date()): { allowed: boolean; reason?: string } {
   const slotTimeUTC = getSlotTimeInUTC(slot);
   const diffMs = now.getTime() - slotTimeUTC.getTime();
   
