@@ -289,8 +289,8 @@ const dateToInput = (dateStr: string) => {
             {/* MODAL FORMULARIO */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
-                    <div className="absolute inset-0" onClick={() => setShowModal(false)} />
-                    <div className="bg-[#111] p-8 rounded-2xl border border-gray-800 w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="absolute inset-0 z-0" onClick={() => setShowModal(false)} />
+                    <div className="relative z-10 bg-[#111] p-8 rounded-2xl border border-gray-800 w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
                             <h3 className="text-2xl font-bold text-white uppercase tracking-tighter">Cargar Control Biométrico</h3>
                             <button onClick={() => setShowModal(false)} className="hover:text-red-500 transition-colors"><X size={32}/></button>
@@ -316,8 +316,8 @@ const dateToInput = (dateStr: string) => {
                             <div className="border-t border-gray-800 pt-6">
                                 <h4 className="text-xs font-black text-gray-500 uppercase mb-4 tracking-widest">Extremidades (cm)</h4>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <InputGroup label="CD (Muslo D)" value={formData.rightThigh} onChange={(v:any) => setFormData({...formData, rightThigh: v})} />
-                                    <InputGroup label="Ci (Muslo I)" value={formData.leftThigh} onChange={(v:any) => setFormData({...formData, leftThigh: v})} />
+                                    <InputGroup label="CD (Cuádriceps D)" value={formData.rightThigh} onChange={(v:any) => setFormData({...formData, rightThigh: v})} />
+                                    <InputGroup label="Ci (Cuádriceps I)" value={formData.leftThigh} onChange={(v:any) => setFormData({...formData, leftThigh: v})} />
                                     <InputGroup label="GD (Gemelo D)" value={formData.rightCalf} onChange={(v:any) => setFormData({...formData, rightCalf: v})} />
                                     <InputGroup label="Gi (Gemelo I)" value={formData.leftCalf} onChange={(v:any) => setFormData({...formData, leftCalf: v})} />
                                     <InputGroup label="BD (Brazo D)" value={formData.rightArm} onChange={(v:any) => setFormData({...formData, rightArm: v})} />
