@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { apiFetch } from '../services/api';
+import Toast from '../components/Toast';
 
 interface Waitlist {
   id: string;
@@ -21,14 +22,17 @@ const WaitlistPage: React.FC = () => {
     status: ''
   });
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' | 'info'; action?: React.ReactNode } | null>(null);
+  const [confirmConvertId, setConfirmConvertId] = useState<string | null>(null);
+  const [confirmConvertPhone, setConfirmConvertPhone] = useState<string | null>(null);
 
   const fetchWaitlist = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/waitlist');
-      setWaitlist(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      alert('Error al cargar la lista de espera');
+      const data = await apiFetch('/waitlist');
+      setWaitlist(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      setToast({ message: err.message || 'Error al cargar la lista de espera', type: 'error' });
       setWaitlist([]);
     }
     setLoading(false);
@@ -46,14 +50,18 @@ const WaitlistPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post('/waitlist', {
-        ...form,
-        reservationDate: new Date(form.reservationDate).toISOString()
+      await apiFetch('/waitlist', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...form,
+          reservationDate: new Date(form.reservationDate).toISOString()
+        })
       });
       setForm({ firstName: '', lastName: '', phone: '', reservationDate: '', status: '' });
       fetchWaitlist();
-    } catch (err) {
-      alert('Error al guardar registro');
+      setToast({ message: 'Registro guardado correctamente', type: 'success' });
+    } catch (err: any) {
+      setToast({ message: err.message || 'Error al guardar registro', type: 'error' });
     }
     setLoading(false);
   };
@@ -100,19 +108,60 @@ const WaitlistPage: React.FC = () => {
                 <td className="px-4 py-2 flex gap-2">
                   <button
                     className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
-                    onClick={async () => {
-                      if(window.confirm('¿Agregar este socio?')) {
-                        await axios.post(`/waitlist/${w.id}/convert`);
-                        fetchWaitlist();
-                      }
+                    onClick={() => {
+                      setConfirmConvertId(w.id);
+                      setConfirmConvertPhone(w.phone);
                     }}
                   >Agregar a Socio</button>
+                        {/* Modal de confirmación para convertir a socio */}
+                        {confirmConvertId && (
+                          <div className="fixed inset-0 flex items-center justify-center z-50">
+                            <div className="absolute inset-0 bg-black/60" onClick={() => setConfirmConvertId(null)} />
+                            <div className="relative z-10 bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
+                              <h3 className="text-lg font-bold text-white mb-4">¿Agregar este socio?</h3>
+                              <p className="text-gray-300 mb-4">¿Seguro que quieres agregar a este socio?</p>
+                              <div className="flex justify-end gap-2">
+                                <button onClick={() => setConfirmConvertId(null)} className="px-4 py-2 text-gray-400 rounded border border-gray-700 hover:bg-gray-800">Cancelar</button>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await apiFetch(`/waitlist/${confirmConvertId}/convert`, { method: 'POST' });
+                                      fetchWaitlist();
+                                      setToast({ message: 'Socio agregado correctamente', type: 'success' });
+                                    } catch (err: any) {
+                                      setToast({
+                                        message: (err.message || 'Error al agregar socio') + (confirmConvertPhone ? ` | ¿Deseas avisarle por WhatsApp?` : ''),
+                                        type: 'error',
+                                        action: confirmConvertPhone ? (
+                                          <a
+                                            href={`https://wa.me/${confirmConvertPhone}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="ml-2 underline text-green-400"
+                                          >Enviar WhatsApp</a>
+                                        ) : undefined
+                                      });
+                                    }
+                                    setConfirmConvertId(null);
+                                    setConfirmConvertPhone(null);
+                                  }}
+                                  className="px-4 py-2 bg-brand-gold text-black rounded font-bold hover:bg-yellow-500"
+                                >Aceptar</button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                   <button
                     className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
                     onClick={async () => {
                       if(window.confirm('¿Eliminar este registro?')) {
-                        await axios.delete(`/waitlist/${w.id}`);
-                        fetchWaitlist();
+                        try {
+                          await apiFetch(`/waitlist/${w.id}`, { method: 'DELETE' });
+                          fetchWaitlist();
+                          setToast({ message: 'Registro eliminado', type: 'success' });
+                        } catch (err: any) {
+                          setToast({ message: err.message || 'Error al eliminar registro', type: 'error' });
+                        }
                       }
                     }}
                   >Eliminar</button>
@@ -127,6 +176,15 @@ const WaitlistPage: React.FC = () => {
           </tbody>
         </table>
       </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        >
+          {toast.action}
+        </Toast>
+      )}
     </div>
   );
 };

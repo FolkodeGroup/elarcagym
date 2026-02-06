@@ -8,6 +8,15 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
         sourcemap: false,
+        proxy: {
+          // Redirige todas las rutas de API al backend
+          '/waitlist': 'http://localhost:4000',
+          '/members': 'http://localhost:4000',
+          '/notifications': 'http://localhost:4000',
+          '/users': 'http://localhost:4000',
+          '/reservations': 'http://localhost:4000',
+          // Agrega aquí otras rutas de API si es necesario
+        },
       },
       build: {
         sourcemap: false,

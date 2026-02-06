@@ -7,6 +7,7 @@ export const WaitlistController = {
       const waitlist = await WaitlistService.create(req.body);
       res.status(201).json(waitlist);
     } catch (error) {
+      console.error('Error en WaitlistController.create:', error);
       res.status(500).json({ error: 'Error al crear registro en lista de espera', details: error });
     }
   },
