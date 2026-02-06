@@ -206,6 +206,47 @@ async function main() {
   console.log(`   👤 Nombre: Emmanuel Fernando Paredes`);
   console.log(`   🔑 Contraseña: Entrenador123\n`);
 
+  // 4. Crear o actualizar usuario profesora Florencia Solange Ceballos
+  console.log('👩‍🏫 Creando/actualizando usuaria profesora...');
+  const profeEmail = 'florenciaceballos295@gmail.com';
+  const profePassword = await bcrypt.hash('Entrenador123', 10);
+  const profe = await prisma.user.upsert({
+    where: { email: profeEmail },
+    update: {
+      password: profePassword,
+      firstName: 'Florencia Solange',
+      lastName: 'Ceballos',
+      dni: '36916483',
+      phone: '1123474373',
+      role: 'TRAINER',
+      isActive: true,
+    },
+    create: {
+      email: profeEmail,
+      password: profePassword,
+      firstName: 'Florencia Solange',
+      lastName: 'Ceballos',
+      dni: '36916483',
+      phone: '1123474373',
+      role: 'TRAINER',
+      isActive: true,
+    },
+  });
+  // Asignar permisos por defecto de TRAINER (eliminar y volver a crear para evitar duplicados)
+  await prisma.userPermission.deleteMany({ where: { userId: profe.id } });
+  for (const perm of trainerPerms) {
+    await prisma.userPermission.create({
+      data: {
+        userId: profe.id,
+        permissionId: perm.id,
+        granted: true,
+      },
+    });
+  }
+  console.log(`   ✅ Profesora actualizada: ${profe.email}`);
+  console.log(`   👩‍🏫 Nombre: Florencia Solange Ceballos`);
+  console.log(`   🔑 Contraseña: Entrenador123\n`);
+
   console.log('✨ Seed completado exitosamente!');
 }
 
