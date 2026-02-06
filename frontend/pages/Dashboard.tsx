@@ -349,7 +349,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                         <button
                           className="px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
                           title="Enviar mensaje por WhatsApp y eliminar"
-                          onClick={() => {
+                          onClick={async () => {
                             // Normalizar número para WhatsApp
                             let wpp = phone.replace(/\D/g, '');
                             if (wpp.startsWith('549')) {
@@ -365,7 +365,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                             const slotInfo = slot ? `${new Date(slot.date).toLocaleDateString('es-AR')} a las ${slot.time}` : 'tu turno';
                             const message = `Hola ${memberName}, notamos que no pudiste asistir a ${slotInfo}. ¿Todo bien? ¿Te gustaría reagendar?`;
                             window.open(`https://wa.me/${wpp}?text=${encodeURIComponent(message)}`, '_blank');
-                            setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id));
+                            try {
+                              await ReservationsAPI.delete(r.id);
+                              setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id));
+                              setToast({ message: 'Ausencia eliminada correctamente', type: 'success' });
+                            } catch (error) {
+                              setToast({ message: 'Error al eliminar la ausencia', type: 'error' });
+                            }
                           }}
                         >
                           💬 WhatsApp y eliminar
@@ -374,7 +380,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                       <button
                         className="px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
                         title="Eliminar de la lista"
-                        onClick={() => setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id))}
+                        onClick={async () => {
+                          try {
+                            await ReservationsAPI.delete(r.id);
+                            setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id));
+                            setToast({ message: 'Ausencia eliminada correctamente', type: 'success' });
+                          } catch (error) {
+                            setToast({ message: 'Error al eliminar la ausencia', type: 'error' });
+                          }
+                        }}
                       >
                         🗑 Eliminar
                       </button>

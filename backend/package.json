@@ -21,6 +21,8 @@
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "@sendgrid/mail": "^8.1.6",
+    "@types/axios": "^0.9.36",
+    "axios": "^1.13.4",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "date-fns-tz": "^3.2.0",
