@@ -398,7 +398,7 @@ export default function(prisma: any) {
    *     summary: Eliminar usuario
    *     tags: [Users]
    */
-  router.delete('/:id', async (req: any, res) => {
+  router.delete('/:id', authenticateToken, async (req: any, res) => {
     try {
       const { id } = req.params;
 
