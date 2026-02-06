@@ -1,6 +1,7 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma/client"
+  // output comentado para usar la ubicación por defecto: node_modules/@prisma/client
+  // output   = "../src/generated/prisma/client"
 }
 
 datasource db {
