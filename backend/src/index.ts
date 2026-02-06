@@ -34,7 +34,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || 'http://localhost:4173',
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -64,7 +64,10 @@ io.on('connection', (socket) => {
 // Hacer io accesible globalmente para emitir notificaciones
 (global as any).io = io;
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:4173',
+  credentials: true
+}));
 // Aumentar el límite del body a 5mb para permitir imágenes grandes
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));

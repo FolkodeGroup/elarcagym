@@ -1,0 +1,57 @@
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: elarca-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: elarcagym_user
+      POSTGRES_PASSWORD: ***REMOVED***
+      POSTGRES_DB: elarcagym
+    ports:
+      - "5433:5432"  # Puerto 5433 en host, 5432 en contenedor
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - elarca-network
+
+  # Backend (Node.js + Express + Prisma)
+  backend:
+    image: dgimenezdeveloper/el-arca-gym-manager-backend:latest
+    container_name: elarca-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgresql://elarcagym_user:***REMOVED***@postgres:5432/elarcagym
+      NODE_ENV: production
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - postgres
+    networks:
+      - elarca-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # Frontend (Vite + React)
+  frontend:
+    image: dgimenezdeveloper/el-arca-gym-manager-frontend:latest
+    container_name: elarca-frontend
+    restart: unless-stopped
+    ports:
+      - "4173:4173"
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      - backend
+    networks:
+      - elarca-network
+
+volumes:
+  postgres_data:
+
+networks:
+  elarca-network:
+    driver: bridge
