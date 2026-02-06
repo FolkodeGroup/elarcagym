@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma/client"
 }
 
@@ -258,4 +258,14 @@ model Notification {
   
   @@index([userId, read])
   @@index([createdAt])
+}
+
+// ===================== MODELO DE LISTA DE ESPERA =====================
+model Waitlist {
+  id               String   @id @default(uuid())
+  firstName        String
+  lastName         String
+  phone            String
+  reservationDate  DateTime
+  status           String?
 }

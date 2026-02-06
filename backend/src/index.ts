@@ -1,4 +1,3 @@
-
 import dotenv from 'dotenv';
 dotenv.config();
 import swaggerUi from 'swagger-ui-express';
@@ -7,7 +6,7 @@ import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import { PrismaClient } from './generated/prisma/client/client.js';
+import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 import memberController from './controllers/memberController.js';
@@ -23,6 +22,7 @@ import authController from './controllers/authController.js';
 import configController from './controllers/configController.js';
 import userController from './controllers/userController.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import waitlistRoutes from './routes/waitlist';
 import { authenticateToken, requireAdmin, requirePermission } from './middleware/auth.js';
 import routineTokenController from './controllers/routineTokenController.js';
 import routineAccessController from './controllers/routineAccessController.js';
@@ -124,6 +124,7 @@ app.use('/slots', authenticateToken, slotController(prisma));
 app.use('/exercises', authenticateToken, exerciseMasterController(prisma));
 app.use('/config', authenticateToken, configController(prisma));
 app.use('/notifications', notificationRoutes(prisma));
+app.use('/waitlist', authenticateToken, waitlistRoutes);
 
 const PORT = process.env.PORT || 4000;
 httpServer.listen({ port: PORT, host: '0.0.0.0' }, () => {
