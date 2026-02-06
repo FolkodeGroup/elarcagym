@@ -21,7 +21,8 @@ import {
   ShoppingCart,
   Apple,
   User,
-  UserCog
+  UserCog,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from './Toast';
@@ -63,6 +64,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
     { id: 'qr_manager', label: 'Codigo QR', icon: QrCode },
     { id: 'admin', label: t('comercio'), icon: ShoppingCart },
     { id: 'Ingresos', label: t('ingresosVentas'), icon: DollarSign },
+    { id: 'waitlist', label: 'Lista de Espera', icon: Clock },
   ];
 
   // Agregar opción de gestión de usuarios solo para administradores

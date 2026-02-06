@@ -1,5 +1,5 @@
 // Script para crear un usuario administrador inicial
-import { PrismaClient } from './generated/prisma/client/client.js';
+import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';

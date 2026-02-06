@@ -18,6 +18,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import QRManager from './pages/QRManager.tsx';
+import WaitlistPage from './pages/Waitlist';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, logout, isLoading } = useAuth();
@@ -113,6 +114,7 @@ const AppContent: React.FC = () => {
       case 'exercises_admin': return <ExercisesAdmin />;
       case 'users_management': return <UsersManagement />;
       case 'user_profile': return <UserProfile />;
+      case 'waitlist': return <WaitlistPage />;
       default: return <Dashboard onNavigate={handleNavigate} />;
     }
   };
