@@ -83,26 +83,6 @@ const QRManager: React.FC = () => {
         </div>
       </div>
 
-      {/* NOTA TECNICA PARA PRUEBAS */}
-      <div className="bg-blue-900/20 border border-blue-800 p-6 rounded-3xl flex gap-4 items-start">
-        <div className="bg-blue-500 p-2 rounded-lg text-white">
-          <Info size={24} />
-        </div>
-        <div>
-          <h4 className="text-blue-400 font-bold text-sm uppercase tracking-widest">Nota para el desarrollador</h4>
-          <p className="text-gray-400 text-sm mt-1">
-            Si estás en modo de desarrollo (localhost) y el QR no abre en tu celular:
-          </p>
-          <ul className="text-xs text-gray-500 mt-2 list-disc list-inside space-y-1">
-            <li>Tu PC y tu Celular deben estar en la <b>misma red WiFi</b>.</li>
-            <li>En lugar de <code className="text-blue-300">localhost:3000</code>, usa la IP de tu red local (ej: <code className="text-blue-300">http://192.168.1.50:3000</code>).</li>
-            <li>Una vez que subas el sitio a internet (producción), el QR funcionará automáticamente para todos.</li>
-          </ul>
-        </div>
-      </div>
-      {toast && (
-        <Toast message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} />
-      )}
     </div>
   );
 };
