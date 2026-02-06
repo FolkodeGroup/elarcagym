@@ -48,7 +48,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
     
     // Conectar al servidor WebSocket
     const socket = io(API_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling'], // Solo polling para descartar problemas de WebSocket puro
       reconnection: true,
     });
 
