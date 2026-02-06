@@ -33,10 +33,33 @@ El proyecto incluye:
 
 ## Uso Rápido
 
-### Levantar todos los servicios
+### Opción 1: Usando Imágenes Pre-construidas de Docker Hub (Recomendado)
+
+Esta opción es ideal para desarrollo rápido o deployments. Las imágenes ya están construidas y listas para usar.
 
 ```bash
+# Descargar las últimas imágenes
+docker-compose pull
+
+# Levantar todos los servicios
 docker-compose up -d
+```
+
+**Ventajas:**
+- ✅ No necesitas construir nada localmente
+- ✅ Más rápido - solo descarga las imágenes
+- ✅ Todos los devs usan la misma versión
+- ✅ Ideal para CI/CD y deployments
+
+**Nota:** Asegúrate de tener acceso a las imágenes en Docker Hub o que sean públicas.
+
+### Opción 2: Construyendo Localmente
+
+Si necesitas construir las imágenes localmente (por ejemplo, para desarrollo con cambios no versionados):
+
+```bash
+# Construir y levantar
+docker-compose up -d --build
 ```
 
 ### Ejecutar migraciones de base de datos
@@ -231,26 +254,80 @@ Para despliegue en producción, considera:
 4. Revisar y optimizar los recursos de los contenedores
 5. Configurar backups automáticos de la base de datos
 
-## Subida a Docker Hub
+## Workflow de Actualización de Imágenes
 
-### Login
+### Actualización Manual
+
+Si necesitas actualizar las imágenes manualmente:
+
+1. **Construir las imágenes localmente:**
+   ```bash
+   docker build -t dgimenezdeveloper/el-arca-gym-manager-backend:latest ./backend
+   docker build -t dgimenezdeveloper/el-arca-gym-manager-frontend:latest ./frontend
+   ```
+
+2. **Login a Docker Hub:**
+   ```bash
+   docker login
+   ```
+
+3. **Push a Docker Hub:**
+   ```bash
+   docker push dgimenezdeveloper/el-arca-gym-manager-backend:latest
+   docker push dgimenezdeveloper/el-arca-gym-manager-frontend:latest
+   ```
+
+4. **Actualizar en otros entornos:**
+   ```bash
+   docker-compose pull
+   docker-compose up -d
+   ```
+
+### Actualización Automática con CI/CD
+
+El proyecto está configurado con GitHub Actions para construir y subir imágenes automáticamente al hacer push a la rama `main` o `docker-setup`.
+
+**📋 Para configurar CI/CD completo, consulta:** [CICD_SETUP.md](CICD_SETUP.md)
+
+**Resumen rápido:**
+
+1. **Configurar Secrets en GitHub:**
+   - Ve a tu repositorio en GitHub → Settings → Secrets and variables → Actions
+   - Agrega `DOCKERHUB_USERNAME` y `DOCKERHUB_TOKEN`
+
+2. **Cada vez que hagas push a main/docker-setup:**
+   - GitHub Actions construye las imágenes automáticamente
+   - Las sube a Docker Hub con el tag `latest`
+   - Cualquier dev puede hacer `docker-compose pull` para obtener la última versión
+
+3. **Ver el progreso:**
+   - Ve a la pestaña **Actions** en GitHub
+   - Monitorea el build en tiempo real
+
+### Versionado de Imágenes
+
+Para versionar tus imágenes (recomendado para producción):
 
 ```bash
-docker login
+# Tag con versión específica
+docker tag dgimenezdeveloper/el-arca-gym-manager-backend:latest dgimenezdeveloper/el-arca-gym-manager-backend:v1.0.0
+docker tag dgimenezdeveloper/el-arca-gym-manager-frontend:latest dgimenezdeveloper/el-arca-gym-manager-frontend:v1.0.0
+
+# Push de ambas versiones
+docker push dgimenezdeveloper/el-arca-gym-manager-backend:latest
+docker push dgimenezdeveloper/el-arca-gym-manager-backend:v1.0.0
+docker push dgimenezdeveloper/el-arca-gym-manager-frontend:latest
+docker push dgimenezdeveloper/el-arca-gym-manager-frontend:v1.0.0
 ```
 
-### Tag de imágenes
+### Uso de Imágenes Versionadas
 
-```bash
-docker tag elarca-backend tu-usuario/elarca-backend:latest
-docker tag elarca-frontend tu-usuario/elarca-frontend:latest
-```
+Modifica `docker-compose.yml` para usar una versión específica:
 
-### Push a Docker Hub
-
-```bash
-docker push tu-usuario/elarca-backend:latest
-docker push tu-usuario/elarca-frontend:latest
+```yaml
+backend:
+  image: dgimenezdeveloper/el-arca-gym-manager-backend:v1.0.0
+  # ...resto de config
 ```
 
 ## GitHub Container Registry (GHCR)
