@@ -31,7 +31,7 @@ export default function(prisma: any) {
       if (!member) return res.status(401).json({ error: 'Credenciales inválidas' });
       const valid = await bcrypt.compare(password, member.password);
       if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
-      const token = jwt.sign({ id: member.id, email: member.email }, JWT_SECRET, { expiresIn: '8h' });
+        const token = jwt.sign({ id: member.id, email: member.email, role: member.role }, JWT_SECRET, { expiresIn: '8h' });
       res.json({ token });
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
