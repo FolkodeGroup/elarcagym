@@ -215,7 +215,7 @@ export default function(prisma: any) {
    *     summary: Crear nuevo usuario
    *     tags: [Users]
    */
-  router.post('/', async (req: any, res) => {
+  router.post('/', authenticateToken, async (req: any, res) => {
     try {
       const { email, password, firstName, lastName, dni, phone, role, permissions, photoUrl } = req.body;
 
