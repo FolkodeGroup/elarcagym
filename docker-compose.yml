@@ -17,9 +17,7 @@ services:
 
   # Backend (Node.js + Express + Prisma)
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: dgimenezdeveloper/el-arca-gym-manager-backend:latest
     container_name: elarca-backend
     restart: unless-stopped
     ports:
@@ -39,9 +37,7 @@ services:
 
   # Frontend (Vite + React)
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: dgimenezdeveloper/el-arca-gym-manager-frontend:latest
     container_name: elarca-frontend
     restart: unless-stopped
     ports:
