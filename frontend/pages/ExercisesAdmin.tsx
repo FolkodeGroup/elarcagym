@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
+// ...existing code...
 import { ExercisesAPI } from '../services/api';
 import { ExerciseMaster } from '../types';
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import Toast from '../components/Toast';
 
 const ExercisesAdmin: React.FC = () => {
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+    const [confirmDeleteName, setConfirmDeleteName] = useState<string | null>(null);
   const [exercises, setExercises] = useState<ExerciseMaster[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -68,10 +71,8 @@ const ExercisesAdmin: React.FC = () => {
         setToast({ message: `No se puede eliminar: el ejercicio está en uso en ${usage.count} rutina(s).`, type: 'error' });
         return;
       }
-      if (!window.confirm('¿Eliminar este ejercicio?')) return;
-      await ExercisesAPI.delete(id);
-      setToast({ message: 'Ejercicio eliminado', type: 'success' });
-      loadExercises();
+      setConfirmDeleteId(id);
+      setConfirmDeleteName(exercise.name);
     } catch (error) {
       setToast({ message: 'Error al eliminar', type: 'error' });
     }
@@ -133,6 +134,32 @@ const ExercisesAdmin: React.FC = () => {
         </div>
       )}
       {toast && <Toast message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} />}
+          {confirmDeleteId && (
+            <div className="fixed inset-0 flex items-center justify-center z-50">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setConfirmDeleteId(null)} />
+              <div className="relative z-10 bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
+                <h3 className="text-lg font-bold text-white mb-4">¿Eliminar ejercicio?</h3>
+                <p className="text-gray-300 mb-4">¿Seguro que quieres eliminar <span className="font-semibold text-brand-gold">{confirmDeleteName}</span>?</p>
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-2 text-gray-400 rounded border border-gray-700 hover:bg-gray-800">Cancelar</button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await ExercisesAPI.delete(confirmDeleteId);
+                        setToast({ message: 'Ejercicio eliminado', type: 'success' });
+                        loadExercises();
+                      } catch {
+                        setToast({ message: 'Error al eliminar', type: 'error' });
+                      }
+                      setConfirmDeleteId(null);
+                      setConfirmDeleteName(null);
+                    }}
+                    className="px-4 py-2 bg-brand-gold text-black rounded font-bold hover:bg-yellow-500"
+                  >Aceptar</button>
+                </div>
+              </div>
+            </div>
+          )}
     </div>
   );
 };
