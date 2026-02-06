@@ -42,8 +42,12 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@prisma/client": ["src/generated/prisma/client"]
+    }
   },
-  "exclude": ["src/generated", "node_modules", "dist", "scripts"],
+  "exclude": ["node_modules", "dist", "scripts"],
   "include": ["src", "src/prisma.config.ts"]
 }
