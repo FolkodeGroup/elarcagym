@@ -270,3 +270,13 @@ model Waitlist {
   reservationDate  DateTime
   status           String?
 }
+
+// ===================== PLANTILLA DE RECOMENDACIONES NUTRICIONALES =====================
+model NutritionTemplate {
+  id          String   @id @default(uuid())
+  title       String
+  content     String   @db.Text  // Contenido de las recomendaciones en texto plano
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

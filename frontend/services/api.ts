@@ -450,3 +450,28 @@ export const NotificationsAPI = {
   create: (data: { userId: string; title: string; message: string; type?: string; link?: string }): Promise<Notification> => 
     apiFetch('/notifications', { method: 'POST', body: JSON.stringify(data) }),
 };
+
+export const NutritionTemplatesAPI = {
+  // Obtener la plantilla activa
+  getActive: (): Promise<{ id: string; title: string; content: string; isActive: boolean } | null> => 
+    apiFetch('/nutrition-templates/active'),
+  
+  // Obtener todas las plantillas
+  list: (): Promise<any[]> => apiFetch('/nutrition-templates'),
+  
+  // Obtener una plantilla por ID
+  get: (id: string): Promise<any> => apiFetch(`/nutrition-templates/${id}`),
+  
+  // Crear nueva plantilla
+  create: (data: { title: string; content: string; isActive?: boolean }): Promise<any> => 
+    apiFetch('/nutrition-templates', { method: 'POST', body: JSON.stringify(data) }),
+  
+  // Actualizar plantilla
+  update: (id: string, data: { title?: string; content?: string; isActive?: boolean }): Promise<any> => 
+    apiFetch(`/nutrition-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  
+  // Eliminar plantilla
+  delete: (id: string): Promise<void> => 
+    apiFetch(`/nutrition-templates/${id}`, { method: 'DELETE' }),
+};
+

@@ -21,6 +21,7 @@ import exerciseMasterController from './controllers/exerciseMasterController.js'
 import authController from './controllers/authController.js';
 import configController from './controllers/configController.js';
 import userController from './controllers/userController.js';
+import nutritionTemplateController from './controllers/nutritionTemplateController.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import waitlistRoutes from './routes/waitlist';
 import { authenticateToken, requireAdmin, requirePermission } from './middleware/auth.js';
@@ -34,7 +35,14 @@ const app = express();
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:4173',
+    origin: function (origin, callback) {
+      // Permitir requests sin origin (como Postman) o si está en la lista
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -64,8 +72,19 @@ io.on('connection', (socket) => {
 // Hacer io accesible globalmente para emitir notificaciones
 (global as any).io = io;
 
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:4173')
+  .split(',')
+  .map(origin => origin.trim());
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:4173',
+  origin: function (origin, callback) {
+    // Permitir requests sin origin (como Postman) o si está en la lista
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 // Aumentar el límite del body a 5mb para permitir imágenes grandes
@@ -126,6 +145,7 @@ app.use('/reminders', authenticateToken, reminderController(prisma));
 app.use('/slots', authenticateToken, slotController(prisma));
 app.use('/exercises', authenticateToken, exerciseMasterController(prisma));
 app.use('/config', authenticateToken, configController(prisma));
+app.use('/nutrition-templates', authenticateToken, nutritionTemplateController(prisma));
 app.use('/notifications', notificationRoutes(prisma));
 app.use('/waitlist', authenticateToken, waitlistRoutes);
 
