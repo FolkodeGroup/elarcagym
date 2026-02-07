@@ -72,9 +72,7 @@ io.on('connection', (socket) => {
 // Hacer io accesible globalmente para emitir notificaciones
 (global as any).io = io;
 
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:4173')
-  .split(',')
-  .map(origin => origin.trim());
+const allowedOrigins = [process.env.FRONTEND_URL || 'http://localhost:4173'];
 
 app.use(cors({
   origin: function (origin, callback) {
