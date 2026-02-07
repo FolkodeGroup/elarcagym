@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { MembersAPI, ConfigAPI } from '../services/api';
+import { MembersAPI, ConfigAPI, NutritionTemplatesAPI } from '../services/api';
 import { Member, UserStatus, Routine, NutritionData } from '../types';
 import { isDebtorByPayment } from '../services/membershipUtils';
 import { 
@@ -16,6 +16,9 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LOGO_BASE64 } from '../services/assets';
 // import * as XLSX from 'xlsx'; // Remove unused import
+
+// Exponer NutritionTemplatesAPI globalmente para uso en generateNutritionPDF
+(window as any).NutritionTemplatesAPI = NutritionTemplatesAPI;
 
 interface MembersProps {
   initialFilter?: string | null;
@@ -510,7 +513,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const inactiveCount = members.filter((m: Member) => m.status === UserStatus.INACTIVE).length;
 
   // --- MESSAGING & PDF HELPERS ---
-  const generateNutritionPDF = (nutritionPlan: any, memberName: string) => {
+  const generateNutritionPDF = async (nutritionPlan: any, memberName: string) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -656,6 +659,68 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       y += 10;
     }
 
+    // Obtener y agregar recomendaciones nutricionales
+    try {
+      const template = await (window as any).NutritionTemplatesAPI.getActive();
+      if (template && template.content) {
+        // Nueva página para recomendaciones
+        doc.addPage();
+        printBackgroundAndHeader();
+        y = 50;
+
+        // Título de recomendaciones
+        doc.setFontSize(16);
+        doc.setTextColor(212, 175, 55);
+        doc.text(template.title || 'RECOMENDACIONES NUTRICIONALES', pageWidth / 2, y, { align: 'center' });
+        y += 15;
+
+        // Contenido de recomendaciones
+        doc.setFontSize(9);
+        doc.setTextColor(255, 255, 255);
+        
+        const lines = template.content.split('\n');
+        const leftMargin = 15;
+        const rightMargin = pageWidth - 15;
+        const maxWidth = rightMargin - leftMargin;
+
+        lines.forEach((line: string) => {
+          if (!line.trim()) {
+            y += 4; // Espacio para líneas vacías
+            return;
+          }
+
+          // Detectar títulos (líneas en mayúsculas o que comienzan con caracteres especiales)
+          const isTitle = line.trim() === line.trim().toUpperCase() && line.trim().length > 3;
+          
+          if (isTitle) {
+            checkPageBreak(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(212, 175, 55);
+          } else {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(255, 255, 255);
+          }
+
+          // Dividir línea si es muy larga
+          const wrappedLines = doc.splitTextToSize(line, maxWidth);
+          wrappedLines.forEach((wrappedLine: string) => {
+            checkPageBreak(6);
+            doc.text(wrappedLine, leftMargin, y);
+            y += isTitle ? 6 : 5;
+          });
+
+          if (isTitle) {
+            y += 2; // Espacio extra después de títulos
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error al obtener recomendaciones nutricionales:', error);
+      // Continuar sin recomendaciones si hay error
+    }
+
     // Pie de página dorado en la última página
     doc.setFillColor(212, 175, 55);
     doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
@@ -670,10 +735,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     return fileName;
   };
 
-  const handleShareNutrition = (method: 'wa' | 'email') => {
+  const handleShareNutrition = async (method: 'wa' | 'email') => {
     if (!selectedMember || !selectedMember.nutritionPlan) return;
     setToast({ message: `⏳ Generando y descargando PDF para ${method === 'wa' ? 'WhatsApp' : 'Email'}. Adjunta el archivo descargado en el mensaje.`, type: 'info' });
-    generateNutritionPDF(selectedMember.nutritionPlan, `${selectedMember.firstName} ${selectedMember.lastName}`);
+    await generateNutritionPDF(selectedMember.nutritionPlan, `${selectedMember.firstName} ${selectedMember.lastName}`);
     const msgText = `Hola ${selectedMember.firstName}, te adjunto el PDF de tu plan nutricional de El Arca Gym. \n\n¡A entrenar con todo! 💪`;
     if (method === 'wa') {
       const url = `https://wa.me/${formatPhoneNumber(selectedMember.phone)}?text=${encodeURIComponent(msgText)}`;
