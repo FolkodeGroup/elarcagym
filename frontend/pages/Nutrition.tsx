@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { MembersAPI } from '../services/api';
+import { MembersAPI, NutritionTemplatesAPI } from '../services/api';
 import { Member } from '../types';
-import { Search, Save, Coffee, Sun, Utensils, Moon, Apple, Check, AlertCircle, Plus, Trash2, X } from 'lucide-react';
+import { Search, Save, Coffee, Sun, Utensils, Moon, Apple, Check, AlertCircle, Plus, Trash2, X, Settings } from 'lucide-react';
 import Toast from '../components/Toast';
 import { useNavigation } from '../contexts/NavigationContext';
 
@@ -17,6 +17,12 @@ const Nutrition: React.FC = () => {
     // Estados de control de cambios
     const [isDirty, setIsDirty] = useState(false);
     const { setCanNavigate } = useNavigation();
+
+    // Estados para la gestión de recomendaciones
+    const [showRecommendationsModal, setShowRecommendationsModal] = useState(false);
+    const [recommendationsTitle, setRecommendationsTitle] = useState('AYUDA E INDICACIONES GENERALES PARA LLEVAR TU DIETA CORRECTAMENTE');
+    const [recommendationsContent, setRecommendationsContent] = useState('');
+    const [recommendationsId, setRecommendationsId] = useState<string | null>(null);
 
     // Formulario de Nutrición (Arrays de strings)
     const [plan, setPlan] = useState({
@@ -43,8 +49,82 @@ const Nutrition: React.FC = () => {
         }
     };
 
+    const loadRecommendations = async () => {
+        try {
+            const template = await NutritionTemplatesAPI.getActive();
+            if (template) {
+                setRecommendationsId(template.id);
+                setRecommendationsTitle(template.title);
+                setRecommendationsContent(template.content);
+            } else {
+                // Plantilla por defecto
+                setRecommendationsContent(`OPCIONES DE INFUSIONES (no cuenta como ingesta de agua)
+•CAFÉ TOSTADO (no torrado)
+•TÉ (cualquier opción)
+•MATE COCIDO
+•MATE
+•TERERÉ (puede ser con jugo clight)
+•JUGO DE LIMÓN, MENTA Y GENGIBRE (Edulcorante, 200ml de agua, medio limón grande ó uno mediano. Menta y gengibre a gusto)
+
+OPCIONES DE...
+•VERDURAS MIXTAS
+Zuccini, Morrón rojo, Zapallito, Calabaza, Zapallo, Hongos, chaucha, Hinojo, Espárrago, Col de Bruselas, Acelga, Espinaca, Morrón verde, Hoja de nabo, Col verde, Zuccini, lechuga, rúcula, pepino, apio, acelga, cebolla
+
+•ENSALADA MIXTA
+Repollo, Repollo colorado, coliflor, berenjena, tomate, cebolla, zanahoria, lechuga
+
+CONDIMENTOS
+•PARA LAS ENSALADAS: vinagre, pimienta, ajo molido,pimentón, pimentón dulce, orégano, romero, albahaca, comino y aceto balsámico
+•PARA LAS CARNES: Ajo molido, pimienta, pimentón dulce, comino, provenzal, orégano
+•TORTA DE AVENA DULCE: Opcionales... Edulcorante, stevia, escencia de vainilla, 20grs de cacao amargo, 20grs de coco rallado, canela, rayadura de naranja, limón, etc. Cocinar a fuego lento en un horno o sartén que no se pegue (se puede agregar fritolin)
+•TORTA DE AVENA SALADA: opcionales... 10grs de chía, sal rosa, 10grs de queso rallado, orégano. Cocinar a fuego lento en un horno o en una sartén.
+
+IMPORTANTE
+•La dieta es de lunes a lunes
+•Los alimentos se pesan en crudo
+•3 litros de agua por dia como mínimo
+•Gelatina light a gusto (usálo siempre en caso de ansiedad)
+•Jugos sin azúcar lo mínimo posible
+•Gaseosas light lo mínimo posible
+•Nada de alcohol
+•El modo de cocción de la comidas es indistinto, puede ser a la plancha, al horno o hervido
+
+HORARIOS
+•Empezás siempre con la comida 1 y comés cada 3.30/4hs.
+•Si te pasas de horario o te desacomodás en algún momento, no hay mayor problema, lo mas importante es que comas TODAS las comidas.`);
+            }
+        } catch (error) {
+            console.error('Error loading recommendations:', error);
+        }
+    };
+
+    const handleSaveRecommendations = async () => {
+        try {
+            if (recommendationsId) {
+                await NutritionTemplatesAPI.update(recommendationsId, {
+                    title: recommendationsTitle,
+                    content: recommendationsContent,
+                    isActive: true
+                });
+            } else {
+                const newTemplate = await NutritionTemplatesAPI.create({
+                    title: recommendationsTitle,
+                    content: recommendationsContent,
+                    isActive: true
+                });
+                setRecommendationsId(newTemplate.id);
+            }
+            setToast({ message: 'Recomendaciones guardadas exitosamente', type: 'success' });
+            setShowRecommendationsModal(false);
+        } catch (error) {
+            console.error('Error saving recommendations:', error);
+            setToast({ message: 'Error al guardar recomendaciones', type: 'error' });
+        }
+    };
+
     useEffect(() => {
         loadMembers();
+        loadRecommendations();
     }, []);
 
     useEffect(() => {
@@ -140,13 +220,83 @@ const Nutrition: React.FC = () => {
                 <h2 className="text-2xl font-display font-bold text-white flex items-center gap-3">
                     <Apple className="text-green-500" /> Gestión Nutricional
                 </h2>
-                {selectedMember && (
-                    <div className="text-right hidden sm:block">
-                        <p className="text-xs text-gray-400">Editando plan de:</p>
-                        <p className="text-xl font-bold text-brand-gold">{selectedMember.firstName} {selectedMember.lastName}</p>
-                    </div>
-                )}
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => setShowRecommendationsModal(true)}
+                        className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition"
+                    >
+                        <Settings size={18} />
+                        Configurar Recomendaciones
+                    </button>
+                    {selectedMember && (
+                        <div className="text-right hidden sm:block">
+                            <p className="text-xs text-gray-400">Editando plan de:</p>
+                            <p className="text-xl font-bold text-brand-gold">{selectedMember.firstName} {selectedMember.lastName}</p>
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* Modal de Recomendaciones */}
+            {showRecommendationsModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-gray-800 flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Settings className="text-brand-gold" />
+                                Configurar Recomendaciones para PDF
+                            </h3>
+                            <button
+                                onClick={() => setShowRecommendationsModal(false)}
+                                className="text-gray-400 hover:text-white transition"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto flex-1">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-sm text-gray-400 block mb-2">Título de la Sección</label>
+                                    <input
+                                        type="text"
+                                        value={recommendationsTitle}
+                                        onChange={(e) => setRecommendationsTitle(e.target.value)}
+                                        className="w-full bg-black border border-gray-700 rounded-lg px-4 py-2 text-white focus:border-brand-gold focus:outline-none"
+                                        placeholder="Título de las recomendaciones"
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="text-sm text-gray-400 block mb-2">Contenido de las Recomendaciones</label>
+                                    <p className="text-xs text-gray-500 mb-2">Estas recomendaciones se agregarán automáticamente al final de todos los PDFs de nutrición.</p>
+                                    <textarea
+                                        value={recommendationsContent}
+                                        onChange={(e) => setRecommendationsContent(e.target.value)}
+                                        className="w-full h-96 bg-black border border-gray-700 rounded-lg px-4 py-3 text-sm text-white focus:border-brand-gold focus:outline-none font-mono"
+                                        placeholder="Escribe aquí las recomendaciones..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="p-6 border-t border-gray-800 flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowRecommendationsModal(false)}
+                                className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSaveRecommendations}
+                                className="px-6 py-2 bg-brand-gold hover:bg-yellow-500 text-black font-bold rounded-lg transition"
+                            >
+                                Guardar Recomendaciones
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full overflow-hidden">
                 
