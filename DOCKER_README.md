@@ -1,5 +1,45 @@
 # Guía de Dockerización - El Arca Gym Manager
 
+## 🏁 Primeros pasos para desarrolladores (Setup desde cero)
+
+Sigue este orden para levantar el entorno y tener datos de ejemplo:
+
+1. **Clona el repositorio y entra a la carpeta del proyecto**
+   ```bash
+   git clone <repo-url>
+   cd elarcagym
+   ```
+
+2. **Crea los archivos `.env` si no existen**
+   - Copia los ejemplos si están disponibles, o crea manualmente:
+     - `backend/.env` (ver ejemplo más abajo)
+     - `frontend/.env` (ver ejemplo más abajo)
+
+3. **Descarga y levanta los servicios**
+   ```bash
+   docker-compose pull
+   docker-compose up -d
+   ```
+
+4. **Ejecuta las migraciones de base de datos**
+   Esto crea las tablas necesarias:
+   ```bash
+   docker-compose exec backend npx prisma migrate deploy
+   ```
+
+5. **Carga datos de ejemplo (usuarios y ejercicios)**
+   Ejecuta los scripts de seed dentro del backend:
+   ```bash
+   docker-compose exec backend npx ts-node src/seed-users.ts
+   docker-compose exec backend npx ts-node src/seed-exercises.ts
+   ```
+
+6. **Accede a la app**
+   - Frontend: http://localhost:4173
+   - Backend API: http://localhost:4000
+
+---
+
 Esta guía explica cómo usar Docker y Docker Compose para ejecutar la aplicación El Arca Gym Manager.
 
 ## Requisitos Previos
@@ -146,6 +186,16 @@ docker run -d \
 
 ## Configuración de Variables de Entorno
 
+### ¿Y si falta el archivo .env?
+
+Por seguridad, los archivos `.env` no se suben al repositorio ni a Docker Hub. Si no existen, créalos manualmente siguiendo los ejemplos de abajo. Si hay un archivo `.env.example`, puedes copiarlo:
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
+
 ### Backend (.env)
 
 Asegúrate de tener un archivo `backend/.env` con:
@@ -167,6 +217,24 @@ VITE_API_URL=http://localhost:4000
 ```
 
 ## Troubleshooting
+
+### Errores comunes y soluciones rápidas
+
+- **El backend entra en bucle de reinicio y ves `Cannot find module '/app/dist/index.js'`:**
+   - Solución: Asegúrate de que el build de backend se realiza correctamente. Si construyes localmente, ejecuta `npm install && npm run build` en la carpeta backend antes de construir la imagen. Si usas imágenes de Docker Hub, reporta el error.
+
+- **Al ejecutar seed sale error `table ... does not exist`:**
+   - Solución: Ejecuta primero las migraciones con `docker-compose exec backend npx prisma migrate deploy` y luego los scripts de seed.
+
+- **No se suben los datos de la base de datos a Docker Hub:**
+   - Docker solo sube la imagen, no los datos. Los datos de PostgreSQL se guardan en un volumen local. Si necesitas migrar datos reales entre entornos, haz un backup con `pg_dump` y restáuralo en el nuevo entorno.
+
+- **Faltan archivos .env:**
+   - Crea los archivos `.env` siguiendo los ejemplos de este documento.
+
+- **El frontend o backend no responde:**
+   - Verifica los logs con `docker-compose logs frontend` o `docker-compose logs backend`.
+
 
 ### El backend no se conecta a la base de datos
 
@@ -235,6 +303,24 @@ docker-compose down -v --rmi all
 ```
 
 ## Notas Importantes
+
+### Migrar datos reales de la base de datos
+
+Si necesitas mover datos reales de un entorno a otro (por ejemplo, de una PC a otra):
+
+1. Haz un backup en la PC original:
+   ```bash
+   docker-compose exec postgres pg_dump -U elarcagym_user -d elarcagym -F c -f /tmp/backup.dump
+   docker cp elarca-postgres:/tmp/backup.dump ./backup_local.dump
+   ```
+2. Copia el archivo `backup_local.dump` a la nueva PC.
+3. Restaura en la nueva base de datos:
+   ```bash
+   docker cp ./backup_local.dump elarca-postgres:/tmp/backup_local.dump
+   docker-compose exec postgres pg_restore -U elarcagym_user -d elarcagym /tmp/backup_local.dump
+   ```
+
+---
 
 1. **Persistencia de Datos**: Los datos de PostgreSQL se almacenan en un volumen Docker persistente (`postgres_data`). Si eliminas el volumen, perderás todos los datos.
 
