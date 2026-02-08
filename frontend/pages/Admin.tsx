@@ -644,7 +644,7 @@ const Admin: React.FC = () => {
             {showConfigModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
                     <div className="absolute inset-0" onClick={() => setShowConfigModal(false)} />
-                    <div className="bg-[#111] p-6 rounded-3xl border border-gray-800 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-[#111] p-6 rounded-3xl border border-gray-800 w-full max-w-md shadow-2xl z-10" onClick={e => e.stopPropagation()}>
                         <h3 className="text-xl font-bold text-white mb-6">⚙️ Configuración del Gimnasio</h3>
                         
                         <div className="space-y-4">
