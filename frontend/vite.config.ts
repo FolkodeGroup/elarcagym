@@ -18,6 +18,12 @@ export default defineConfig(({ mode }) => {
           // Agrega aquí otras rutas de API si es necesario
         },
       },
+      preview: {
+        allowedHosts: [
+          'elarcagym.com.ar',
+          'www.elarcagym.com.ar'
+        ]
+      },
       build: {
         sourcemap: false,
       },
