@@ -220,10 +220,10 @@ const UsersManagement: React.FC = () => {
   };
 
   const filteredUsers = users.filter(user => 
-    user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.dni.includes(searchTerm)
+    (user.firstName && user.firstName.toLowerCase().includes(searchTerm?.toLowerCase() ?? '')) ||
+    (user.lastName && user.lastName.toLowerCase().includes(searchTerm?.toLowerCase() ?? '')) ||
+    (user.email && user.email.toLowerCase().includes(searchTerm?.toLowerCase() ?? '')) ||
+    (user.dni && user.dni.includes(searchTerm ?? ''))
   );
 
   if (!isAdmin) {
