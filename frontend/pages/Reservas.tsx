@@ -262,7 +262,7 @@ const Reservas: React.FC = () => {
         m.status === UserStatus.ACTIVE && 
         !selectedIds.includes(m.id) && 
         !reservedMemberIds.includes(m.id) && 
-        `${m.firstName} ${m.lastName}`.toLowerCase().includes(searchMember.toLowerCase())
+        (`${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().includes(searchMember?.toLowerCase() ?? ''))
       )
       .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
       .slice(0, 8);
@@ -272,7 +272,7 @@ const Reservas: React.FC = () => {
     if (!searchWaiting.trim()) return [];
     return allMembers
         .filter(m => m.status === UserStatus.ACTIVE && !waitingList.find(w => w.id === m.id) &&
-            `${m.firstName} ${m.lastName}`.toLowerCase().includes(searchWaiting.toLowerCase()))
+            (`${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().includes(searchWaiting?.toLowerCase() ?? '')))
         .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
         .slice(0, 5);
   }, [allMembers, searchWaiting, waitingList]);
