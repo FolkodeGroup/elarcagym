@@ -212,7 +212,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
       }
       // Email simple: contiene @ y termina en .com
       const email = (editMember.email || '').trim();
-      if (email && !(email.includes('@') && email.toLowerCase().endsWith('.com'))) {
+      if (email && !(email.includes('@') && (email?.toLowerCase()?.endsWith('.com') ?? false))) {
         setToast({ message: t('errorEmailInvalido'), type: 'error' });
         return;
       }
