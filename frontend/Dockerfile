@@ -9,11 +9,11 @@ RUN npm install
 
 COPY . .
 
+# Copiar .env.production si existe
+COPY .env.production* ./
+
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
-
-# Copiar archivo de entorno si existe (ajusta según tu flujo)
-# COPY .env .env
 
 # Construir la app (ajusta el comando si usas otro)
 RUN npm run build
