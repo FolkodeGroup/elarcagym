@@ -208,7 +208,7 @@ HORARIOS
     };
 
     const filteredMembers = members.filter(m => 
-        `${m.firstName} ${m.lastName}`.toLowerCase().includes(searchMember.toLowerCase()) ||
+        (`${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().includes(searchMember?.toLowerCase() ?? '')) ||
         (m.dni && m.dni.includes(searchMember))
     );
 
