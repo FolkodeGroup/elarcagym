@@ -8,6 +8,14 @@
 			"args": [],
 			"isBackground": true,
 			"group": "test"
+		},
+		{
+			"label": "Run Frontend Dev Server",
+			"type": "shell",
+			"command": "npm run dev",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
 		}
 	]
 }
