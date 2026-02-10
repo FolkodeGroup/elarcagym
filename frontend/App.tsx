@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Login from './pages/Login';
+import Landing from './pages/Landing';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
@@ -27,11 +28,13 @@ const AppContent: React.FC = () => {
   const [showNavModal, setShowNavModal] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isSelfServiceMode, setIsSelfServiceMode] = useState(false);
+  const [showLanding, setShowLanding] = useState(false);
   const { canNavigate, pendingPage, setPendingPage, confirmNavigation } = useNavigation();
 
   useEffect(() => {
+    const path = window.location.pathname;
     // Mostrar RoutineSelfService si la ruta es /rutina
-    if (window.location.pathname === '/rutina') {
+    if (path === '/rutina') {
       setCurrentPage('self_service');
       setIsSelfServiceMode(true);
       return;
@@ -42,6 +45,15 @@ const AppContent: React.FC = () => {
       setCurrentPage('self_service');
       setIsSelfServiceMode(true);
       return;
+    }
+    // Ruta privada de staff: /staff → directo al login
+    if (path === '/staff') {
+      setShowLanding(false);
+      return;
+    }
+    // Si no está autenticado y está en la raíz, mostrar landing
+    if (path === '/' || path === '') {
+      setShowLanding(true);
     }
   }, []);
 
@@ -92,6 +104,10 @@ const AppContent: React.FC = () => {
   }
 
   if (!isAuthenticated) {
+    // Mostrar landing si corresponde (ruta raíz y no autenticado)
+    if (showLanding) {
+      return <Landing onGoToLogin={() => setShowLanding(false)} />;
+    }
     return <Login onLogin={handleLogin} />;
   }
 

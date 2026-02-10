@@ -4,6 +4,7 @@ import { Product } from '../types';
 import { ShoppingCart, Plus, Minus, Trash2, Edit2, Search, AlertTriangle } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
+import ImagePicker from '../components/ImagePicker';
 
 const Admin: React.FC = () => {
     // Gestión de configuración
@@ -97,8 +98,8 @@ const Admin: React.FC = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [newProductForm, setNewProductForm] = useState({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '' });
-    const [editProductForm, setEditProductForm] = useState({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '' });
+    const [newProductForm, setNewProductForm] = useState({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '', imageUrl: '' });
+    const [editProductForm, setEditProductForm] = useState({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '', imageUrl: '' });
     
     // Estado para eliminar producto
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -415,6 +416,11 @@ const Admin: React.FC = () => {
                     className="bg-[#1a1a1a] border border-gray-800 p-4 rounded-xl text-left hover:border-brand-gold transition group cursor-pointer"
                     onClick={() => addToCart(product)}
                 >
+                    {product.imageUrl && (
+                        <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-black">
+                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
+                        </div>
+                    )}
                     <div className="flex justify-between items-start mb-2">
                         <span className="text-[10px] font-bold text-gray-500 bg-black px-2 py-1 rounded uppercase tracking-wider">{translateCategory(product.category)}</span>
                         <span className="text-sm font-bold text-brand-gold">${product.price}</span>
@@ -431,7 +437,7 @@ const Admin: React.FC = () => {
                             onClick={(e) => { 
                                 e.stopPropagation(); 
                                 setEditingProduct(product); 
-                                setEditProductForm({ name: product.name, price: String(product.price), category: product.category, stock: String(product.stock), newCategory: '' }); 
+                                setEditProductForm({ name: product.name, price: String(product.price), category: product.category, stock: String(product.stock), newCategory: '', imageUrl: product.imageUrl || '' }); 
                                 setShowEditModal(true); 
                             }} 
                             className="text-gray-300 bg-gray-800 p-2 rounded hover:bg-gray-700"
@@ -508,6 +514,10 @@ const Admin: React.FC = () => {
                     <div className="bg-[#0b0b0b] p-6 rounded-3xl border border-gray-800 z-10 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
                         <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-6">Nuevo Producto</h4>
                         <div className="space-y-4">
+                            <ImagePicker 
+                              currentImage={newProductForm.imageUrl || undefined}
+                              onImageChange={(base64) => setNewProductForm({...newProductForm, imageUrl: base64 || ''})}
+                            />
                             <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Nombre" value={newProductForm.name} onChange={e => setNewProductForm({...newProductForm, name: e.target.value})} />
                             <div className="grid grid-cols-2 gap-4">
                                 <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Precio" type="number" value={newProductForm.price} onChange={e => setNewProductForm({...newProductForm, price: e.target.value})} />
@@ -552,12 +562,12 @@ const Admin: React.FC = () => {
                                         }
                                     }
                                     try {
-                                        await ProductsAPI.create({ name: newProductForm.name, price: Number(newProductForm.price), category: categoryToUse, stock: Number(newProductForm.stock) });
+                                        await ProductsAPI.create({ name: newProductForm.name, price: Number(newProductForm.price), category: categoryToUse, stock: Number(newProductForm.stock), imageUrl: newProductForm.imageUrl || undefined });
                                         await loadInventory();
                                         setToast({ message: `Producto agregado.`, type: 'success' });
                                         setShowAddModal(false);
                                         setAddingNewCategory(false);
-                                        setNewProductForm({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '' });
+                                        setNewProductForm({ name: '', price: '', category: 'OTHER', stock: '', newCategory: '', imageUrl: '' });
                                     } catch (error) {
                                         console.error('Error adding product:', error);
                                         setToast({ message: 'Error al agregar producto', type: 'error' });
@@ -575,6 +585,10 @@ const Admin: React.FC = () => {
                     <div className="bg-[#0b0b0b] p-6 rounded-3xl border border-gray-800 z-10 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
                         <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-6">Editar Producto</h4>
                         <div className="space-y-4">
+                            <ImagePicker 
+                              currentImage={editProductForm.imageUrl || undefined}
+                              onImageChange={(base64) => setEditProductForm({...editProductForm, imageUrl: base64 || ''})}
+                            />
                             <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Nombre" value={editProductForm.name} onChange={e => setEditProductForm({...editProductForm, name: e.target.value})} />
                             <div className="grid grid-cols-2 gap-4">
                                 <input className="w-full bg-black border border-gray-700 p-3 rounded-xl text-white outline-none focus:border-brand-gold" placeholder="Precio" type="number" value={editProductForm.price} onChange={e => setEditProductForm({...editProductForm, price: e.target.value})} />
@@ -619,7 +633,7 @@ const Admin: React.FC = () => {
                                         }
                                     }
                                     try {
-                                        await ProductsAPI.update(editingProduct.id, { name: editProductForm.name, price: Number(editProductForm.price), category: categoryToUse, stock: Number(editProductForm.stock) });
+                                        await ProductsAPI.update(editingProduct.id, { name: editProductForm.name, price: Number(editProductForm.price), category: categoryToUse, stock: Number(editProductForm.stock), imageUrl: editProductForm.imageUrl || undefined });
                                         await loadInventory();
                                         setToast({ message: `Cambios guardados.`, type: 'success' });
                                         setShowEditModal(false);
