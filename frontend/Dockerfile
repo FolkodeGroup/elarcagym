@@ -34,6 +34,9 @@ WORKDIR /app
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./
+# vite.config.ts es NECESARIO en runtime para que `vite preview`
+# lea la configuración de allowedHosts, port, host, etc.
+COPY --from=build /app/vite.config.ts ./
 
 # Exponer el puerto de Vite preview
 EXPOSE 4173

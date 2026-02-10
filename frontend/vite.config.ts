@@ -19,10 +19,7 @@ export default defineConfig({
   preview: {
     host: true,
     port: 4173,
-    allowedHosts: [
-      'elarcagym.com.ar',
-      'www.elarcagym.com.ar'
-    ]
+    allowedHosts: true
   },
   build: {
     sourcemap: false,
