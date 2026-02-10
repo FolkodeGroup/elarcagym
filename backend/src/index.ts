@@ -29,7 +29,18 @@ import routineTokenController from './controllers/routineTokenController.js';
 import routineAccessController from './controllers/routineAccessController.js';
 import { setPrismaInstance } from './utils/notificationService.js';
 
+// ===== Orígenes permitidos para CORS y Socket.IO =====
+const allowedOrigins = [
+  'https://elarcagym.com.ar',
+  'https://www.elarcagym.com.ar',
+  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(url => url.trim()) : []),
+  'http://localhost:4173',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:5174'
+].filter(Boolean);
 
+console.log('Allowed CORS origins:', allowedOrigins);
 
 const app = express();
 const httpServer = createServer(app);
@@ -71,16 +82,6 @@ io.on('connection', (socket) => {
 
 // Hacer io accesible globalmente para emitir notificaciones
 (global as any).io = io;
-
-const allowedOrigins = [
-  'https://elarcagym.com.ar',
-  'https://www.elarcagym.com.ar',
-  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(url => url.trim()) : []),
-  'http://localhost:4173',
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://localhost:5174'
-].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
