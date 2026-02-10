@@ -24,6 +24,10 @@ dist-ssr
 *.sw?
 
 /frontend/.env
+/frontend/.env.local
 /backend/.env
+/backend/.env.local
 
-*.env
+# NO ignorar .env.production y .env.example (necesarios para el build)
+!frontend/.env.production
+!frontend/.env.example

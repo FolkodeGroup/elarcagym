@@ -16,14 +16,14 @@ RUN npm ci
 # Copiar el resto del código
 COPY . .
 
-# Generar Prisma Client en node_modules después de instalar dependencias y copiar código
+# Generar Prisma Client
 RUN npx prisma generate
 
-# Compilar TypeScript (si aplica)
-RUN npm run build || echo "No build script"
+# Compilar TypeScript
+RUN npm run build
 
 # Exponer el puerto en el que escucha el backend
 EXPOSE 4000
 
-# Comando por defecto
-CMD ["node", "dist/index.js"]
+# Comando por defecto: ejecutar migraciones y luego iniciar el servidor
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
