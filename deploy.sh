@@ -15,7 +15,7 @@ set -e
 
 # Configuración
 VPS_IP="168.197.49.120"
-VPS_PORT="5173"
+VPS_PORT="5371"
 VPS_USER="root"
 PROJECT_DIR="/opt/elarcagym"
 DOMAIN="elarcagym.com.ar"
@@ -25,6 +25,13 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+# Elimina todos los contenedores Docker en el VPS antes de crear nuevos
+clean_docker_containers() {
+    info "Eliminando todos los contenedores, volúmenes y redes Docker en el VPS..."
+    ${SSH_CMD} "docker rm -f \$(docker ps -aq) || true"
+    ${SSH_CMD} "docker volume rm -f \$(docker volume ls -q) || true"
+    ${SSH_CMD} "docker network rm \$(docker network ls --filter 'name=elarca' -q) || true"
+}
 NC='\033[0m'
 
 log() { echo -e "${GREEN}[✅]${NC} $1"; }
