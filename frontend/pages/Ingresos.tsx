@@ -340,7 +340,7 @@ const Ingresos = () => {
             {showDeleteModal && ventaAEliminar && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
                     <div className="absolute inset-0" onClick={() => setShowDeleteModal(false)} />
-                    <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+                    <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-md w-full p-6 z-10" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-xl font-bold text-white">{t('confirmarEliminacion')}</h3>
                             <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-white">
@@ -362,13 +362,13 @@ const Ingresos = () => {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setShowDeleteModal(false)}
-                                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
+                                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition cursor-pointer"
                             >
                                 {t('cancelar')}
                             </button>
                             <button
                                 onClick={confirmarEliminar}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition cursor-pointer"
                             >
                                 {t('eliminar')}
                             </button>

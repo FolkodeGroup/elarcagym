@@ -3,7 +3,7 @@ import { SlotsAPI, ReservationsAPI, MembersAPI } from '../services/api';
 import { Slot, Reservation, Member, UserStatus } from '../types';
 import { 
   Plus, Edit2, Trash2, Clock, Search, X, Users, 
-  UserPlus, ListOrdered, UserCheck, StickyNote, FileText, UserX, ChevronLeft, ChevronRight, AlignLeft, Timer
+  UserPlus, UserCheck, StickyNote, FileText, UserX, ChevronLeft, ChevronRight, AlignLeft, Timer
 } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
@@ -12,7 +12,6 @@ const Reservas: React.FC = () => {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
-  const [waitingList, setWaitingList] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const getLocalDateString = (date: Date = new Date()) => {
@@ -27,7 +26,6 @@ const Reservas: React.FC = () => {
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showWaitingListModal, setShowWaitingListModal] = useState(false);
 
   // Estado del Formulario Unificado
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
@@ -39,7 +37,6 @@ const Reservas: React.FC = () => {
   });
 
   const [searchMember, setSearchMember] = useState('');
-  const [searchWaiting, setSearchWaiting] = useState('');
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [editFormData, setEditFormData] = useState({ clientName: '', notes: '' });
@@ -71,11 +68,6 @@ const Reservas: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
-
-  useEffect(() => {
-    const savedWaiting = localStorage.getItem(`waiting_list_${selectedDate}`);
-    setWaitingList(savedWaiting ? JSON.parse(savedWaiting) : []);
-  }, [selectedDate]);
 
   useEffect(() => {
     setCanNavigate(!showQuickAdd);
@@ -142,12 +134,6 @@ const Reservas: React.FC = () => {
       }
     }
 
-    // --- CORRECCIÓN ERROR LISTA ESPERA ---
-    // Limpiamos la lista de espera de todos los seleccionados de una sola vez
-    const newWaitingList = waitingList.filter(m => !selectedIds.includes(m.id));
-    setWaitingList(newWaitingList);
-    localStorage.setItem(`waiting_list_${selectedDate}`, JSON.stringify(newWaitingList));
-
     await SlotsAPI.update(targetSlotId!, { status: 'reserved' });
 
     // Recargar datos para actualizar la grilla
@@ -193,22 +179,6 @@ const Reservas: React.FC = () => {
         setToast({ message: "Error al eliminar reservación", type: 'error' });
       }
     }
-  };
-
-  // --- LISTA DE ESPERA ---
-  const addToWaitingList = (member: Member) => {
-    if (waitingList.find(m => m.id === member.id)) return;
-    const newList = [...waitingList, member];
-    setWaitingList(newList);
-    localStorage.setItem(`waiting_list_${selectedDate}`, JSON.stringify(newList));
-    setSearchWaiting('');
-    setToast({ message: `${member.firstName} en espera`, type: 'info' });
-  };
-
-  const removeFromWaitingList = (id: string) => {
-    const newList = waitingList.filter(m => m.id !== id);
-    setWaitingList(newList);
-    localStorage.setItem(`waiting_list_${selectedDate}`, JSON.stringify(newList));
   };
 
   const toggleMemberSelection = (member: Member) => {
@@ -268,15 +238,6 @@ const Reservas: React.FC = () => {
       .slice(0, 8);
   }, [allMembers, searchMember, quickAddForm.selectedMembers, slots, reservations, selectedDate]);
 
-  const filteredWaitingSearch = useMemo(() => {
-    if (!searchWaiting.trim()) return [];
-    return allMembers
-        .filter(m => m.status === UserStatus.ACTIVE && !waitingList.find(w => w.id === m.id) &&
-            (`${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().includes(searchWaiting?.toLowerCase() ?? '')))
-        .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
-        .slice(0, 5);
-  }, [allMembers, searchWaiting, waitingList]);
-
   const dateSlots = slots.filter(s => {
     const slotDate = typeof s.date === 'string' ? s.date.split('T')[0] : getLocalDateString(new Date(s.date));
     return slotDate === selectedDate;
@@ -304,12 +265,7 @@ const Reservas: React.FC = () => {
             }} className="p-1 hover:text-brand-gold"><ChevronRight/></button>
           </div>
         </div>
-        <button 
-            onClick={() => setShowWaitingListModal(true)}
-            className="px-4 py-2 bg-brand-gold/10 border border-brand-gold/30 text-brand-gold rounded-lg text-sm flex items-center gap-2 hover:bg-brand-gold/20 transition"
-        >
-            <ListOrdered size={18}/> Lista de Espera ({waitingList.length})
-        </button>
+
       </div>
 
       {/* GRILLA */}
@@ -535,46 +491,6 @@ const Reservas: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: LISTA DE ESPERA */}
-      {showWaitingListModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-          <div className="absolute inset-0" onClick={() => setShowWaitingListModal(false)} />
-          <div className="bg-[#0b0b0b] p-6 rounded-3xl border border-gray-800 z-10 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6 text-white">
-              <h4 className="text-xl font-black tracking-tighter flex items-center gap-2"><ListOrdered className="text-brand-gold"/> ESPERA</h4>
-              <button onClick={() => setShowWaitingListModal(false)}><X size={24}/></button>
-            </div>
-            <div className="mb-6 space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                {waitingList.map(m => (
-                    <div key={m.id} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-xl border border-white/[0.05]">
-                        <span className="text-sm font-bold text-white">{m.firstName} {m.lastName}</span>
-                        <div className="flex gap-2">
-                            {/* AL DAR ASIGNAR, LO CARGAMOS DIRECTAMENTE EN EL MODAL DE QUICK ADD */}
-                            <button onClick={() => { 
-                                handleSlotClick(parseInt(getLocalDateString()), undefined); 
-                                setQuickAddForm(prev => ({...prev, selectedMembers: [m]}));
-                                setShowWaitingListModal(false); 
-                            }} className="p-2 text-brand-gold hover:bg-brand-gold/10 rounded-lg"><UserPlus size={16}/></button>
-                            <button onClick={() => removeFromWaitingList(m.id)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg"><Trash2 size={16}/></button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-            <div className="pt-6 border-t border-gray-800">
-                <input type="text" placeholder="Anotar nuevo socio..." value={searchWaiting} onChange={e => setSearchWaiting(e.target.value)} className="w-full bg-black border border-gray-700 p-3 rounded-xl text-sm text-white outline-none mb-4" />
-                <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar pr-2">
-                    {filteredWaitingSearch.map(m => (
-                        <button key={m.id} onClick={() => addToWaitingList(m)} className="w-full text-left p-3 rounded-xl bg-gray-900/50 border border-gray-800 text-xs font-bold text-white flex justify-between items-center">
-                            <span>{m.firstName} {m.lastName}</span>
-                            <Plus size={14}/>
-                        </button>
-                    ))}
-                </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* MODALES DE SOPORTE */}
       {showEditModal && editingReservation && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm text-white">
@@ -593,11 +509,11 @@ const Reservas: React.FC = () => {
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70">
           <div className="absolute inset-0" onClick={() => setShowDeleteConfirm(false)} />
-          <div className="bg-[#0b0b0b] p-6 rounded-2xl border border-gray-800 text-white max-w-xs text-center" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#0b0b0b] p-6 rounded-2xl border border-gray-800 text-white max-w-xs text-center z-10" onClick={e => e.stopPropagation()}>
             <p className="mb-6 font-bold text-sm">¿Quitar a {selectedReservation?.clientName} de este turno?</p>
             <div className="flex gap-3">
-              <button className="flex-1 py-2 rounded-xl bg-gray-800 text-xs font-bold" onClick={() => setShowDeleteConfirm(false)}>No</button>
-              <button className="flex-1 py-2 rounded-xl bg-red-600 text-xs font-bold" onClick={confirmDeleteReservation}>Sí, quitar</button>
+              <button className="flex-1 py-2 rounded-xl bg-gray-800 text-xs font-bold cursor-pointer" onClick={() => setShowDeleteConfirm(false)}>No</button>
+              <button className="flex-1 py-2 rounded-xl bg-red-600 text-xs font-bold cursor-pointer" onClick={confirmDeleteReservation}>Sí, quitar</button>
             </div>
           </div>
         </div>
