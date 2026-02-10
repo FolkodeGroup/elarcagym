@@ -290,13 +290,27 @@ const Admin: React.FC = () => {
                                                 <li key={cat} className="flex items-center justify-between mb-2">
                                                     <span className="text-white">{translateCategory(cat)}</span>
                                                     <div className="flex gap-2">
-                                                        <button className="text-xs px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-500" onClick={() => { setEditingCategory(cat); setEditCategoryValue(cat); setShowCategoryManager(false); }}>Editar</button>
-                                                        <button className="text-xs px-2 py-1 bg-red-700 text-white rounded hover:bg-red-500" onClick={() => { setCategoryToDelete(cat); setShowCategoryManager(false); }}>Eliminar</button>
+                                                        <button className="text-xs px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-500 cursor-pointer" onClick={() => { setEditingCategory(cat); setEditCategoryValue(cat); setShowCategoryManager(false); }}>Editar</button>
+                                                        <button className="text-xs px-2 py-1 bg-red-700 text-white rounded hover:bg-red-500 cursor-pointer" onClick={() => { setCategoryToDelete(cat); setShowCategoryManager(false); }}>Eliminar</button>
                                                     </div>
                                                 </li>
                                             ))}
                                     </ul>
-                                    <button className="mt-2 px-4 py-2 rounded bg-gray-700 text-white w-full" onClick={() => setShowCategoryManager(false)}>Cerrar</button>
+                                    <button className="mt-2 px-4 py-2 rounded bg-gray-700 text-white w-full cursor-pointer" onClick={() => setShowCategoryManager(false)}>Cerrar</button>
+                                    <button className="mt-2 px-4 py-2 rounded bg-brand-gold text-black w-full font-bold cursor-pointer" onClick={() => {
+                                        const newCatName = prompt('Nombre de la nueva categoría:');
+                                        if (newCatName && newCatName.trim()) {
+                                            const formatted = newCatName.trim().toUpperCase();
+                                            if (!categories.includes(formatted)) {
+                                                const updated = [...categories, formatted];
+                                                setCategories(updated);
+                                                localStorage.setItem('categories', JSON.stringify(updated));
+                                                setToast({ message: `Categoría "${formatted}" agregada.`, type: 'success' });
+                                            } else {
+                                                setToast({ message: 'Esa categoría ya existe.', type: 'error' });
+                                            }
+                                        }
+                                    }}>+ Nueva Categoría</button>
                                 </div>
                             </div>
                         )}
@@ -309,8 +323,8 @@ const Admin: React.FC = () => {
                                     <h4 className="text-lg font-bold mb-2 text-white">Editar categoría</h4>
                                     <input className="w-full bg-black border border-gray-700 p-2 rounded text-white mb-3" value={editCategoryValue} onChange={e => setEditCategoryValue(e.target.value)} />
                                     <div className="flex gap-2 justify-end">
-                                        <button className="px-4 py-2 rounded bg-gray-700 text-white" onClick={() => { setEditingCategory(null); setShowCategoryManager(true); }}>Cancelar</button>
-                                        <button className="px-4 py-2 rounded bg-brand-gold text-black" onClick={() => { handleEditCategory(); setShowCategoryManager(true); }}>Guardar</button>
+                                        <button className="px-4 py-2 rounded bg-gray-700 text-white cursor-pointer" onClick={() => { setEditingCategory(null); setShowCategoryManager(true); }}>Cancelar</button>
+                                        <button className="px-4 py-2 rounded bg-brand-gold text-black cursor-pointer" onClick={() => { handleEditCategory(); setShowCategoryManager(true); }}>Guardar</button>
                                     </div>
                                 </div>
                             </div>
@@ -333,8 +347,8 @@ const Admin: React.FC = () => {
                                                 ))}
                                             </select>
                                             <div className="flex gap-2 justify-end">
-                                                <button className="px-4 py-2 rounded bg-gray-700 text-white" onClick={() => { setCategoryToDelete(null); setShowCategoryManager(true); }}>Cancelar</button>
-                                                <button className="px-4 py-2 rounded bg-red-600 text-white" onClick={() => { handleDeleteCategory(); setShowCategoryManager(true); }}>Eliminar</button>
+                                                <button className="px-4 py-2 rounded bg-gray-700 text-white cursor-pointer" onClick={() => { setCategoryToDelete(null); setShowCategoryManager(true); }}>Cancelar</button>
+                                                <button className="px-4 py-2 rounded bg-red-600 text-white cursor-pointer" onClick={() => { handleDeleteCategory(); setShowCategoryManager(true); }}>Eliminar</button>
                                             </div>
                                         </div>
                                     </div>
@@ -348,8 +362,8 @@ const Admin: React.FC = () => {
                                             <h4 className="text-lg font-bold mb-2 text-white">Eliminar categoría</h4>
                                             <p className="text-white mb-3">¿Seguro que deseas eliminar la categoría <b>{translateCategory(categoryToDelete)}</b>? No hay productos en esta categoría.</p>
                                             <div className="flex gap-2 justify-end">
-                                                <button className="px-4 py-2 rounded bg-gray-700 text-white" onClick={() => { setCategoryToDelete(null); setShowCategoryManager(true); }}>Cancelar</button>
-                                                <button className="px-4 py-2 rounded bg-red-600 text-white" onClick={() => { handleDeleteCategory(); setShowCategoryManager(true); }}>Eliminar</button>
+                                                <button className="px-4 py-2 rounded bg-gray-700 text-white cursor-pointer" onClick={() => { setCategoryToDelete(null); setShowCategoryManager(true); }}>Cancelar</button>
+                                                <button className="px-4 py-2 rounded bg-red-600 text-white cursor-pointer" onClick={() => { handleDeleteCategory(); setShowCategoryManager(true); }}>Eliminar</button>
                                             </div>
                                         </div>
                                     </div>
@@ -624,7 +638,7 @@ const Admin: React.FC = () => {
             {productToDelete && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
                     <div className="absolute inset-0" onClick={() => setProductToDelete(null)} />
-                    <div className="bg-[#111] p-6 rounded-3xl border border-gray-800 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-[#111] p-6 rounded-3xl border border-gray-800 w-full max-w-sm shadow-2xl z-10" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-3 mb-4 text-red-500">
                             <AlertTriangle size={24} />
                             <h4 className="text-lg font-bold">¿Eliminar producto?</h4>
@@ -633,8 +647,8 @@ const Admin: React.FC = () => {
                             Seguro deseas quitar <span className="text-white">"{productToDelete.name}"</span> del inventario?
                         </p>
                         <div className="flex gap-3">
-                            <button className="flex-1 py-2 rounded-xl bg-gray-800 text-gray-400 font-bold text-xs" onClick={() => setProductToDelete(null)}>CANCELAR</button>
-                            <button className="flex-1 py-2 rounded-xl bg-red-600 text-white font-bold text-xs" onClick={handleConfirmDeleteProduct}>SÍ, ELIMINAR</button>
+                            <button className="flex-1 py-2 rounded-xl bg-gray-800 text-gray-400 font-bold text-xs cursor-pointer" onClick={() => setProductToDelete(null)}>CANCELAR</button>
+                            <button className="flex-1 py-2 rounded-xl bg-red-600 text-white font-bold text-xs cursor-pointer" onClick={handleConfirmDeleteProduct}>SÍ, ELIMINAR</button>
                         </div>
                     </div>
                 </div>
