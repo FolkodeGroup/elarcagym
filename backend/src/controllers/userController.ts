@@ -2,6 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { authenticateToken } from '../middleware/auth.js';
+import { sendNotificationToAdmins } from '../utils/notificationService.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
@@ -301,6 +302,18 @@ export default function(prisma: any) {
         lastName: user.lastName,
         role: user.role
       });
+
+      // Notificar a admins sobre nuevo usuario
+      try {
+        await sendNotificationToAdmins({
+          title: 'Nuevo usuario creado',
+          message: `Se creó el usuario ${user.firstName} ${user.lastName} (${user.role})`,
+          type: 'info',
+          link: 'users_management'
+        });
+      } catch (err) {
+        console.error('Error enviando notificación:', err);
+      }
     } catch (e) {
       console.error('Error creando usuario:', e);
       res.status(500).json({ error: 'Error al crear usuario' });
@@ -440,6 +453,19 @@ export default function(prisma: any) {
       }
 
       await prisma.user.delete({ where: { id } });
+      
+      // Notificar a admins sobre eliminación
+      try {
+        await sendNotificationToAdmins({
+          title: 'Usuario eliminado',
+          message: `Se eliminó el usuario ${user.firstName} ${user.lastName}`,
+          type: 'warning',
+          link: 'users_management'
+        });
+      } catch (err) {
+        console.error('Error enviando notificación:', err);
+      }
+      
       res.status(204).send();
     } catch (e) {
       console.error('Error eliminando usuario:', e);

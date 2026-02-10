@@ -120,6 +120,7 @@ model Product {
   price     Float
   category  String
   stock     Int
+  imageUrl  String?  // URL o base64 de imagen del producto
   sales     SaleItem[]
 }
 

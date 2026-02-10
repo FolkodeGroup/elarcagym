@@ -119,8 +119,9 @@ const WaitlistPage: React.FC = () => {
     return `https://wa.me/${formattedPhone}`;
   };
 
-  // Separar pendientes y confirmados
-  const pendientes = waitlist.filter(w => (w.status || 'pendiente') !== 'confirmado');
+  // Separar en 3 estados: pendientes, contactados y confirmados
+  const pendientes = waitlist.filter(w => !w.status || w.status === 'pendiente');
+  const contactados = waitlist.filter(w => w.status === 'contactado');
   const confirmados = waitlist.filter(w => w.status === 'confirmado');
 
   return (
@@ -178,6 +179,11 @@ const WaitlistPage: React.FC = () => {
       <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
         <span className="w-3 h-3 rounded-full bg-yellow-500 inline-block"></span>
         Pendientes
+        {pendientes.length > 0 && (
+          <span className="text-xs text-gray-400 font-normal ml-2">
+            {pendientes.length} registro{pendientes.length !== 1 ? 's' : ''}
+          </span>
+        )}
       </h3>
       <div className="overflow-x-auto rounded-lg shadow border border-gray-800 bg-[#181818] mb-10">
         <table className="min-w-full text-sm text-left">
@@ -187,7 +193,6 @@ const WaitlistPage: React.FC = () => {
               <th className="px-4 py-3 font-semibold">Apellido</th>
               <th className="px-4 py-3 font-semibold">Celular</th>
               <th className="px-4 py-3 font-semibold">Horario</th>
-              <th className="px-4 py-3 font-semibold">Estado</th>
               <th className="px-4 py-3 font-semibold">Acciones</th>
             </tr>
           </thead>
@@ -212,29 +217,110 @@ const WaitlistPage: React.FC = () => {
                 </td>
                 <td className="px-4 py-2 text-white">{formatTime(w.reservationDate)} hs</td>
                 <td className="px-4 py-2">
-                  <select
-                    value={w.status || 'pendiente'}
-                    onChange={(e) => handleStatusChange(w.id, e.target.value)}
-                    className="bg-[#333] text-white text-xs px-2 py-1 rounded border border-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-gold"
-                  >
-                    <option value="pendiente">Pendiente</option>
-                    <option value="contactado">Contactado</option>
-                    <option value="confirmado">Confirmado</option>
-                  </select>
-                </td>
-                <td className="px-4 py-2">
-                  <button
-                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
-                    onClick={() => setDeleteConfirm({ id: w.id, name: `${w.firstName} ${w.lastName}` })}
-                  >
-                    Eliminar
-                  </button>
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
+                      onClick={() => handleStatusChange(w.id, 'contactado')}
+                      title="Marcar como contactado"
+                    >
+                      Contactado
+                    </button>
+                    <button
+                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                      onClick={() => handleStatusChange(w.id, 'confirmado')}
+                      title="Confirmar asistencia"
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
+                      onClick={() => setDeleteConfirm({ id: w.id, name: `${w.firstName} ${w.lastName}` })}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
             {pendientes.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center text-gray-400 py-6">No hay registros pendientes en la lista de espera.</td>
+                <td colSpan={5} className="text-center text-gray-400 py-6">No hay registros pendientes en la lista de espera.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Tabla de Contactados */}
+      <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+        <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
+        Contactados
+        {contactados.length > 0 && (
+          <span className="text-xs text-gray-400 font-normal ml-2">
+            Ya fueron contactados, esperando confirmación
+          </span>
+        )}
+      </h3>
+      <div className="overflow-x-auto rounded-lg shadow border border-gray-800 bg-[#181818] mb-10">
+        <table className="min-w-full text-sm text-left">
+          <thead className="bg-[#222] text-brand-gold">
+            <tr>
+              <th className="px-4 py-3 font-semibold">Nombre</th>
+              <th className="px-4 py-3 font-semibold">Apellido</th>
+              <th className="px-4 py-3 font-semibold">Celular</th>
+              <th className="px-4 py-3 font-semibold">Horario</th>
+              <th className="px-4 py-3 font-semibold">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contactados.map(w => (
+              <tr key={w.id} className="border-b border-gray-800 hover:bg-[#232323] transition">
+                <td className="px-4 py-2 text-white">{w.firstName}</td>
+                <td className="px-4 py-2 text-white">{w.lastName}</td>
+                <td className="px-4 py-2 text-white">
+                  <div className="flex items-center gap-2">
+                    {w.phone}
+                    <a
+                      href={getWhatsAppLink(w.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-400 hover:text-green-300 transition"
+                      title="Contactar por WhatsApp"
+                    >
+                      <FaWhatsapp size={18} />
+                    </a>
+                  </div>
+                </td>
+                <td className="px-4 py-2 text-white">{formatTime(w.reservationDate)} hs</td>
+                <td className="px-4 py-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      className="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 text-xs"
+                      onClick={() => handleStatusChange(w.id, 'pendiente')}
+                      title="Volver a pendiente"
+                    >
+                      ↩ Pendiente
+                    </button>
+                    <button
+                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                      onClick={() => handleStatusChange(w.id, 'confirmado')}
+                      title="Confirmar asistencia"
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
+                      onClick={() => setDeleteConfirm({ id: w.id, name: `${w.firstName} ${w.lastName}` })}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {contactados.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center text-gray-400 py-6">No hay contactados aún.</td>
               </tr>
             )}
           </tbody>
@@ -283,7 +369,14 @@ const WaitlistPage: React.FC = () => {
                 </td>
                 <td className="px-4 py-2 text-white">{formatTime(w.reservationDate)} hs</td>
                 <td className="px-4 py-2">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      className="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 text-xs"
+                      onClick={() => handleStatusChange(w.id, 'pendiente')}
+                      title="Volver a pendiente"
+                    >
+                      ↩ Pendiente
+                    </button>
                     <button
                       className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
                       onClick={() => {
