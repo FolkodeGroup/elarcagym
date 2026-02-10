@@ -112,14 +112,14 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:relative lg:translate-x-0 flex flex-col
       `}>
-        <div className="h-20 flex items-center justify-center border-b border-gray-800 bg-black">
+        <div className="h-20 flex items-center justify-center border-b border-gray-800 bg-black flex-shrink-0">
             <div className="flex flex-col items-center">
                 <h1 className="text-2xl font-display font-bold text-brand-gold tracking-widest">EL ARCA</h1>
                 <span className="text-xs text-gray-400 tracking-[0.2em] uppercase">Centro Deportivo</span>
             </div>
         </div>
 
-        <nav className="flex-1 py-6 space-y-2 px-3">
+        <nav className="flex-1 py-4 space-y-1 px-3 overflow-y-auto min-h-0">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const active = currentPage === item.id;
@@ -143,7 +143,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-800 space-y-4">
+        <div className="p-4 border-t border-gray-800 space-y-3 flex-shrink-0">
           <a 
             href="https://www.instagram.com/elarcagym/" 
             target="_blank" 
@@ -449,6 +449,8 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
               </div>
 
               <div className="space-y-4">
+                {/* Selector de tema oculto por ahora */}
+                {/* 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
                   <label className="block text-white font-semibold mb-2">{t('tema')}</label>
                   <div className="flex gap-2">
@@ -476,6 +478,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                     </button>
                   </div>
                 </div>
+                */}
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
                   <label className="block text-white font-semibold mb-2">{t('idioma')}</label>
