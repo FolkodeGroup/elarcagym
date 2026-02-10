@@ -23,7 +23,9 @@ services:
     environment:
       DATABASE_URL: postgresql://elarcagym_user:***REMOVED***@postgres:5432/elarcagym
       NODE_ENV: production
-      FRONTEND_URL: http://***REMOVED***:4173
+      FRONTEND_URL: https://elarcagym.com.ar,https://www.elarcagym.com.ar
+      JWT_SECRET: ${JWT_SECRET:-***REMOVED***}
+      PORT: 4000
     env_file:
       - ./backend/.env
     depends_on:
@@ -35,14 +37,8 @@ services:
     image: dgimenezdeveloper/el-arca-gym-manager-frontend:latest
     container_name: elarca-frontend
     restart: unless-stopped
-    build:
-      context: ./frontend
-      args:
-        VITE_API_URL: http://***REMOVED***:4000
     ports:
       - "4173:4173"
-    env_file:
-      - ./frontend/.env
     depends_on:
       - backend
     networks:

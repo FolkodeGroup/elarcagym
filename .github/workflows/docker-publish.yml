@@ -4,17 +4,18 @@ on:
   push:
     branches:
       - main
-      - docker-setup
     paths:
       - 'backend/**'
       - 'frontend/**'
       - 'docker-compose.yml'
       - '.github/workflows/docker-publish.yml'
-  workflow_dispatch: # Permite ejecutar manualmente desde GitHub
+  workflow_dispatch:
 
 env:
   BACKEND_IMAGE: dgimenezdeveloper/el-arca-gym-manager-backend
   FRONTEND_IMAGE: dgimenezdeveloper/el-arca-gym-manager-frontend
+  # URL de producción del backend (a través de Nginx reverse proxy)
+  PRODUCTION_API_URL: https://elarcagym.com.ar
 
 jobs:
   build-and-push-backend:
@@ -32,7 +33,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }} # Required secret - configure in repository settings
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels)
         id: meta
@@ -90,11 +91,13 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_API_URL=${{ env.PRODUCTION_API_URL }}
           cache-from: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache,mode=max
 
-  update-compose-file:
-    name: Verify docker-compose configuration
+  deploy-notification:
+    name: Verify and Notify
     runs-on: ubuntu-latest
     needs: [build-and-push-backend, build-and-push-frontend]
     
@@ -107,4 +110,10 @@ jobs:
           echo "✅ Checking docker-compose.yml configuration..."
           grep -q "image: ${{ env.BACKEND_IMAGE }}:latest" docker-compose.yml && echo "✅ Backend image configured correctly" || echo "⚠️  Backend image may not be configured"
           grep -q "image: ${{ env.FRONTEND_IMAGE }}:latest" docker-compose.yml && echo "✅ Frontend image configured correctly" || echo "⚠️  Frontend image may not be configured"
+          echo ""
           echo "✅ Build and push complete!"
+          echo "📦 Backend: ${{ env.BACKEND_IMAGE }}:latest"
+          echo "📦 Frontend: ${{ env.FRONTEND_IMAGE }}:latest"
+          echo ""
+          echo "🔄 Watchtower will automatically pull and restart containers on the VPS"
+          echo "   (polling every 5 minutes)"
