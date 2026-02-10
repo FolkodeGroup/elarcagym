@@ -21,7 +21,7 @@ import QRManager from './pages/QRManager.tsx';
 import WaitlistPage from './pages/Waitlist';
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, logout, isLoading } = useAuth();
+  const { isAuthenticated, logout, isLoading, isAdmin, hasAnyPermission } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [pageFilter, setPageFilter] = useState<string | null>(null);
   const [showNavModal, setShowNavModal] = useState(false);
@@ -100,7 +100,37 @@ const AppContent: React.FC = () => {
     return <RoutineSelfService />;
   }
 
+  const PAGE_PERMISSIONS: Record<string, string[]> = {
+    members: ['members.view'],
+    biometrics: ['biometrics.view'],
+    operations: ['routines.view'],
+    nutrition: ['nutrition.view'],
+    reservas: ['reservations.view'],
+    admin: ['products.view', 'sales.view'],
+    Ingresos: ['payments.view', 'sales.view'],
+    waitlist: ['members.view'],
+    users_management: ['users.view'],
+  };
+
   const renderPage = () => {
+    // Verificar permisos para la página actual (excepto admin que tiene acceso total)
+    if (!isAdmin) {
+      const requiredPerms = PAGE_PERMISSIONS[currentPage];
+      if (requiredPerms && !hasAnyPermission(requiredPerms)) {
+        return (
+          <div className="p-6 text-center">
+            <div className="w-16 h-16 mx-auto text-red-500 mb-4 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Acceso Restringido</h2>
+            <p className="text-gray-400">No tienes permisos para acceder a esta sección.</p>
+          </div>
+        );
+      }
+    }
+
     switch (currentPage) {
       case 'dashboard': return <Dashboard onNavigate={handleNavigate} />;
       case 'qr_manager': return <QRManager />;
