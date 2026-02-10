@@ -462,6 +462,30 @@ export default function(prisma: any) {
         return res.status(400).json({ error: 'El miembro no existe' });
       }
 
+      // Validar pago duplicado de Cuota Mensual en el mismo mes
+      if (req.body.concept === 'Cuota Mensual') {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        
+        const existingPayment = await prisma.paymentLog.findFirst({
+          where: {
+            memberId: req.params.memberId,
+            concept: 'Cuota Mensual',
+            date: {
+              gte: startOfMonth,
+              lte: endOfMonth
+            }
+          }
+        });
+        
+        if (existingPayment) {
+          return res.status(409).json({ 
+            error: 'El socio ya tiene registrado el pago de Cuota Mensual para este mes.' 
+          });
+        }
+      }
+
       const payment = await prisma.paymentLog.create({
         data: {
           ...req.body,
