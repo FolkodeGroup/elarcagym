@@ -167,10 +167,20 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   };
   const handleOpenPaymentModal = () => {
     if (selectedMember) {
+      // Verificar si ya pagó cuota mensual este mes
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const alreadyPaidThisMonth = selectedMember.payments?.some((p: any) => {
+        if (p.concept !== 'Cuota Mensual') return false;
+        const paymentDate = new Date(p.date);
+        return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
+      });
+      
       const debt = calculatePreviousDebt(selectedMember);
       setPreviousDebt(debt);
       setPaymentAmount(monthlyFee);
-      setPaymentConcept(t('cuotaMensual'));
+      setPaymentConcept(alreadyPaidThisMonth ? 'Matrícula' : t('cuotaMensual'));
       setShowPaymentModal(true);
     }
   };
@@ -340,6 +350,21 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const handleRegisterPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if(selectedMember) {
+      // Validación frontend: no permitir Cuota Mensual duplicada
+      if (paymentConcept === 'Cuota Mensual') {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const cuotaPagada = selectedMember.payments?.some((p: any) => {
+          if (p.concept !== 'Cuota Mensual') return false;
+          const pd = new Date(p.date);
+          return pd.getMonth() === currentMonth && pd.getFullYear() === currentYear;
+        });
+        if (cuotaPagada) {
+          setToast({ message: 'El socio ya tiene abonada la Cuota Mensual de este mes.', type: 'error' });
+          return;
+        }
+      }
       try {
         await MembersAPI.addPayment(selectedMember.id, {
           amount: Number(paymentAmount),
@@ -1284,6 +1309,23 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                   <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm">
                     <h3 className="text-lg font-bold text-white mb-4">Registrar Pago</h3>
+                    {/* Verificar si cuota mensual ya fue pagada este mes */}
+                    {(() => {
+                      const now = new Date();
+                      const currentMonth = now.getMonth();
+                      const currentYear = now.getFullYear();
+                      const cuotaPagadaEsteMes = selectedMember?.payments?.some((p: any) => {
+                        if (p.concept !== 'Cuota Mensual') return false;
+                        const pd = new Date(p.date);
+                        return pd.getMonth() === currentMonth && pd.getFullYear() === currentYear;
+                      });
+                      return cuotaPagadaEsteMes ? (
+                        <div className="bg-green-900/20 border border-green-700 rounded-lg p-3 mb-4">
+                          <p className="text-xs text-green-400 font-bold">✓ Cuota Mensual ya abonada este mes</p>
+                          <p className="text-xs text-gray-400 mt-1">No se puede registrar otro pago de Cuota Mensual hasta el mes siguiente.</p>
+                        </div>
+                      ) : null;
+                    })()}
                     <form onSubmit={handleRegisterPayment} className="space-y-4">
                       {/* Mostrar deuda anterior si existe */}
                       {previousDebt > 0 && (
@@ -1311,7 +1353,17 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                               }}
                               className="w-full bg-black border border-gray-600 text-white p-2 rounded"
                           >
-                              <option>Cuota Mensual</option>
+                              {(() => {
+                                const now = new Date();
+                                const currentMonth = now.getMonth();
+                                const currentYear = now.getFullYear();
+                                const cuotaPagada = selectedMember?.payments?.some((p: any) => {
+                                  if (p.concept !== 'Cuota Mensual') return false;
+                                  const pd = new Date(p.date);
+                                  return pd.getMonth() === currentMonth && pd.getFullYear() === currentYear;
+                                });
+                                return <option disabled={!!cuotaPagada}>Cuota Mensual</option>;
+                              })()}
                               <option>Deuda Anterior</option>
                               <option>Matrícula</option>
                               <option>Pase Diario</option>

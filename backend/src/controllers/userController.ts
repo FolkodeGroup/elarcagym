@@ -255,10 +255,32 @@ export default function(prisma: any) {
         }
       });
 
-      // Asignar permisos si se proporcionan
+      // Permisos por defecto para TRAINER
+      const TRAINER_DEFAULT_PERMISSIONS = [
+        'members.view',
+        'routines.view', 'routines.create', 'routines.edit', 'routines.delete',
+        'biometrics.view', 'biometrics.create', 'biometrics.edit',
+        'nutrition.view', 'nutrition.create', 'nutrition.edit',
+        'reservations.view', 'reservations.create',
+        'exercises.view',
+        'dashboard.view',
+      ];
+
+      // Determinar qué permisos asignar
+      const effectiveRole = role || 'TRAINER';
+      let permsToAssignCodes: string[] = [];
+      
       if (permissions && Array.isArray(permissions) && permissions.length > 0) {
+        // Si se proporcionan permisos explícitos, usarlos
+        permsToAssignCodes = permissions;
+      } else if (effectiveRole === 'TRAINER') {
+        // Si es TRAINER y no se proporcionan permisos, asignar los de defecto
+        permsToAssignCodes = TRAINER_DEFAULT_PERMISSIONS;
+      }
+      
+      if (permsToAssignCodes.length > 0) {
         const permsToAssign = await prisma.permission.findMany({
-          where: { code: { in: permissions } }
+          where: { code: { in: permsToAssignCodes } }
         });
 
         for (const perm of permsToAssign) {

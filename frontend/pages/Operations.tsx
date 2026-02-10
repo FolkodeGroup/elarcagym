@@ -60,7 +60,6 @@ const Operations: React.FC = () => {
       ]);
       setMembers(membersData);
       setExercisesMaster(exercisesData);
-      if (membersData.length > 0) setSelectedMemberId(membersData[0].id);
     } catch (error) {
       console.error('Error loading data:', error);
       setToast({ message: 'Error al cargar datos', type: 'error' });

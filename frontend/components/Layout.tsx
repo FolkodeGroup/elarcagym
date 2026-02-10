@@ -49,12 +49,28 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
   const [showAbout, setShowAbout] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null);
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, hasPermission, hasAnyPermission } = useAuth();
 
-  const menuItems = [
+  // Mapeo de páginas a permisos requeridos
+  const PAGE_PERMISSIONS: Record<string, string[]> = {
+    dashboard: ['dashboard.view'],
+    members: ['members.view'],
+    biometrics: ['biometrics.view'],
+    operations: ['routines.view'],
+    nutrition: ['nutrition.view'],
+    reservas: ['reservations.view'],
+    qr_manager: ['members.view'],
+    admin: ['products.view', 'sales.view'],
+    Ingresos: ['payments.view', 'sales.view'],
+    waitlist: ['members.view'],
+    users_management: ['users.view'],
+  };
+
+  const allMenuItems = [
     { id: 'dashboard', label: t('panelPrincipal'), icon: Activity },
     { id: 'members', label: t('socios'), icon: Users },
     { id: 'biometrics', label: t('seguimiento'), icon: ClipboardList },
@@ -69,8 +85,16 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
   // Agregar opción de gestión de usuarios solo para administradores
   if (isAdmin) {
-    menuItems.push({ id: 'users_management', label: 'Usuarios', icon: UserCog });
+    allMenuItems.push({ id: 'users_management', label: 'Usuarios', icon: UserCog });
   }
+
+  // Filtrar items del menú según permisos del usuario
+  const menuItems = allMenuItems.filter(item => {
+    if (isAdmin) return true; // Admin ve todo
+    const requiredPerms = PAGE_PERMISSIONS[item.id];
+    if (!requiredPerms) return true; // Si no hay permisos definidos, se muestra
+    return hasAnyPermission(requiredPerms);
+  });
 
   return (
     <div className="min-h-screen bg-brand-dark text-white flex overflow-hidden" onClick={() => { adminMenuOpen && setAdminMenuOpen(false); showUserMenu && setShowUserMenu(false); }}>
@@ -130,7 +154,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
             <span className="text-sm">@elarcagym</span>
           </a>
           <button 
-            onClick={onLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             className="w-full flex items-center space-x-3 px-4 py-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
           >
             <LogOut size={20} />
@@ -199,7 +223,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                      <button
                        onClick={() => {
                          setShowUserMenu(false);
-                         onLogout();
+                         setShowLogoutConfirm(true);
                        }}
                        className="w-full px-4 py-2 flex items-center gap-3 text-red-400 hover:bg-red-900/20 transition"
                      >
@@ -700,6 +724,39 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
           </div>
         )}
       </div>
+      {/* Modal de confirmación de cierre de sesión */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#222] max-w-sm w-full rounded-xl border border-gray-700 p-6 shadow-2xl">
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-3">
+                <LogOut size={28} className="text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Cerrar Sesión</h3>
+              <p className="text-gray-400 text-sm mt-2">
+                ¿Estás seguro de que deseas cerrar sesión? Deberás volver a ingresar tus credenciales para acceder al sistema.
+              </p>
+            </div>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 text-gray-400 rounded border border-gray-700 hover:bg-gray-800 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  onLogout();
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 transition"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast && (
         <Toast message={toast.message} type={toast.type} duration={2500} onClose={() => setToast(null)} />
       )}
