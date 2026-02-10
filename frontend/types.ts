@@ -106,6 +106,7 @@ export interface Product {
   price: number;
   category: 'SUPPLEMENT' | 'DRINK' | 'MERCHANDISE' | 'OTHER';
   stock: number;
+  imageUrl?: string;
 }
 
 export interface Sale {

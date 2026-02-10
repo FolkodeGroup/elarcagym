@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { showNativeNotification } from '../services/nativeNotification';
-import { Bell, X, Check, CheckCheck, Trash2 } from 'lucide-react';
+import { Bell, X, Check, CheckCheck, Trash2, Users, ShoppingCart, DollarSign, UserPlus } from 'lucide-react';
 import { type Notification as NotificationData, NotificationsAPI } from '../services/api';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
@@ -143,7 +143,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
     }
   };
 
-  // Manejar clic en notificación
+  // Manejar clic en notificación - navegar al lugar exacto
   const handleNotificationClick = (notification: NotificationData) => {
     // Marcar como leída
     if (!notification.read) {
@@ -167,6 +167,16 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
     }
   };
 
+  // Obtener icono según contenido de la notificación
+  const getNotificationIcon = (notification: NotificationData) => {
+    const title = notification.title.toLowerCase();
+    if (title.includes('socio') || title.includes('miembro')) return <UserPlus size={16} />;
+    if (title.includes('producto')) return <ShoppingCart size={16} />;
+    if (title.includes('venta')) return <DollarSign size={16} />;
+    if (title.includes('usuario')) return <Users size={16} />;
+    return <Bell size={16} />;
+  };
+
   // Formatear fecha
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -185,23 +195,26 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Botón de notificaciones */}
+      {/* Botón de notificaciones - responsive */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700 transition"
+        className="relative p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700 transition flex-shrink-0"
         title="Notificaciones"
       >
         <Bell size={20} className="text-gray-300" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Dropdown de notificaciones */}
+      {/* Dropdown de notificaciones - responsive y centrado en móvil */}
       {isOpen && (
-        <div className="absolute right-0 top-12 w-96 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-2xl z-50 overflow-hidden">
+        <div
+          className="fixed left-0 right-0 top-20 mx-auto w-full max-w-md sm:absolute sm:right-0 sm:left-auto sm:top-12 sm:mx-0 sm:w-96 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-2xl z-50 overflow-hidden"
+          style={{ maxWidth: '400px' }}
+        >
           {/* Header */}
           <div className="p-4 border-b border-gray-800 flex items-center justify-between">
             <h3 className="text-white font-semibold">Notificaciones</h3>
@@ -248,7 +261,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
                   >
                     <div className="flex items-start gap-3">
                       <div className={`mt-1 ${getTypeColor(notification.type)}`}>
-                        <Bell size={16} />
+                        {getNotificationIcon(notification)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className={`text-sm font-medium ${!notification.read ? 'text-white' : 'text-gray-300'}`}>

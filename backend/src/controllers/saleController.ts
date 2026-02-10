@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendNotificationToAdmins } from '../utils/notificationService.js';
 
 export default function(prisma: any) {
   const router = Router();
@@ -132,6 +133,19 @@ export default function(prisma: any) {
         
         return sale;
       });
+      
+      // Notificar a admins sobre la nueva venta
+      try {
+        const itemNames = result.items.map((i: any) => i.productName || i.product?.name).filter(Boolean).join(', ');
+        await sendNotificationToAdmins({
+          title: 'Nueva venta registrada',
+          message: `Venta por $${result.total.toFixed(2)} - ${itemNames}`,
+          type: 'success',
+          link: 'Ingresos'
+        });
+      } catch (err) {
+        console.error('Error enviando notificación:', err);
+      }
       
       res.status(201).json(result);
     } catch (e) {
