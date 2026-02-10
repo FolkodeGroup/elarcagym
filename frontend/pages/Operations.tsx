@@ -198,11 +198,6 @@ const Operations: React.FC = () => {
         };
 
         const attemptChangeDay = (idx: number) => {
-            if (isDirty) {
-                setPendingAction({ type: 'switchDay', payload: idx });
-                setShowUnsavedModal(true);
-                return;
-            }
             setActiveDayIndex(idx);
         };
 
@@ -732,7 +727,7 @@ const Operations: React.FC = () => {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="absolute inset-0" onClick={() => { setShowDeleteModal(false); setRoutineToDelete(null); }} />
-          <div className="bg-[#111] max-w-md w-full rounded-lg border border-gray-700 p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#111] max-w-md w-full rounded-lg border border-gray-700 p-6 z-10" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-2">¿Eliminar rutina?</h3>
             <p className="text-sm text-gray-300 mb-4">
               ¿Estás seguro de que deseas eliminar la rutina "{routineToDelete?.name}"? Esta acción no se puede deshacer.
@@ -740,13 +735,13 @@ const Operations: React.FC = () => {
             <div className="flex justify-end gap-3">
               <button 
                 onClick={() => { setShowDeleteModal(false); setRoutineToDelete(null); }} 
-                className="px-4 py-2 text-sm text-gray-300 rounded border border-gray-700 hover:bg-gray-800"
+                className="px-4 py-2 text-sm text-gray-300 rounded border border-gray-700 hover:bg-gray-800 cursor-pointer"
               >
                 Cancelar
               </button>
               <button 
                 onClick={confirmDeleteRoutine} 
-                className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 cursor-pointer"
               >
                 Eliminar
               </button>
@@ -761,8 +756,8 @@ const Operations: React.FC = () => {
                         <h3 className="text-lg font-bold text-white mb-2">Tienes cambios sin guardar</h3>
                         <p className="text-sm text-gray-300 mb-4">Hay modificaciones en la rutina que no han sido guardadas. ¿Deseas descartarlas y continuar?</p>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => { setShowUnsavedModal(false); setPendingAction(null); }} className="px-4 py-2 text-sm text-gray-300 rounded border border-gray-700">Volver</button>
-                            <button onClick={executePendingAction} className="px-4 py-2 bg-red-600 text-white rounded text-sm">Descartar y continuar</button>
+                            <button onClick={() => { setShowUnsavedModal(false); setPendingAction(null); }} className="px-4 py-2 text-sm text-gray-300 rounded border border-gray-700 cursor-pointer">Volver</button>
+                            <button onClick={executePendingAction} className="px-4 py-2 bg-red-600 text-white rounded text-sm cursor-pointer">Descartar y continuar</button>
                         </div>
                     </div>
                 </div>
