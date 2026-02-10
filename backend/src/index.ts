@@ -73,6 +73,8 @@ io.on('connection', (socket) => {
 (global as any).io = io;
 
 const allowedOrigins = [
+  'https://elarcagym.com.ar',
+  'https://www.elarcagym.com.ar',
   ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(url => url.trim()) : []),
   'http://localhost:4173',
   'http://localhost:3000',
