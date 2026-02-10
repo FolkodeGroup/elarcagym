@@ -18,6 +18,8 @@ services:
     image: dgimenezdeveloper/el-arca-gym-manager-backend:latest
     container_name: elarca-backend
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "4000:4000"
     environment:
@@ -37,6 +39,8 @@ services:
     image: dgimenezdeveloper/el-arca-gym-manager-frontend:latest
     container_name: elarca-frontend
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "4173:4173"
     depends_on:
@@ -51,12 +55,17 @@ services:
     environment:
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_POLL_INTERVAL=300
-      - WATCHTOWER_INCLUDE_STOPPED=true
-      - WATCHTOWER_TRACE=true
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_DEBUG=true
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr://logger://
+      - WATCHTOWER_NOTIFICATION_REPORT=true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - elarca-network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
 
 volumes:
   postgres_data:
