@@ -2190,7 +2190,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                       onClick={(e) => {
                         e.stopPropagation();
                         handleMemberClick(member);
-                        setShowEditModal(true);
+                        setTimeout(() => handleOpenEditModal(), 0);
                       }}
                     >
                       <Edit2 size={16} />
