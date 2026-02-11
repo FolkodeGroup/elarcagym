@@ -97,7 +97,57 @@ export interface Member {
     start: string;
     end: string;
   }>;
+  scheduleExceptions?: ScheduleException[];
   nutritionPlan?: NutritionData;
+}
+
+export interface ScheduleException {
+  id: string;
+  date: string;
+  start: string;
+  end: string;
+  reason?: string;
+  memberId: string;
+  createdAt: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  slotId: string;
+  memberId?: string;
+  clientName: string;
+  attended?: boolean;
+  accessedAt?: string;
+  createdAt: string;
+  slot: {
+    date: string;
+    time: string;
+    duration: number;
+  };
+  member?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string;
+    photoUrl?: string;
+    status: string;
+    habitualSchedules?: Array<{ day: string; start: string; end: string }>;
+    scheduleExceptions?: ScheduleException[];
+  };
+}
+
+export interface DailyAttendanceResponse {
+  date: string;
+  stats: {
+    total: number;
+    attended: number;
+    absent: number;
+    pending: number;
+  };
+  slots: Array<{ id: string; time: string; duration: number }>;
+  reservations: AttendanceRecord[];
+  groupedByTime: Record<string, AttendanceRecord[]>;
 }
 
 export interface Product {

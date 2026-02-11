@@ -24,7 +24,8 @@ model Member {
   bioObjective    String?
   lastAttendance  DateTime?
   nutritionPlan   Json?    // Almacena NutritionData como JSON
-  habitualSchedules HabitualSchedule[]
+  habitualSchedules  HabitualSchedule[]
+  scheduleExceptions ScheduleException[]
   biometrics      BiometricLog[]
   routines        Routine[]
   diets           Diet[]
@@ -40,6 +41,19 @@ model HabitualSchedule {
   end       String
   memberId  String
   member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+model ScheduleException {
+  id        String   @id @default(uuid())
+  date      DateTime              // Fecha específica de la excepción
+  start     String                // Hora de inicio (HH:mm)
+  end       String                // Hora de fin (HH:mm)
+  reason    String?               // Motivo opcional del cambio
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([memberId, date])
 }
 
 model BiometricLog {
