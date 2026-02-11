@@ -2189,8 +2189,18 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                       title="Editar"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleMemberClick(member);
-                        setTimeout(() => handleOpenEditModal(), 0);
+                        setSelectedMember(member);
+                        setEditMember({
+                          firstName: member.firstName,
+                          lastName: member.lastName,
+                          dni: member.dni || '',
+                          email: member.email,
+                          phone: member.phone,
+                          status: member.status,
+                          phase: member.phase || 'volumen',
+                          habitualSchedules: member.habitualSchedules ? [...member.habitualSchedules] : []
+                        });
+                        setShowEditModal(true);
                       }}
                     >
                       <Edit2 size={16} />
