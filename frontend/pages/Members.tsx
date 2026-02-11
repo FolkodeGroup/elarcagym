@@ -2,12 +2,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { MembersAPI, ConfigAPI, NutritionTemplatesAPI } from '../services/api';
-import { Member, UserStatus, Routine, NutritionData } from '../types';
+import { Member, UserStatus, Routine, NutritionData, ScheduleException, AttendanceRecord } from '../types';
 import { isDebtorByPayment } from '../services/membershipUtils';
 import { 
     Search, Plus, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, 
     ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X, 
-    FileSpreadsheet, Apple, Eye, Coffee, Sun, Utensils, Moon, Image 
+    FileSpreadsheet, Apple, Eye, Coffee, Sun, Utensils, Moon, Image,
+    CalendarClock, History, AlertTriangle, CheckCircle2, XCircle, Calendar
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { SiGmail } from 'react-icons/si';
@@ -39,6 +40,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [showNutritionDetailModal, setShowNutritionDetailModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{id: string, name: string} | null>(null);
+
+  // Attendance & Schedule Exceptions
+  const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
+  const [attendanceTotal, setAttendanceTotal] = useState(0);
+  const [showExceptionModal, setShowExceptionModal] = useState(false);
+  const [exceptionForm, setExceptionForm] = useState({ date: '', start: '', end: '', reason: '' });
 
   // Camera refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -111,6 +118,16 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   };
 
   const handleMemberClick = (member: Member) => {
+      // Cargar historial de asistencia
+      MembersAPI.getAttendanceHistory(member.id, 10, 0)
+        .then(data => {
+          setAttendanceHistory(data.records || []);
+          setAttendanceTotal(data.total || 0);
+        })
+        .catch(() => {
+          setAttendanceHistory([]);
+          setAttendanceTotal(0);
+        });
       // Si el miembro tiene un nutritionPlan directo, úsalo. Si no, intentar mapear desde diets.description si es JSON válido.
       let nutritionPlan = member.nutritionPlan;
       if (!nutritionPlan && member.diets && member.diets.length > 0) {
@@ -150,6 +167,41 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         };
       }
       setSelectedMember({ ...member, nutritionPlan });
+  };
+
+  // === SCHEDULE EXCEPTIONS ===
+  const handleAddScheduleException = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMember) return;
+    if (!exceptionForm.date || !exceptionForm.start || !exceptionForm.end) {
+      setToast({ message: 'Fecha, hora de inicio y fin son requeridos', type: 'error' });
+      return;
+    }
+    try {
+      await MembersAPI.addScheduleException(selectedMember.id, {
+        date: exceptionForm.date,
+        start: exceptionForm.start,
+        end: exceptionForm.end,
+        reason: exceptionForm.reason || undefined
+      });
+      setShowExceptionModal(false);
+      setExceptionForm({ date: '', start: '', end: '', reason: '' });
+      await refreshMembers();
+      setToast({ message: 'Excepción de horario creada', type: 'success' });
+    } catch {
+      setToast({ message: 'Error al crear excepción de horario', type: 'error' });
+    }
+  };
+
+  const handleDeleteScheduleException = async (exceptionId: string) => {
+    if (!selectedMember) return;
+    try {
+      await MembersAPI.deleteScheduleException(selectedMember.id, exceptionId);
+      await refreshMembers();
+      setToast({ message: 'Excepción eliminada', type: 'success' });
+    } catch {
+      setToast({ message: 'Error al eliminar excepción', type: 'error' });
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -1302,7 +1354,173 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   </div>
               </div>
 
+              {/* === ATTENDANCE & SCHEDULE SECTION === */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Horario y Excepciones */}
+                  <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6">
+                      <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                              <CalendarClock className="text-brand-gold" /> Horario de Asistencia
+                          </h3>
+                          <button
+                            onClick={() => {
+                              setExceptionForm({ date: '', start: '', end: '', reason: '' });
+                              setShowExceptionModal(true);
+                            }}
+                            className="text-xs bg-gray-800 hover:bg-brand-gold hover:text-black text-white px-3 py-1 rounded transition-colors"
+                          >
+                              + Cambio puntual
+                          </button>
+                      </div>
+
+                      {/* Horario Habitual */}
+                      {selectedMember.habitualSchedules && selectedMember.habitualSchedules.length > 0 ? (
+                        <div className="mb-4">
+                          <span className="text-xs text-gray-500 uppercase font-bold tracking-wider block mb-2">Horario habitual</span>
+                          <div className="space-y-1.5">
+                            {selectedMember.habitualSchedules.map((sch, idx) => (
+                              <div key={idx} className="flex items-center gap-2 bg-black/40 border border-gray-800 rounded-lg px-3 py-2">
+                                <Clock size={14} className="text-brand-gold flex-shrink-0" />
+                                <span className="text-sm font-semibold text-brand-gold w-20">{sch.day}</span>
+                                <span className="text-sm text-white">{sch.start} - {sch.end}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm mb-4">Sin horario habitual configurado.</p>
+                      )}
+
+                      {/* Excepciones Activas */}
+                      {selectedMember.scheduleExceptions && selectedMember.scheduleExceptions.length > 0 && (
+                        <div>
+                          <span className="text-xs text-gray-500 uppercase font-bold tracking-wider block mb-2">Próximos cambios de horario</span>
+                          <div className="space-y-1.5">
+                            {selectedMember.scheduleExceptions
+                              .filter(ex => new Date(ex.date) >= new Date(new Date().toDateString()))
+                              .map(ex => (
+                              <div key={ex.id} className="flex items-center justify-between bg-yellow-900/10 border border-yellow-800/30 rounded-lg px-3 py-2">
+                                <div className="flex items-center gap-2">
+                                  <AlertTriangle size={14} className="text-yellow-500 flex-shrink-0" />
+                                  <div>
+                                    <span className="text-sm text-yellow-200 font-bold">
+                                      {new Date(ex.date).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                    </span>
+                                    <span className="text-sm text-white ml-2">{ex.start} - {ex.end}</span>
+                                    {ex.reason && <span className="text-xs text-gray-500 ml-2">({ex.reason})</span>}
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleDeleteScheduleException(ex.id)}
+                                  className="text-red-500 hover:text-red-400 p-1"
+                                  title="Eliminar excepción"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Historial de Asistencia */}
+                  <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6">
+                      <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                              <History className="text-green-500" /> Historial de Asistencia
+                          </h3>
+                          <span className="text-xs bg-green-900/30 text-green-400 px-2 py-1 rounded-full font-bold">
+                            {attendanceTotal} asistencias
+                          </span>
+                      </div>
+                      {attendanceHistory.length > 0 ? (
+                        <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+                          {attendanceHistory.map((record) => (
+                            <div key={record.id} className="flex items-center gap-3 bg-black/40 border border-gray-800 rounded-lg px-3 py-2">
+                              <CheckCircle2 size={16} className="text-green-500 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm text-white">
+                                  {new Date(record.slot?.date || record.createdAt).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                </span>
+                                <span className="text-sm text-brand-gold ml-2 font-mono">
+                                  {record.slot?.time || '--:--'}
+                                </span>
+                              </div>
+                              {record.accessedAt && (
+                                <span className="text-[10px] text-gray-600">
+                                  Acceso: {new Date(record.accessedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-center py-4 text-sm">Sin registros de asistencia.</p>
+                      )}
+                  </div>
+              </div>
+
               {/* === MODALS === */}
+
+              {/* Schedule Exception Modal */}
+              {showExceptionModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowExceptionModal(false)}>
+                  <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                    <h3 className="text-lg font-bold text-white mb-1">Cambio de Horario Puntual</h3>
+                    <p className="text-xs text-gray-400 mb-4">Este cambio solo aplica para la fecha seleccionada, sin modificar el horario habitual.</p>
+                    <form onSubmit={handleAddScheduleException} className="space-y-4">
+                      <div>
+                        <label className="text-xs text-gray-400 block mb-1">Fecha</label>
+                        <input
+                          type="date"
+                          required
+                          value={exceptionForm.date}
+                          onChange={e => setExceptionForm({ ...exceptionForm, date: e.target.value })}
+                          className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs text-gray-400 block mb-1">Hora inicio</label>
+                          <input
+                            type="time"
+                            required
+                            value={exceptionForm.start}
+                            onChange={e => setExceptionForm({ ...exceptionForm, start: e.target.value })}
+                            className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 block mb-1">Hora fin</label>
+                          <input
+                            type="time"
+                            required
+                            value={exceptionForm.end}
+                            onChange={e => setExceptionForm({ ...exceptionForm, end: e.target.value })}
+                            className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400 block mb-1">Motivo (opcional)</label>
+                        <input
+                          type="text"
+                          value={exceptionForm.reason}
+                          onChange={e => setExceptionForm({ ...exceptionForm, reason: e.target.value })}
+                          placeholder="Ej: Cambio por turno médico"
+                          className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <button type="button" onClick={() => setShowExceptionModal(false)} className="px-3 py-2 text-gray-400 text-sm">Cancelar</button>
+                        <button type="submit" className="px-4 py-2 bg-brand-gold text-black rounded font-bold text-sm">Guardar</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
               
                {/* Payment Modal */}
               {showPaymentModal && (

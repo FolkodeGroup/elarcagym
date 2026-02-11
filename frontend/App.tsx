@@ -20,6 +20,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import QRManager from './pages/QRManager.tsx';
 import WaitlistPage from './pages/Waitlist';
+import AttendanceTracker from './pages/AttendanceTracker';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, logout, isLoading, isAdmin, hasAnyPermission } = useAuth();
@@ -122,6 +123,7 @@ const AppContent: React.FC = () => {
     operations: ['routines.view'],
     nutrition: ['nutrition.view'],
     reservas: ['reservations.view'],
+    attendance: ['reservations.view'],
     admin: ['products.view', 'sales.view'],
     Ingresos: ['payments.view', 'sales.view'],
     waitlist: ['members.view'],
@@ -157,6 +159,7 @@ const AppContent: React.FC = () => {
       case 'admin': return <Admin />;
       case 'Ingresos': return <Ingresos />;
       case 'reservas': return <Reservas />;
+      case 'attendance': return <AttendanceTracker />;
       case 'exercises_admin': return <ExercisesAdmin />;
       case 'users_management': return <UsersManagement />;
       case 'user_profile': return <UserProfile />;

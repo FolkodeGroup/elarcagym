@@ -10,6 +10,7 @@ export default function(prisma: any) {
       const members = await prisma.member.findMany({
         include: {
           habitualSchedules: true,
+          scheduleExceptions: true,
           biometrics: { orderBy: { date: 'desc' } },
           routines: {
             include: {
@@ -39,6 +40,7 @@ export default function(prisma: any) {
         where: { id: req.params.id },
         include: {
           habitualSchedules: true,
+          scheduleExceptions: true,
           biometrics: { orderBy: { date: 'desc' } },
           routines: {
             include: {
@@ -241,6 +243,7 @@ export default function(prisma: any) {
         data: updateData,
         include: {
           habitualSchedules: true,
+          scheduleExceptions: true,
           biometrics: { orderBy: { date: 'desc' } },
           routines: {
             include: { days: { include: { exercises: true } } },
@@ -525,6 +528,91 @@ export default function(prisma: any) {
       res.json(member);
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
+  // ==================== SCHEDULE EXCEPTIONS ====================
+
+  // Obtener excepciones de horario de un miembro
+  router.get('/:memberId/schedule-exceptions', async (req, res) => {
+    try {
+      const exceptions = await prisma.scheduleException.findMany({
+        where: { memberId: req.params.memberId },
+        orderBy: { date: 'desc' }
+      });
+      res.json(exceptions);
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Crear excepción de horario para un miembro
+  router.post('/:memberId/schedule-exceptions', async (req, res) => {
+    try {
+      const { date, start, end, reason } = req.body;
+      if (!date || !start || !end) {
+        return res.status(400).json({ error: 'Fecha, hora de inicio y hora de fin son requeridos.' });
+      }
+      const exception = await prisma.scheduleException.create({
+        data: {
+          date: new Date(date),
+          start,
+          end,
+          reason: reason || null,
+          memberId: req.params.memberId
+        }
+      });
+      res.status(201).json(exception);
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
+  // Eliminar excepción de horario
+  router.delete('/:memberId/schedule-exceptions/:exceptionId', async (req, res) => {
+    try {
+      await prisma.scheduleException.delete({ where: { id: req.params.exceptionId } });
+      res.status(204).end();
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
+  // ==================== ATTENDANCE HISTORY ====================
+
+  // Obtener historial de asistencia de un miembro (reservas con attended=true)
+  router.get('/:memberId/attendance-history', async (req, res) => {
+    try {
+      const { limit = '20', offset = '0' } = req.query;
+      const attendanceRecords = await prisma.reservation.findMany({
+        where: {
+          memberId: req.params.memberId,
+          attended: true
+        },
+        include: {
+          slot: {
+            select: {
+              date: true,
+              time: true,
+              duration: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: parseInt(limit as string),
+        skip: parseInt(offset as string)
+      });
+      
+      const total = await prisma.reservation.count({
+        where: {
+          memberId: req.params.memberId,
+          attended: true
+        }
+      });
+      
+      res.json({ records: attendanceRecords, total });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
     }
   });
 
