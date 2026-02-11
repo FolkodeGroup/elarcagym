@@ -26,6 +26,7 @@ const AppContent: React.FC = () => {
   const { isAuthenticated, logout, isLoading, isAdmin, hasAnyPermission } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [pageFilter, setPageFilter] = useState<string | null>(null);
+  const [membersResetKey, setMembersResetKey] = useState(0);
   const [showNavModal, setShowNavModal] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isSelfServiceMode, setIsSelfServiceMode] = useState(false);
@@ -76,6 +77,9 @@ const AppContent: React.FC = () => {
     setTimeout(() => {
       setCurrentPage(page);
       setPageFilter(filter || null);
+      if (page === 'members') {
+        setMembersResetKey(prev => prev + 1);
+      }
       setIsTransitioning(false);
     }, 200);
   };
@@ -152,7 +156,7 @@ const AppContent: React.FC = () => {
     switch (currentPage) {
       case 'dashboard': return <Dashboard onNavigate={handleNavigate} />;
       case 'qr_manager': return <QRManager />;
-      case 'members': return <Members initialFilter={pageFilter} />;
+      case 'members': return <Members initialFilter={pageFilter} currentPage={currentPage} membersResetKey={membersResetKey} />;
       case 'biometrics': return <Biometrics />;
       case 'operations': return <Operations />;
       case 'nutrition': return <Nutrition />;
