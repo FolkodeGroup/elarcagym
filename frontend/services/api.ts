@@ -271,6 +271,20 @@ export const MembersAPI = {
   // Nutrition plan
   updateNutritionPlan: (memberId: string, nutritionPlan: any): Promise<Member> => 
     apiFetch(`/members/${memberId}/nutrition`, { method: 'PUT', body: JSON.stringify(nutritionPlan) }),
+
+  // Schedule exceptions (excepciones de horario)
+  getScheduleExceptions: (memberId: string): Promise<any[]> =>
+    apiFetch(`/members/${memberId}/schedule-exceptions`),
+
+  addScheduleException: (memberId: string, data: { date: string; start: string; end: string; reason?: string }): Promise<any> =>
+    apiFetch(`/members/${memberId}/schedule-exceptions`, { method: 'POST', body: JSON.stringify(data) }),
+
+  deleteScheduleException: (memberId: string, exceptionId: string): Promise<void> =>
+    apiFetch(`/members/${memberId}/schedule-exceptions/${exceptionId}`, { method: 'DELETE' }),
+
+  // Attendance history (historial de asistencia)
+  getAttendanceHistory: (memberId: string, limit = 20, offset = 0): Promise<{ records: any[]; total: number }> =>
+    apiFetch(`/members/${memberId}/attendance-history?limit=${limit}&offset=${offset}`),
 };
 
 // ==================== PRODUCTS API ====================
@@ -473,5 +487,21 @@ export const NutritionTemplatesAPI = {
   // Eliminar plantilla
   delete: (id: string): Promise<void> => 
     apiFetch(`/nutrition-templates/${id}`, { method: 'DELETE' }),
+};
+
+// ==================== ATTENDANCE API ====================
+export const AttendanceAPI = {
+  // Obtener asistencia del día con filtros opcionales
+  getDaily: (date: string, filters?: { time?: string; name?: string; status?: string }): Promise<any> => {
+    const params = new URLSearchParams({ date });
+    if (filters?.time) params.append('time', filters.time);
+    if (filters?.name) params.append('name', filters.name);
+    if (filters?.status) params.append('status', filters.status);
+    return apiFetch(`/attendance/daily?${params.toString()}`);
+  },
+
+  // Obtener resumen por rango de fechas
+  getSummary: (from: string, to: string): Promise<any> =>
+    apiFetch(`/attendance/summary?from=${from}&to=${to}`),
 };
 
