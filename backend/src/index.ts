@@ -27,6 +27,7 @@ import waitlistRoutes from './routes/waitlist';
 import { authenticateToken, requireAdmin, requirePermission } from './middleware/auth.js';
 import routineTokenController from './controllers/routineTokenController.js';
 import routineAccessController from './controllers/routineAccessController.js';
+import attendanceController from './controllers/attendanceController.js';
 import { setPrismaInstance } from './utils/notificationService.js';
 
 // ===== Orígenes permitidos para CORS y Socket.IO =====
@@ -155,6 +156,7 @@ app.use('/config', authenticateToken, configController(prisma));
 app.use('/nutrition-templates', authenticateToken, nutritionTemplateController(prisma));
 app.use('/notifications', notificationRoutes(prisma));
 app.use('/waitlist', authenticateToken, waitlistRoutes);
+app.use('/attendance', authenticateToken, attendanceController(prisma));
 
 const PORT = process.env.PORT || 4000;
 httpServer.listen({ port: PORT, host: '0.0.0.0' }, () => {

@@ -1,13 +1,35 @@
+// --- Utilidades y componentes auxiliares para horarios ---
+const WEEKDAY_OPTIONS = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
+const timeOptions = Array.from({length: 24*2}, (_,i) => {
+  const h = Math.floor(i/2).toString().padStart(2,'0');
+  const m = i%2===0 ? '00' : '30';
+  return `${h}:${m}`;
+});
+
+function TimeDropdown({ value, onChange, label }:{ value:string, onChange:(v:string)=>void, label?:string }) {
+  return (
+    <select
+      aria-label={label}
+      value={value||''}
+      onChange={e => onChange(e.target.value)}
+      className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-3 rounded-lg text-base focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold/60 transition"
+    >
+      <option value="">--:--</option>
+      {timeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+    </select>
+  );
+}
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { MembersAPI, ConfigAPI, NutritionTemplatesAPI } from '../services/api';
-import { Member, UserStatus, Routine, NutritionData } from '../types';
+import { Member, UserStatus, Routine, NutritionData, ScheduleException, AttendanceRecord } from '../types';
 import { isDebtorByPayment } from '../services/membershipUtils';
 import { 
     Search, Plus, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, 
     ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X, 
-    FileSpreadsheet, Apple, Eye, Coffee, Sun, Utensils, Moon, Image 
+    FileSpreadsheet, Apple, Eye, Coffee, Sun, Utensils, Moon, Image,
+    CalendarClock, History, AlertTriangle, CheckCircle2, XCircle, Calendar
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { SiGmail } from 'react-icons/si';
@@ -22,9 +44,11 @@ import { LOGO_BASE64 } from '../services/assets';
 
 interface MembersProps {
   initialFilter?: string | null;
+  currentPage?: string;
+  membersResetKey?: number;
 }
 
-const Members: React.FC<MembersProps> = ({ initialFilter }) => {
+const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersResetKey }) => {
   // --- ESTADOS ---
   const [members, setMembers] = useState<Member[]>([]);
   const { t } = useLanguage();
@@ -40,6 +64,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const [showNutritionDetailModal, setShowNutritionDetailModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{id: string, name: string} | null>(null);
 
+  // Attendance & Schedule Exceptions
+  const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
+  const [attendanceTotal, setAttendanceTotal] = useState(0);
+  const [showExceptionModal, setShowExceptionModal] = useState(false);
+  const [exceptionForm, setExceptionForm] = useState({ date: '', start: '', end: '', reason: '' });
+
   // Camera refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -48,7 +78,16 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
   const [visibleDayByRoutine, setVisibleDayByRoutine] = useState<Record<string, number>>({});
 
-  const [newMember, setNewMember] = useState({
+  const [newMember, setNewMember] = useState<{
+    firstName: string;
+    lastName: string;
+    dni: string;
+    email: string;
+    phone: string;
+    status: UserStatus;
+    phase: 'volumen' | 'deficit' | 'recomposicion' | 'transicion';
+    habitualSchedules: { day: string; start: string; end: string }[];
+  }>({
     firstName: '',
     lastName: '',
     dni: '',
@@ -56,10 +95,19 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     phone: '',
     status: UserStatus.ACTIVE,
     phase: 'volumen',
-    habitualSchedules: [] as { day: string; start: string; end: string }[]
+    habitualSchedules: []
   });
 
-  const [editMember, setEditMember] = useState({
+  const [editMember, setEditMember] = useState<{
+    firstName: string;
+    lastName: string;
+    dni: string;
+    email: string;
+    phone: string;
+    status: UserStatus;
+    phase: 'volumen' | 'deficit' | 'recomposicion' | 'transicion';
+    habitualSchedules: { day: string; start: string; end: string }[];
+  }>({
     firstName: '',
     lastName: '',
     dni: '',
@@ -67,8 +115,63 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     phone: '',
     status: UserStatus.ACTIVE,
     phase: 'volumen',
-    habitualSchedules: [] as { day: string; start: string; end: string }[]
+    habitualSchedules: []
   });
+
+  const [selectedScheduleDays, setSelectedScheduleDays] = useState<Record<string, boolean>>(
+    () => WEEKDAY_OPTIONS.reduce((acc, day) => ({ ...acc, [day]: false }), {} as Record<string, boolean>)
+  );
+  const [scheduleRange, setScheduleRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
+  const validateAndSyncSchedule = (
+    daysMap: Record<string, boolean>,
+    range: { start: string; end: string }
+  ) => {
+    const activeDays = WEEKDAY_OPTIONS.filter(day => daysMap[day]);
+    const isEmptySelection = !range.start && !range.end && activeDays.length === 0;
+    if (isEmptySelection) {
+      setScheduleError(null);
+      setEditMember(prev => ({ ...prev, habitualSchedules: [] }));
+      return;
+    }
+    if (!range.start || !range.end) {
+      setScheduleError('Selecciona hora de inicio y fin.');
+      setEditMember(prev => ({ ...prev, habitualSchedules: [] }));
+      return;
+    }
+    if (range.end <= range.start) {
+      setScheduleError('La hora de fin debe ser posterior al inicio.');
+      setEditMember(prev => ({ ...prev, habitualSchedules: [] }));
+      return;
+    }
+    if (!activeDays.length) {
+      setScheduleError('Elige al menos un día hábil (lunes a viernes).');
+      setEditMember(prev => ({ ...prev, habitualSchedules: [] }));
+      return;
+    }
+    setScheduleError(null);
+    setEditMember(prev => ({
+      ...prev,
+      habitualSchedules: activeDays.map(day => ({ day, start: range.start, end: range.end }))
+    }));
+  };
+
+  const handleScheduleDayToggle = (day: string) => {
+    setSelectedScheduleDays(prev => {
+      const next = { ...prev, [day]: !prev[day] };
+      validateAndSyncSchedule(next, scheduleRange);
+      return next;
+    });
+  };
+
+  const handleScheduleRangeChange = (field: 'start' | 'end', value: string) => {
+    setScheduleRange(prev => {
+      const next = { ...prev, [field]: value };
+      validateAndSyncSchedule(selectedScheduleDays, next);
+      return next;
+    });
+  };
 
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentConcept, setPaymentConcept] = useState(t('cuotaMensual'));
@@ -94,6 +197,25 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
     // eslint-disable-next-line
   }, []);
 
+  useEffect(() => {
+    if (!showEditModal) return;
+    const baseDays = WEEKDAY_OPTIONS.reduce((acc, day) => {
+      acc[day] = (editMember.habitualSchedules || []).some(s => s.day === day);
+      return acc;
+    }, {} as Record<string, boolean>);
+    const firstRange = (editMember.habitualSchedules || []).find(
+      sch => WEEKDAY_OPTIONS.includes(sch.day) && sch.start && sch.end
+    );
+    const rangeToUse = {
+      start: firstRange?.start || '',
+      end: firstRange?.end || ''
+    };
+    setSelectedScheduleDays(baseDays);
+    setScheduleRange(rangeToUse);
+    validateAndSyncSchedule(baseDays, rangeToUse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showEditModal]);
+
   const refreshMembers = async () => {
     try {
       const data = await MembersAPI.list();
@@ -111,6 +233,16 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   };
 
   const handleMemberClick = (member: Member) => {
+      // Cargar historial de asistencia
+      MembersAPI.getAttendanceHistory(member.id, 10, 0)
+        .then(data => {
+          setAttendanceHistory(data.records || []);
+          setAttendanceTotal(data.total || 0);
+        })
+        .catch(() => {
+          setAttendanceHistory([]);
+          setAttendanceTotal(0);
+        });
       // Si el miembro tiene un nutritionPlan directo, úsalo. Si no, intentar mapear desde diets.description si es JSON válido.
       let nutritionPlan = member.nutritionPlan;
       if (!nutritionPlan && member.diets && member.diets.length > 0) {
@@ -150,6 +282,41 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
         };
       }
       setSelectedMember({ ...member, nutritionPlan });
+  };
+
+  // === SCHEDULE EXCEPTIONS ===
+  const handleAddScheduleException = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMember) return;
+    if (!exceptionForm.date || !exceptionForm.start || !exceptionForm.end) {
+      setToast({ message: 'Fecha, hora de inicio y fin son requeridos', type: 'error' });
+      return;
+    }
+    try {
+      await MembersAPI.addScheduleException(selectedMember.id, {
+        date: exceptionForm.date,
+        start: exceptionForm.start,
+        end: exceptionForm.end,
+        reason: exceptionForm.reason || undefined
+      });
+      setShowExceptionModal(false);
+      setExceptionForm({ date: '', start: '', end: '', reason: '' });
+      await refreshMembers();
+      setToast({ message: 'Excepción de horario creada', type: 'success' });
+    } catch {
+      setToast({ message: 'Error al crear excepción de horario', type: 'error' });
+    }
+  };
+
+  const handleDeleteScheduleException = async (exceptionId: string) => {
+    if (!selectedMember) return;
+    try {
+      await MembersAPI.deleteScheduleException(selectedMember.id, exceptionId);
+      await refreshMembers();
+      setToast({ message: 'Excepción eliminada', type: 'success' });
+    } catch {
+      setToast({ message: 'Error al eliminar excepción', type: 'error' });
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -203,6 +370,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   const handleSaveEditMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedMember) {
+      if (scheduleError) {
+        setToast({ message: scheduleError, type: 'error' });
+        return;
+      }
       // Validaciones igual que en creación
       const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
       const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
@@ -978,6 +1149,29 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   };
 
   // --- RENDER VIEWS ---
+  // --- Efecto: Si cambia el filtro global de página, forzar volver a la lista general de socios ---
+  React.useEffect(() => {
+    // Si cambia la página global (por ejemplo, desde el sidebar), limpiar selección
+    setSelectedMember(null);
+    // eslint-disable-next-line
+  }, [initialFilter]);
+
+  React.useEffect(() => {
+    // Si membersResetKey cambia, limpiar selección
+    setSelectedMember(null);
+    // eslint-disable-next-line
+  }, [membersResetKey]);
+
+  // --- Efecto: Si el usuario navega con el historial (popstate), limpiar selección ---
+  React.useEffect(() => {
+    const onPopState = () => {
+      if (selectedMember) setSelectedMember(null);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+    // eslint-disable-next-line
+  }, [selectedMember]);
+
   if (selectedMember) {
     return (
       <div>
@@ -1073,14 +1267,11 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
                               {selectedMember.habitualSchedules && selectedMember.habitualSchedules.length > 0 && (
                                 <div className="mt-2">
-                                  <span className="text-xs text-gray-400 block mb-1">Horarios habituales:</span>
-                                  <ul className="text-sm text-white">
-                                    {selectedMember.habitualSchedules.map((sch, idx) => (
-                                      <li key={idx} className="mb-1">
-                                        <span className="font-semibold text-brand-gold">{sch.day}:</span> {sch.start} - {sch.end}
-                                      </li>
-                                    ))}
-                                  </ul>
+                                  <span className="text-xs text-gray-400 block mb-1">Horario habitual:</span>
+                                  <div className="text-sm text-white font-semibold flex items-center gap-2">
+                                    <span className="text-brand-gold">Lunes a Viernes:</span>
+                                    <span>{selectedMember.habitualSchedules[0]?.start || '--:--'}</span>
+                                  </div>
                                 </div>
                               )}
                           </div>
@@ -1120,7 +1311,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                   </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                   {/* Left Column: Routines & Nutrition */}
                   <div className="space-y-6">
                       
@@ -1262,47 +1453,137 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
                   {/* Right Column: Financials */}
                   <div className="space-y-6">
-                      {/* Membership Payments */}
-                      <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 h-full">
+
+                      {/* Excepciones Activas */}
+                      {selectedMember.scheduleExceptions && selectedMember.scheduleExceptions.length > 0 && (
+                        <div>
+                          <span className="text-xs text-gray-500 uppercase font-bold tracking-wider block mb-2">Próximos cambios de horario</span>
+                          <div className="space-y-1.5">
+                            {selectedMember.scheduleExceptions
+                              .filter(ex => new Date(ex.date) >= new Date(new Date().toDateString()))
+                              .map(ex => (
+                              <div key={ex.id} className="flex items-center justify-between bg-yellow-900/10 border border-yellow-800/30 rounded-lg px-3 py-2">
+                                <div className="flex items-center gap-2">
+                                  <AlertTriangle size={14} className="text-yellow-500 flex-shrink-0" />
+                                  <div>
+                                    <span className="text-sm text-yellow-200 font-bold">
+                                      {new Date(ex.date).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                    </span>
+                                    <span className="text-sm text-white ml-2">{ex.start} - {ex.end}</span>
+                                    {ex.reason && <span className="text-xs text-gray-500 ml-2">({ex.reason})</span>}
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleDeleteScheduleException(ex.id)}
+                                  className="text-red-500 hover:text-red-400 p-1"
+                                  title="Eliminar excepción"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Historial de Asistencia */}
+                      <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6">
                           <div className="flex justify-between items-center mb-4">
                               <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                  <CreditCard className="text-brand-gold" /> Pagos de Membresía
+                                  <History className="text-green-500" /> Historial de Asistencia
                               </h3>
-                              <button 
-                                onClick={handleOpenPaymentModal}
-                                className="text-xs bg-gray-800 hover:bg-brand-gold hover:text-black text-white px-3 py-1 rounded transition-colors"
-                              >
-                                  + Registrar Pago
-                              </button>
+                              <span className="text-xs bg-green-900/30 text-green-400 px-2 py-1 rounded-full font-bold">
+                                {attendanceTotal} asistencias
+                              </span>
                           </div>
-                          <div className="overflow-y-auto">
-                              <table className="w-full text-sm">
-                                  <thead className="text-gray-500 border-b border-gray-800">
-                                      <tr>
-                                          <th className="text-left py-2">Fecha</th>
-                                          <th className="text-left py-2">Concepto</th>
-                                          <th className="text-right py-2">Monto</th>
-                                      </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-gray-800">
-                                      {selectedMember.payments.slice().reverse().map(pay => (
-                                          <tr key={pay.id}>
-                                              <td className="py-2 text-gray-300">{new Date(pay.date).toLocaleDateString()}</td>
-                                              <td className="py-2 text-gray-400">{pay.concept}</td>
-                                              <td className="py-2 text-right font-mono text-brand-gold">${pay.amount}</td>
-                                          </tr>
-                                      ))}
-                                      {selectedMember.payments.length === 0 && (
-                                          <tr><td colSpan={3} className="text-center py-4 text-gray-600">Sin historial de pagos</td></tr>
-                                      )}
-                                  </tbody>
-                              </table>
-                          </div>
+                          {attendanceHistory.length > 0 ? (
+                            <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+                              {attendanceHistory.map((record) => (
+                                <div key={record.id} className="flex items-center gap-3 bg-black/40 border border-gray-800 rounded-lg px-3 py-2">
+                                  <CheckCircle2 size={16} className="text-green-500 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-sm text-white">
+                                      {new Date(record.slot?.date || record.createdAt).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                    </span>
+                                    <span className="text-sm text-brand-gold ml-2 font-mono">
+                                      {record.slot?.time || '--:--'}
+                                    </span>
+                                  </div>
+                                  {record.accessedAt && (
+                                    <span className="text-[10px] text-gray-600">
+                                      Acceso: {new Date(record.accessedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-gray-500 text-center py-4 text-sm">Sin registros de asistencia.</p>
+                          )}
                       </div>
                   </div>
               </div>
 
               {/* === MODALS === */}
+
+              {/* Schedule Exception Modal */}
+              {showExceptionModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowExceptionModal(false)}>
+                  <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                    <h3 className="text-lg font-bold text-white mb-1">Cambio de Horario Puntual</h3>
+                    <p className="text-xs text-gray-400 mb-4">Este cambio solo aplica para la fecha seleccionada, sin modificar el horario habitual.</p>
+                    <form onSubmit={handleAddScheduleException} className="space-y-4">
+                      <div>
+                        <label className="text-xs text-gray-400 block mb-1">Fecha</label>
+                        <input
+                          type="date"
+                          required
+                          value={exceptionForm.date}
+                          onChange={e => setExceptionForm({ ...exceptionForm, date: e.target.value })}
+                          className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs text-gray-400 block mb-1">Hora inicio</label>
+                          <input
+                            type="time"
+                            required
+                            value={exceptionForm.start}
+                            onChange={e => setExceptionForm({ ...exceptionForm, start: e.target.value })}
+                            className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 block mb-1">Hora fin</label>
+                          <input
+                            type="time"
+                            required
+                            value={exceptionForm.end}
+                            onChange={e => setExceptionForm({ ...exceptionForm, end: e.target.value })}
+                            className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400 block mb-1">Motivo (opcional)</label>
+                        <input
+                          type="text"
+                          value={exceptionForm.reason}
+                          onChange={e => setExceptionForm({ ...exceptionForm, reason: e.target.value })}
+                          placeholder="Ej: Cambio por turno médico"
+                          className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <button type="button" onClick={() => setShowExceptionModal(false)} className="px-3 py-2 text-gray-400 text-sm">Cancelar</button>
+                        <button type="submit" className="px-4 py-2 bg-brand-gold text-black rounded font-bold text-sm">Guardar</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
               
                {/* Payment Modal */}
               {showPaymentModal && (
@@ -1471,168 +1752,205 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
 
               {/* Edit Member Modal */}
               {showEditModal && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowEditModal(false)}>
-                  <div className="bg-[#222] p-6 rounded-xl border border-gray-700 w-full max-w-sm" onClick={e => e.stopPropagation()}>
-                    <h3 className="text-lg font-bold text-white mb-4">Editar Cliente</h3>
-                    <form onSubmit={handleSaveEditMember} className="space-y-4">
-                                  {/* Fase de objetivo */}
-                                  <div>
-                                    <label className="text-xs text-gray-400 block mb-1">Fase/Objetivo</label>
-                                    <select
-                                      value={editMember.phase}
-                                      onChange={e => setEditMember({ ...editMember, phase: e.target.value as any })}
-                                      className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                                    >
-                                      <option value="volumen">Volumen</option>
-                                      <option value="deficit">Déficit</option>
-                                      <option value="recomposicion">Recomposición corporal</option>
-                                      <option value="transicion">Transición (volumen-défict)</option>
-                                    </select>
-                                  </div>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 px-4" onClick={() => setShowEditModal(false)}>
+                  <div className="w-full max-w-4xl bg-[#0f0f0f] rounded-2xl border border-gray-700 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-brand-gold/40 scrollbar-track-gray-900" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-start justify-between px-6 py-4 border-b border-gray-700">
+                      <div>
+                        <p className="text-sm uppercase tracking-widest text-gray-500 font-semibold">Editar horario y datos</p>
+                        <h3 className="text-2xl font-bold text-white mt-1">Cliente</h3>
+                        <p className="text-xs text-gray-400 mt-2">Horario habitual solo de lunes a viernes. Sábados quedan libres y domingos no se muestran.</p>
+                      </div>
+                      <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-800">
+                        <X size={20} />
+                      </button>
+                    </div>
 
-                                  {/* Horarios habituales */}
-                                  <div>
-                                    <label className="text-xs text-gray-400 block mb-1">Horarios habituales de entrenamiento</label>
-                                    {(editMember.habitualSchedules || []).map((sch, idx) => (
-                                      <div key={idx} className="flex gap-2 mb-2">
-                                        <input
-                                          type="text"
-                                          placeholder="Día (ej: Lunes)"
-                                          value={sch.day}
-                                          onChange={e => {
-                                            const arr = [...editMember.habitualSchedules];
-                                            arr[idx].day = e.target.value;
-                                            setEditMember({ ...editMember, habitualSchedules: arr });
-                                          }}
-                                          className="bg-black border border-gray-600 text-white p-2 rounded w-1/3"
-                                        />
-                                        <input
-                                          type="time"
-                                          value={sch.start}
-                                          onChange={e => {
-                                            const arr = [...editMember.habitualSchedules];
-                                            arr[idx].start = e.target.value;
-                                            setEditMember({ ...editMember, habitualSchedules: arr });
-                                          }}
-                                          className="bg-black border border-gray-600 text-white p-2 rounded w-1/3"
-                                        />
-                                        <input
-                                          type="time"
-                                          value={sch.end}
-                                          onChange={e => {
-                                            const arr = [...editMember.habitualSchedules];
-                                            arr[idx].end = e.target.value;
-                                            setEditMember({ ...editMember, habitualSchedules: arr });
-                                          }}
-                                          className="bg-black border border-gray-600 text-white p-2 rounded w-1/3"
-                                        />
-                                        <button type="button" onClick={() => {
-                                          const arr = [...editMember.habitualSchedules];
-                                          arr.splice(idx, 1);
-                                          setEditMember({ ...editMember, habitualSchedules: arr });
-                                        }} className="text-red-400">Eliminar</button>
-                                      </div>
-                                    ))}
-                                    <button type="button" onClick={() => setEditMember({ ...editMember, habitualSchedules: [...(editMember.habitualSchedules || []), { day: '', start: '', end: '' }] })} className="text-xs text-brand-gold mt-1">Agregar horario</button>
-                                  </div>
-                      <div>
-                          <label className="text-xs text-gray-400 block mb-1">Nombre</label>
-                          <input
-                              type="text"
-                              required
-                              value={editMember.firstName}
-                              onChange={e => {
-                                // Solo letras y espacios, permitir borrar todo, y evitar pegado de caracteres inválidos
-                                let val = e.target.value.normalize('NFD').replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '');
-                                setEditMember({ ...editMember, firstName: val });
-                              }}
-                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                              placeholder="Nombre"
-                              inputMode="text"
-                              autoComplete="off"
-                          />
+                    <form onSubmit={handleSaveEditMember} className="flex flex-col flex-1">
+                      <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4 space-y-6">
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div className="space-y-3">
+                            <label className="block">
+                              <span className="text-xs text-gray-400 mb-1 block">Fase/Objetivo</span>
+                              <select
+                                value={editMember.phase}
+                                onChange={e => setEditMember({ ...editMember, phase: e.target.value as any })}
+                                className="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold/60"
+                              >
+                                <option value="volumen">Volumen</option>
+                                <option value="deficit">Déficit</option>
+                                <option value="recomposicion">Recomposición corporal</option>
+                                <option value="transicion">Transición (volumen-défict)</option>
+                              </select>
+                            </label>
+
+                            <label className="block">
+                              <span className="text-xs text-gray-400 mb-1 block">Nombre</span>
+                              <input
+                                type="text"
+                                required
+                                value={editMember.firstName}
+                                onChange={e => {
+                                  let val = e.target.value.normalize('NFD').replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '');
+                                  setEditMember({ ...editMember, firstName: val });
+                                }}
+                                className="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold/60 placeholder:text-gray-500"
+                                placeholder="Nombre"
+                                inputMode="text"
+                                autoComplete="off"
+                              />
+                            </label>
+
+                            <label className="block">
+                              <span className="text-xs text-gray-400 mb-1 block">Apellido</span>
+                              <input
+                                type="text"
+                                required
+                                value={editMember.lastName}
+                                onChange={e => {
+                                  let val = e.target.value.normalize('NFD').replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '');
+                                  setEditMember({ ...editMember, lastName: val });
+                                }}
+                                className="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold/60 placeholder:text-gray-500"
+                                placeholder="Apellido"
+                                inputMode="text"
+                                autoComplete="off"
+                              />
+                            </label>
+
+                            <label className="block">
+                              <span className="text-xs text-gray-400 mb-1 block">DNI</span>
+                              <input
+                                type="text"
+                                required
+                                value={editMember.dni}
+                                onChange={e => {
+                                  let val = e.target.value.replace(/\D/g, '');
+                                  if (val.length > 8) val = val.slice(0, 8);
+                                  setEditMember({ ...editMember, dni: val });
+                                }}
+                                className="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold/60 placeholder:text-gray-500"
+                                placeholder="DNI"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                autoComplete="off"
+                              />
+                            </label>
+                          </div>
+
+                          <div className="space-y-3">
+                            <label className="block">
+                              <span className="text-xs text-gray-400 mb-1 block">Email</span>
+                              <input
+                                type="email"
+                                required
+                                value={editMember.email}
+                                onChange={e => setEditMember({ ...editMember, email: e.target.value })}
+                                className="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold/60 placeholder:text-gray-500"
+                                placeholder="Email"
+                                inputMode="email"
+                                autoComplete="off"
+                              />
+                            </label>
+
+                            <label className="block">
+                              <span className="text-xs text-gray-400 mb-1 block">Teléfono</span>
+                              <input
+                                type="text"
+                                required
+                                value={editMember.phone}
+                                onChange={e => {
+                                  let val = e.target.value.replace(/\D/g, '');
+                                  setEditMember({ ...editMember, phone: val });
+                                }}
+                                className="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold/60 placeholder:text-gray-500"
+                                placeholder="Teléfono"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                autoComplete="off"
+                              />
+                            </label>
+
+                            <label className="block">
+                              <span className="text-xs text-gray-400 mb-1 block">Estado</span>
+                              <select 
+                                value={editMember.status}
+                                onChange={e => setEditMember({...editMember, status: e.target.value as UserStatus})}
+                                className="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold/60"
+                              >
+                                <option value={UserStatus.ACTIVE}>Activo</option>
+                                <option value={UserStatus.DEBTOR}>Moroso</option>
+                                <option value={UserStatus.INACTIVE}>Inactivo</option>
+                              </select>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-900/30 border border-gray-800 rounded-xl p-5 space-y-4">
+                          <div className="flex flex-col gap-1">
+                            <h4 className="text-lg font-bold text-white">Horarios habituales</h4>
+                            <p className="text-sm text-gray-400">Selecciona días hábiles y un único rango de hora de entrada y salida.</p>
+                          </div>
+
+                          <div className="grid gap-4 md:grid-cols-3">
+                            <div className="md:col-span-2">
+                              <p className="text-xs uppercase text-gray-500 font-semibold mb-2">Días (Lunes a Viernes)</p>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {WEEKDAY_OPTIONS.map(day => (
+                                  <label key={day} className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition ${selectedScheduleDays[day] ? 'bg-brand-gold/10 border-brand-gold/60' : 'bg-gray-900 border-gray-800 hover:border-gray-700'}`}>
+                                    <input
+                                      type="checkbox"
+                                      checked={!!selectedScheduleDays[day]}
+                                      onChange={() => handleScheduleDayToggle(day)}
+                                      className="form-checkbox h-4 w-4 text-brand-gold focus:ring-brand-gold"
+                                    />
+                                    <span className="text-white text-sm">{day}</span>
+                                  </label>
+                                ))}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-2">Sábados quedan libres para recuperación y domingos no se muestran.</p>
+                            </div>
+
+                            <div className="bg-black/50 border border-gray-800 rounded-lg p-4 space-y-3">
+                              <p className="text-xs uppercase text-gray-500 font-semibold">Rango habitual</p>
+                              <div className="flex items-center gap-3">
+                                <div className="flex-1">
+                                  <TimeDropdown value={scheduleRange.start} onChange={val => handleScheduleRangeChange('start', val)} label="Inicio" />
+                                </div>
+                                <span className="text-gray-500 text-sm">a</span>
+                                <div className="flex-1">
+                                  <TimeDropdown value={scheduleRange.end} onChange={val => handleScheduleRangeChange('end', val)} label="Fin" />
+                                </div>
+                              </div>
+                              <p className="text-xs text-gray-500">Se aplica el mismo rango a todos los días seleccionados.</p>
+                            </div>
+                          </div>
+
+                          {scheduleError && (
+                            <div className="bg-red-900/30 border border-red-800 text-red-300 text-sm rounded-lg px-3 py-2">
+                              {scheduleError}
+                            </div>
+                          )}
+
+                          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex flex-col gap-2">
+                            <p className="text-xs uppercase text-gray-500 font-semibold">Resumen</p>
+                            <div className="flex flex-wrap gap-2">
+                              {editMember.habitualSchedules && editMember.habitualSchedules.length > 0 ? (
+                                editMember.habitualSchedules.map(sch => (
+                                  <span key={sch.day} className="px-3 py-2 rounded-full bg-brand-gold/10 text-brand-gold text-sm border border-brand-gold/40">
+                                    {sch.day}: {sch.start} - {sch.end}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-gray-500 text-sm">Sin horarios asignados</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                          <label className="text-xs text-gray-400 block mb-1">Apellido</label>
-                          <input
-                              type="text"
-                              required
-                              value={editMember.lastName}
-                              onChange={e => {
-                                let val = e.target.value.normalize('NFD').replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '');
-                                setEditMember({ ...editMember, lastName: val });
-                              }}
-                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                              placeholder="Apellido"
-                              inputMode="text"
-                              autoComplete="off"
-                          />
-                      </div>
-                      <div>
-                          <label className="text-xs text-gray-400 block mb-1">DNI</label>
-                          <input
-                              type="text"
-                              required
-                              value={editMember.dni}
-                              onChange={e => {
-                                // Solo números, máx 8 dígitos, limpiar cualquier letra pegada
-                                let val = e.target.value.replace(/\D/g, '');
-                                if (val.length > 8) val = val.slice(0, 8);
-                                setEditMember({ ...editMember, dni: val });
-                              }}
-                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                              placeholder="DNI"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              autoComplete="off"
-                          />
-                      </div>
-                      <div>
-                          <label className="text-xs text-gray-400 block mb-1">Email</label>
-                                <input
-                                  type="email"
-                                  required
-                                  value={editMember.email}
-                                  onChange={e => setEditMember({ ...editMember, email: e.target.value })}
-                                  className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                                  placeholder="Email"
-                                  inputMode="email"
-                                  autoComplete="off"
-                                />
-                      </div>
-                      <div>
-                          <label className="text-xs text-gray-400 block mb-1">Teléfono</label>
-                          <input
-                              type="text"
-                              required
-                              value={editMember.phone}
-                              onChange={e => {
-                                // Solo números, limpiar cualquier letra pegada
-                                let val = e.target.value.replace(/\D/g, '');
-                                setEditMember({ ...editMember, phone: val });
-                              }}
-                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                              placeholder="Teléfono"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              autoComplete="off"
-                          />
-                      </div>
-                      <div>
-                          <label className="text-xs text-gray-400 block mb-1">Estado</label>
-                          <select 
-                              value={editMember.status}
-                              onChange={e => setEditMember({...editMember, status: e.target.value as UserStatus})}
-                              className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                          >
-                              <option value={UserStatus.ACTIVE}>Activo</option>
-                              <option value={UserStatus.DEBTOR}>Moroso</option>
-                              <option value={UserStatus.INACTIVE}>Inactivo</option>
-                          </select>
-                      </div>
-                      <div className="flex justify-end gap-2 mt-4">
-                          <button type="button" onClick={() => setShowEditModal(false)} className="px-3 py-2 text-gray-400 text-sm">Cancelar</button>
-                          <button type="submit" className="px-4 py-2 bg-brand-gold text-black rounded font-bold text-sm">Confirmar</button>
+
+                      <div className="px-6 py-4 border-t border-gray-700 bg-[#0f0f0f] flex flex-col gap-2 md:flex-row md:items-center md:justify-end md:gap-3">
+                        <button type="button" onClick={() => setShowEditModal(false)} className="w-full md:w-auto px-4 py-3 rounded-lg text-gray-300 bg-gray-800 hover:bg-gray-700 font-semibold transition">Cancelar</button>
+                        <button type="submit" className="w-full md:w-auto px-5 py-3 rounded-lg bg-brand-gold text-black font-bold hover:bg-yellow-500 transition shadow-lg">Guardar cambios</button>
                       </div>
                     </form>
                   </div>
@@ -1680,7 +1998,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
               )}
             </div>
           );
-        } // Fin de la vista de detalle
+        }
 
   // --- LIST VIEW (Default) ---
 
@@ -1856,7 +2174,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                         title={t('notificarDeuda')}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const msgText = t('mensajeWhatsapp', { nombre: member.firstName });
+                          const msgText = t('mensajeWhatsapp').replace('{nombre}', member.firstName);
                           const phone = member.phone.replace(/\D/g, '').replace(/^0/, '');
                           const waPhone = phone.startsWith('54') ? phone : `549${phone}`;
                           const url = `https://wa.me/${waPhone}?text=${encodeURIComponent(msgText)}`;
@@ -1871,7 +2189,17 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
                       title="Editar"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleMemberClick(member);
+                        setSelectedMember(member);
+                        setEditMember({
+                          firstName: member.firstName,
+                          lastName: member.lastName,
+                          dni: member.dni || '',
+                          email: member.email,
+                          phone: member.phone,
+                          status: member.status,
+                          phase: member.phase || 'volumen',
+                          habitualSchedules: member.habitualSchedules ? [...member.habitualSchedules] : []
+                        });
                         setShowEditModal(true);
                       }}
                     >
