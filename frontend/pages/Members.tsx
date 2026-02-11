@@ -44,9 +44,11 @@ import { LOGO_BASE64 } from '../services/assets';
 
 interface MembersProps {
   initialFilter?: string | null;
+  currentPage?: string;
+  membersResetKey?: number;
 }
 
-const Members: React.FC<MembersProps> = ({ initialFilter }) => {
+const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersResetKey }) => {
   // --- ESTADOS ---
   const [members, setMembers] = useState<Member[]>([]);
   const { t } = useLanguage();
@@ -1147,6 +1149,29 @@ const Members: React.FC<MembersProps> = ({ initialFilter }) => {
   };
 
   // --- RENDER VIEWS ---
+  // --- Efecto: Si cambia el filtro global de página, forzar volver a la lista general de socios ---
+  React.useEffect(() => {
+    // Si cambia la página global (por ejemplo, desde el sidebar), limpiar selección
+    setSelectedMember(null);
+    // eslint-disable-next-line
+  }, [initialFilter]);
+
+  React.useEffect(() => {
+    // Si membersResetKey cambia, limpiar selección
+    setSelectedMember(null);
+    // eslint-disable-next-line
+  }, [membersResetKey]);
+
+  // --- Efecto: Si el usuario navega con el historial (popstate), limpiar selección ---
+  React.useEffect(() => {
+    const onPopState = () => {
+      if (selectedMember) setSelectedMember(null);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+    // eslint-disable-next-line
+  }, [selectedMember]);
+
   if (selectedMember) {
     return (
       <div>
