@@ -72,7 +72,9 @@ export interface PaymentLog {
   date: string;
   amount: number;
   concept: string; 
-  method: string; 
+  method: string;
+  memberId?: string;
+  memberName?: string;
 }
 
 export interface Member {
