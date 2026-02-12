@@ -88,12 +88,16 @@ app.use(cors({
   origin: function (origin, callback) {
     // Permitir requests sin origin (como Postman) o si está en la lista
     if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
+      callback(null, origin || '*');
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600
 }));
 // Aumentar el límite del body a 5mb para permitir imágenes grandes
 app.use(express.json({ limit: '5mb' }));
