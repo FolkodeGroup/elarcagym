@@ -1280,6 +1280,13 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                       <div className="mb-4 flex flex-col items-end gap-2">
                           <div className="flex gap-2">
                               <button
+                                  onClick={handleOpenPaymentModal}
+                                  className="px-4 py-2 bg-brand-gold hover:bg-yellow-500 text-black rounded font-bold flex items-center gap-2 transition-colors"
+                                  title="Registrar pago de cuota"
+                              >
+                                  <CreditCard size={16} /> Registrar Pago
+                              </button>
+                              <button
                                   onClick={handleOpenEditModal}
                                   className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-bold flex items-center gap-2 transition-colors"
                                   title="Editar datos del cliente"
