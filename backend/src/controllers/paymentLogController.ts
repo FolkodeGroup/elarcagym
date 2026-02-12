@@ -5,8 +5,24 @@ export default function(prisma: any) {
 
   // Obtener todos los logs de pago
   router.get('/', async (req, res) => {
-    const payments = await prisma.paymentLog.findMany();
-    res.json(payments);
+    const payments = await prisma.paymentLog.findMany({
+      include: {
+        member: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      },
+      orderBy: { date: 'desc' }
+    });
+    // Aplanar la info del miembro para simplificar el frontend
+    const result = payments.map((p: any) => ({
+      ...p,
+      memberName: p.member ? `${p.member.firstName} ${p.member.lastName}` : 'Desconocido',
+      member: undefined
+    }));
+    res.json(result);
   });
 
   // Crear un log de pago

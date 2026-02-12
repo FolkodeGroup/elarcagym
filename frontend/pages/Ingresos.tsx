@@ -1,16 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { SalesAPI } from '../services/api';
-import { Sale } from '../types';
-import { DollarSign, TrendingUp, Edit2, Trash2, Printer, X } from 'lucide-react';
+import { SalesAPI, PaymentLogsAPI } from '../services/api';
+import { Sale, PaymentLog } from '../types';
+import { DollarSign, TrendingUp, Edit2, Trash2, Printer, X, CreditCard, ShoppingCart } from 'lucide-react';
 import Toast from '../components/Toast';
 import { useLanguage } from '../contexts/LanguageContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// Tipo unificado para mostrar ventas y pagos de membresía juntos
+interface IncomeItem {
+    id: string;
+    date: string;
+    total: number;
+    type: 'sale' | 'payment';
+    description: string;
+    detail: string;
+    original: Sale | PaymentLog;
+}
+
 const Ingresos = () => {
     const { t } = useLanguage();
     const [ventas, setVentas] = useState<Sale[]>([]);
-    const [ventasHoy, setVentasHoy] = useState<Sale[]>([]);
+    const [pagos, setPagos] = useState<PaymentLog[]>([]);
     const [totalHoy, setTotalHoy] = useState(0);
     const [totalGeneral, setTotalGeneral] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
@@ -19,34 +30,35 @@ const Ingresos = () => {
         return new Date().toISOString().split('T')[0];
     });
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [ventaAEliminar, setVentaAEliminar] = useState<Sale | null>(null);
+    const [itemAEliminar, setItemAEliminar] = useState<IncomeItem | null>(null);
 
     useEffect(() => {
-        cargarVentas();
+        cargarDatos();
     }, []);
 
-    const cargarVentas = async () => {
+    const cargarDatos = async () => {
         setIsLoading(true);
         try {
-            const todasLasVentas = await SalesAPI.list();
+            const [todasLasVentas, todosLosPagos] = await Promise.all([
+                SalesAPI.list(),
+                PaymentLogsAPI.list()
+            ]);
             setVentas(todasLasVentas);
+            setPagos(todosLosPagos);
 
             const hoy = new Date().toISOString().split('T')[0];
-            const ventasDelDia = todasLasVentas.filter(venta => {
-                const fechaVenta = new Date(venta.date).toISOString().split('T')[0];
-                return fechaVenta === hoy;
-            });
+            
+            const ventasHoy = todasLasVentas.filter(v => new Date(v.date).toISOString().split('T')[0] === hoy);
+            const pagosHoy = todosLosPagos.filter(p => new Date(p.date).toISOString().split('T')[0] === hoy);
 
-            setVentasHoy(ventasDelDia);
-
-            const totalDia = ventasDelDia.reduce((acc, venta) => acc + venta.total, 0);
-            const totalG = todasLasVentas.reduce((acc, venta) => acc + venta.total, 0);
+            const totalDia = ventasHoy.reduce((acc, v) => acc + v.total, 0) + pagosHoy.reduce((acc, p) => acc + p.amount, 0);
+            const totalG = todasLasVentas.reduce((acc, v) => acc + v.total, 0) + todosLosPagos.reduce((acc, p) => acc + p.amount, 0);
 
             setTotalHoy(totalDia);
             setTotalGeneral(totalG);
         } catch (error) {
-            console.error('Error loading sales:', error);
-            setToast({ message: 'Error al cargar ventas', type: 'error' });
+            console.error('Error loading data:', error);
+            setToast({ message: 'Error al cargar datos', type: 'error' });
         } finally {
             setIsLoading(false);
         }
@@ -62,19 +74,23 @@ const Ingresos = () => {
         });
     };
 
-    const eliminarVenta = (venta: Sale) => {
-        setVentaAEliminar(venta);
+    const eliminarItem = (item: IncomeItem) => {
+        setItemAEliminar(item);
         setShowDeleteModal(true);
     };
 
     const confirmarEliminar = async () => {
-        if (ventaAEliminar) {
+        if (itemAEliminar) {
             try {
-                await SalesAPI.delete(ventaAEliminar.id);
-                setToast({ message: t('ventaEliminadaCorrectamente'), type: 'success' });
+                if (itemAEliminar.type === 'sale') {
+                    await SalesAPI.delete(itemAEliminar.id);
+                } else {
+                    await PaymentLogsAPI.delete(itemAEliminar.id);
+                }
+                setToast({ message: itemAEliminar.type === 'sale' ? t('ventaEliminadaCorrectamente') : 'Pago eliminado correctamente', type: 'success' });
                 setShowDeleteModal(false);
-                setVentaAEliminar(null);
-                await cargarVentas();
+                setItemAEliminar(null);
+                await cargarDatos();
             } catch (error) {
                 setToast({ message: 'Error al eliminar venta', type: 'error' });
             }
@@ -152,7 +168,7 @@ const Ingresos = () => {
     };
 
     const imprimirMultiples = () => {
-        if (ventasAMostrar.length === 0) {
+        if (ingresosAMostrar.length === 0) {
             setToast({ message: t('noHayVentasParaImprimir'), type: 'error' });
             return;
         }
@@ -161,20 +177,21 @@ const Ingresos = () => {
         const pageWidth = doc.internal.pageSize.getWidth();
         
         doc.setFontSize(14);
-        doc.text(t('reporteVentasElArcaGym'), pageWidth / 2, 10, { align: 'center' });
+        doc.text('Reporte de Ingresos - El Arca Gym', pageWidth / 2, 10, { align: 'center' });
         
         doc.setFontSize(10);
-        const fecha = filtroFecha ? `${t('ventasDel')} ${filtroFecha}` : t('ventasdeHoy');
+        const fecha = filtroFecha ? `Ingresos del ${filtroFecha}` : 'Ingresos de Hoy';
         doc.text(fecha, pageWidth / 2, 18, { align: 'center' });
         
-        const tableData = ventasAMostrar.map(venta => [
-            formatearFecha(venta.date),
-            venta.items.map(i => `${i.productName} (x${i.quantity})`).join(', '),
-            `$${venta.total.toFixed(2)}`
+        const tableData = ingresosAMostrar.map(item => [
+            formatearFecha(item.date),
+            item.type === 'sale' ? 'Venta' : 'Membresía',
+            item.description,
+            `$${item.total.toFixed(2)}`
         ]);
 
         autoTable(doc, {
-            head: [[t('fechayHora'), t('productos'), t('total')]],
+            head: [[t('fechayHora'), 'Tipo', 'Detalle', t('total')]],
             body: tableData,
             startY: 25,
             margin: 10,
@@ -186,15 +203,53 @@ const Ingresos = () => {
             }
         });
 
-        const totalPagina = ventasAMostrar.reduce((acc, v) => acc + v.total, 0);
         const finalY = (doc as any).lastAutoTable.finalY + 10;
-        doc.text(`${t('total')}: $${totalPagina.toFixed(2)}`, pageWidth - 15, finalY, { align: 'right' });
+        doc.text(`${t('total')}: $${totalFiltrado.toFixed(2)}`, pageWidth - 15, finalY, { align: 'right' });
         
-        doc.save(`ventas-${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`ingresos-${new Date().toISOString().split('T')[0]}.pdf`);
         setToast({ message: t('reporteDescargadoCorrectamente'), type: 'success' });
     };
 
-    const ventasAMostrar = filtroFecha ? ventas.filter(v => v.date.startsWith(filtroFecha)) : ventasHoy;
+    // Combinar ventas y pagos en una lista unificada
+    const buildIncomeItems = (): IncomeItem[] => {
+        const hoy = new Date().toISOString().split('T')[0];
+        
+        const ventasFiltradas = filtroFecha 
+            ? ventas.filter(v => new Date(v.date).toISOString().split('T')[0] === filtroFecha)
+            : ventas.filter(v => new Date(v.date).toISOString().split('T')[0] === hoy);
+        
+        const pagosFiltrados = filtroFecha
+            ? pagos.filter(p => new Date(p.date).toISOString().split('T')[0] === filtroFecha)
+            : pagos.filter(p => new Date(p.date).toISOString().split('T')[0] === hoy);
+
+        const items: IncomeItem[] = [
+            ...ventasFiltradas.map(v => ({
+                id: v.id,
+                date: v.date,
+                total: v.total,
+                type: 'sale' as const,
+                description: v.items.map(i => `${i.productName} x${i.quantity}`).join(', '),
+                detail: 'Venta de productos',
+                original: v
+            })),
+            ...pagosFiltrados.map(p => ({
+                id: p.id,
+                date: p.date,
+                total: p.amount,
+                type: 'payment' as const,
+                description: `${p.concept}${p.memberName ? ` - ${p.memberName}` : ''}`,
+                detail: `${p.method || 'Efectivo'}`,
+                original: p
+            }))
+        ];
+
+        // Ordenar por fecha descendente
+        items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return items;
+    };
+
+    const ingresosAMostrar = buildIncomeItems();
+    const totalFiltrado = ingresosAMostrar.reduce((acc, item) => acc + item.total, 0);
 
     return (
         <div className="space-y-6">
@@ -271,52 +326,67 @@ const Ingresos = () => {
                 </div>
             </div>
 
-            {/* Lista de Ventas */}
+            {/* Lista de Ingresos (Ventas + Pagos de Membresía) */}
             <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl overflow-hidden">
                 <div className="p-6 border-b border-gray-800">
                     <h2 className="text-lg font-bold text-white">
-                        {filtroFecha ? `${t('ventasDel')} ${filtroFecha}` : t('ventasdeHoy')} ({ventasAMostrar.length})
+                        {filtroFecha ? `Ingresos del ${filtroFecha}` : 'Ingresos de Hoy'} ({ingresosAMostrar.length})
+                        {ingresosAMostrar.length > 0 && (
+                            <span className="text-brand-gold ml-2">— Total: ${totalFiltrado.toFixed(2)}</span>
+                        )}
                     </h2>
                 </div>
 
                 <div className="overflow-x-auto">
-                    {ventasAMostrar.length > 0 ? (
+                    {ingresosAMostrar.length > 0 ? (
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-gray-700 bg-black/50">
                                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-300">{t('fechayHora')}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-300">{t('productos')}</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-300">Tipo</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-300">Detalle</th>
                                     <th className="px-8 py-3 text-right text-xs font-bold text-gray-300">{t('total')}</th>
                                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-300">{t('acciones')}</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {ventasAMostrar.map((venta) => (
-                                    <tr key={venta.id} className="border-b border-gray-700 hover:bg-black/30 transition">
+                                {ingresosAMostrar.map((item) => (
+                                    <tr key={`${item.type}-${item.id}`} className="border-b border-gray-700 hover:bg-black/30 transition">
                                         <td className="px-6 py-4 text-sm text-white">
-                                            {formatearFecha(venta.date)}
+                                            {formatearFecha(item.date)}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                                                item.type === 'sale' 
+                                                    ? 'bg-blue-900/30 border border-blue-700 text-blue-400' 
+                                                    : 'bg-green-900/30 border border-green-700 text-green-400'
+                                            }`}>
+                                                {item.type === 'sale' ? <ShoppingCart size={12} /> : <CreditCard size={12} />}
+                                                {item.type === 'sale' ? 'Venta' : 'Membresía'}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-300">
-                                            {venta.items.map((item, idx) => (
-                                                <div key={idx} className="text-xs">
-                                                    {item.productName} x{item.quantity}
-                                                </div>
-                                            ))}
+                                            <div className="text-xs">{item.description}</div>
+                                            {item.type === 'payment' && (
+                                                <div className="text-xs text-gray-500 mt-0.5">{item.detail}</div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-right font-bold text-brand-gold">
-                                            ${venta.total.toFixed(2)}
+                                            ${item.total.toFixed(2)}
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex gap-2 justify-center">
+                                                {item.type === 'sale' && (
+                                                    <button
+                                                        onClick={() => imprimirTicket(item.original as Sale)}
+                                                        className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition"
+                                                        title={t('imprimirReporte')}
+                                                    >
+                                                        <Printer size={16} />
+                                                    </button>
+                                                )}
                                                 <button
-                                                    onClick={() => imprimirTicket(venta)}
-                                                    className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition"
-                                                    title={t('imprimirReporte')}
-                                                >
-                                                    <Printer size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => eliminarVenta(venta)}
+                                                    onClick={() => eliminarItem(item)}
                                                     className="bg-red-600 text-white p-2 rounded hover:bg-red-700 transition"
                                                     title={t('eliminar')}
                                                 >
@@ -330,14 +400,14 @@ const Ingresos = () => {
                         </table>
                     ) : (
                         <div className="p-6 text-center text-gray-500">
-                            <p>{t('noHayVentas')} {filtroFecha ? t('paraEstaFecha') : t('hoy')}.</p>
+                            <p>No hay ingresos {filtroFecha ? 'para esta fecha' : 'hoy'}.</p>
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Modal de Confirmación de Eliminación */}
-            {showDeleteModal && ventaAEliminar && (
+            {showDeleteModal && itemAEliminar && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
                     <div className="absolute inset-0" onClick={() => setShowDeleteModal(false)} />
                     <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-md w-full p-6 z-10" onClick={e => e.stopPropagation()}>
@@ -351,10 +421,13 @@ const Ingresos = () => {
                         <div className="bg-red-900/20 border border-red-700 p-4 rounded-lg mb-4">
                             <p className="text-white mb-2">{t('estasSeguroEliminar')}</p>
                             <p className="text-sm text-gray-300 mb-2">
-                                <strong>{t('fechaColon')}</strong> {formatearFecha(ventaAEliminar.date)}
+                                <strong>Tipo:</strong> {itemAEliminar.type === 'sale' ? 'Venta de productos' : 'Pago de membresía'}
                             </p>
                             <p className="text-sm text-gray-300 mb-2">
-                                <strong>{t('totalColon')}</strong> ${ventaAEliminar.total.toFixed(2)}
+                                <strong>{t('fechaColon')}</strong> {formatearFecha(itemAEliminar.date)}
+                            </p>
+                            <p className="text-sm text-gray-300 mb-2">
+                                <strong>{t('totalColon')}</strong> ${itemAEliminar.total.toFixed(2)}
                             </p>
                             <p className="text-sm text-yellow-400">{t('estaAccionNoSePuedeDeshace')}</p>
                         </div>
