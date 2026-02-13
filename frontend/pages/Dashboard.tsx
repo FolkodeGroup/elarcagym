@@ -71,14 +71,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
 
 
-  // Obtener turnos de hoy con reservaciones
+  // Obtener turnos de hoy con reservaciones (incluyendo horarios habituales)
   const getTodaySlots = () => {
     const TIME_ZONE = 'America/Argentina/Buenos_Aires';
     const now = new Date();
     const nowLocal = new Date(now.toLocaleString('en-US', { timeZone: TIME_ZONE }));
     const todayLocal = getLocalDateString(nowLocal);
 
-    return slots
+    // Obtener slots reales del día
+    const todaySlots = slots
       .filter(s => {
         const slotDate = typeof s.date === 'string' ? s.date.split('T')[0] : getLocalDateString(new Date(s.date));
         if (slotDate !== todayLocal) return false;
@@ -90,8 +91,29 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         // Mostrar si no han pasado más de 2 horas desde el horario reservado
         return diffMs <= 2 * 60 * 60 * 1000;
       })
-      .filter(s => reservations.some(r => r.slotId === s.id))
-      .sort((a, b) => a.time.localeCompare(b.time));
+      .filter(s => reservations.some(r => r.slotId === s.id && !r.isVirtual));
+
+    // Obtener horarios habituales virtuales del día
+    const virtualReservations = reservations.filter(r => 
+      r.isVirtual && 
+      r.time && 
+      !r.slotId // Asegurarnos que es virtual
+    );
+
+    // Combinar y ordenar por hora
+    const combined = [
+      ...todaySlots.map(s => ({ ...s, isSlot: true })),
+      ...virtualReservations.map(r => ({
+        id: r.id,
+        time: r.time!,
+        date: todayLocal,
+        duration: 60,
+        status: 'reserved' as const,
+        isVirtual: true
+      }))
+    ].sort((a, b) => a.time.localeCompare(b.time));
+
+    return combined;
   };
 
   // Calcular ingresos de hoy
@@ -280,18 +302,36 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             {getTodaySlots().length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-8">Sin turnos programados</p>
             ) : (
-              getTodaySlots().map(slot => {
-                const slotReservations = reservations.filter(r => r.slotId === slot.id);
+              getTodaySlots().map(item => {
+                const isVirtual = 'isVirtual' in item && item.isVirtual === true;
+                const slotReservations = isVirtual 
+                  ? reservations.filter(r => r.isVirtual && r.time === item.time)
+                  : reservations.filter(r => r.slotId === item.id && !r.isVirtual);
+                  
                 return (
-                  <div key={slot.id} className="bg-black/40 p-3 rounded border border-brand-gold/30 hover:border-brand-gold/60 transition">
+                  <div 
+                    key={item.id} 
+                    className={`bg-black/40 p-3 rounded transition ${
+                      isVirtual 
+                        ? 'border border-purple-500/40 border-dashed hover:border-purple-400/60' 
+                        : 'border border-brand-gold/30 hover:border-brand-gold/60'
+                    }`}
+                  >
                     <p className="font-bold text-white text-sm flex items-center gap-2">
-                      <Clock size={14} className="text-brand-gold" />
-                      {slot.time} 
-                      <span className="text-xs bg-gray-700/50 px-2 py-0.5 rounded">
+                      <Clock size={14} className={isVirtual ? 'text-purple-400' : 'text-brand-gold'} />
+                      {item.time} 
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        isVirtual 
+                          ? 'bg-purple-700/30 border border-purple-500/40 text-purple-300'
+                          : 'bg-gray-700/50'
+                      }`}>
                         {slotReservations.length} {slotReservations.length === 1 ? 'persona' : 'personas'}
                       </span>
+                      {isVirtual && (
+                        <span className="text-[9px] text-purple-400 italic">horario habitual</span>
+                      )}
                     </p>
-                    {slot.target && <p className="text-xs text-gray-400 mt-0.5">📌 {slot.target}</p>}
+                    {!isVirtual && 'target' in item && item.target && <p className="text-xs text-gray-400 mt-0.5">📌 {item.target}</p>}
                     <div className="mt-2 flex flex-wrap gap-1">
                       {slotReservations.map(r => (
                         <span
@@ -299,7 +339,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                           className={`text-xs px-2 py-1 rounded truncate max-w-32 border font-bold
                             ${r.attended === true
                               ? 'bg-green-500/30 text-green-700 border-green-400'
-                              : 'bg-brand-gold/20 text-brand-gold border-brand-gold/40'}
+                              : isVirtual
+                                ? 'bg-purple-500/20 text-purple-300 border-purple-400/40'
+                                : 'bg-brand-gold/20 text-brand-gold border-brand-gold/40'}
                           `}
                         >
                           {r.clientName}
