@@ -340,7 +340,6 @@ const Reservas: React.FC = () => {
                                     {allReservationsForHour.map(res => {
                                         // Determinar si es virtual o manual
                                         const isVirtual = res.isVirtual === true;
-                                        
                                         // Calcular el estado del turno y si se puede cambiar asistencia
                                         const slotInfo = isVirtual 
                                           ? { date: selectedDate, time: res.time || timeLabel }
@@ -352,36 +351,38 @@ const Reservas: React.FC = () => {
                                         const now = new Date();
                                         const diffMs = now.getTime() - slotDateTime.getTime();
                                         const diffHrs = diffMs / (1000 * 60 * 60);
-                                        
                                         // Estados posibles
                                         const isExpired = diffHrs > 2; // Más de 2 horas desde el turno
                                         const hasStarted = diffMs >= 0; // El turno ya empezó
                                         const canChangeAttendance = hasStarted && !isExpired && !isVirtual; // Virtual no se puede marcar
-                                        
-                                        // Determinar color y tooltip
+
+                                        // Lógica unificada de color de estado:
+                                        // - Verde: asistió (attended === true)
+                                        // - Rojo: ausente (attended === false O expiró y no se marcó asistencia)
+                                        // - Amarillo: pendiente (no expiró y no se marcó asistencia)
                                         let containerClass = isVirtual 
                                           ? 'bg-purple-900/30 border-purple-500 border-dashed' 
                                           : 'bg-black/60 border-gray-800';
                                         let nameClass = 'text-gray-200';
                                         let tooltip = isVirtual ? 'Horario habitual' : 'Turno pendiente';
-                                        
+
                                         if (res.attended === true) {
                                           // Asistió - verde
                                           containerClass = 'bg-green-900/40 border-green-700';
                                           nameClass = 'text-green-400 font-bold';
                                           tooltip = 'Asistencia registrada ✓';
-                                        } else if (res.attended === false) {
-                                          // Marcado como no asistió
+                                        } else if (res.attended === false || (isExpired && (res.attended === null || res.attended === undefined))) {
+                                          // Ausente: marcado explícito o expiró sin asistencia
                                           containerClass = 'bg-red-900/40 border-red-700';
-                                          nameClass = 'text-red-400 line-through opacity-60';
-                                          tooltip = 'No asistió';
-                                        } else if (isExpired && !isVirtual) {
-                                          // Expiró sin registrar asistencia (solo para manuales)
-                                          containerClass = 'bg-red-900/20 border-red-800/50';
-                                          nameClass = 'text-red-500 font-bold';
-                                          tooltip = 'Ausente: no registró asistencia en las 2 horas';
+                                          nameClass = 'text-red-400 font-bold';
+                                          tooltip = 'Ausente: no asistió o no registró asistencia en las 2 horas';
+                                        } else {
+                                          // Pendiente
+                                          containerClass = 'bg-yellow-900/20 border-yellow-800';
+                                          nameClass = 'text-yellow-400 font-bold';
+                                          tooltip = 'Pendiente de asistencia';
                                         }
-                                        
+
                                         return (
                                         <div key={res.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg group/item border ${containerClass}`}>
                                           <span
