@@ -362,6 +362,10 @@ export const ReservationsAPI = {
   
   delete: (id: string): Promise<void> => 
     apiFetch(`/reservations/${id}`, { method: 'DELETE' }),
+  
+  // Obtener reservas con horarios habituales incluidos para una fecha
+  getWithHabitual: (date: string): Promise<import('../types').ReservationsWithHabitualResponse> => 
+    apiFetch(`/reservations/with-habitual?date=${date}`),
 };
 
 // ==================== EXERCISES API ====================
