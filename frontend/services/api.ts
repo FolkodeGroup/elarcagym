@@ -350,9 +350,6 @@ export const SlotsAPI = {
 
 // ==================== RESERVATIONS API ====================
 export const ReservationsAPI = {
-    // Obtener reservas manuales y virtuales (habituales) para una fecha
-    getWithHabitual: (date: string): Promise<any> =>
-      apiFetch(`/reservations/with-habitual?date=${date}`),
   list: (): Promise<Reservation[]> => apiFetch('/reservations'),
   
   get: (id: string): Promise<Reservation> => apiFetch(`/reservations/${id}`),
