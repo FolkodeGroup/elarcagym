@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { verifyRoutineToken } from '../utils/routineToken.js';
 import { isWithinGymRadius } from '../config/gymLocation.js';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { getDayName, getHabitualSchedulesForDay, generateVirtualReservations } from '../utils/habitualScheduleUtils.js';
 
 const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 const WINDOW_MS = 2 * 60 * 60 * 1000; // 2 horas en milisegundos
@@ -140,108 +141,107 @@ export default function(prisma: any) {
         return;
       }
       
-      // Buscar miembro por DNI
-      const member = await prisma.member.findUnique({ where: { dni } });
+
+      // Buscar miembro por DNI e incluir horarios habituales y pagos
+      const member = await prisma.member.findUnique({
+        where: { dni },
+        include: {
+          habitualSchedules: true,
+          scheduleExceptions: true,
+          payments: { orderBy: { date: 'desc' } }
+        }
+      });
       if (!member) {
         res.status(404).json({ error: 'Socio no encontrado' });
         return;
       }
 
+      // Validar cuota al día (último pago dentro del mes actual)
+      const now = new Date();
+      const lastPayment = member.payments?.[0];
+      if (!lastPayment || (now.getFullYear() !== lastPayment.date.getFullYear() || now.getMonth() !== lastPayment.date.getMonth())) {
+        res.status(403).json({ error: 'Cuota no está al día', code: 'PAYMENT_REQUIRED' });
+        return;
+      }
+
       // Obtener los límites del día en zona horaria de Buenos Aires
       const { startOfDay, endOfDay } = getTodayBoundsInBuenosAires();
-      const now = new Date();
-      
       // Buscar todas las reservas del socio con su slot
       const allReservations: ReservationWithSlot[] = await prisma.reservation.findMany({
         where: { memberId: member.id },
         include: { slot: true }
       });
-      
-      console.log('[SELFSERVICE] Reservas del socio:', allReservations.length);
-      
       // Filtrar reservas de hoy
-        // Filtrar reservas cuyo slot corresponde al día local de Buenos Aires
-        const todayReservations = allReservations.filter((r: ReservationWithSlot) => {
-          // Convertir slot.date a la zona de Buenos Aires
-          const slotDateLocal = toZonedTime(new Date(r.slot.date), TIME_ZONE);
-          const nowLocal = toZonedTime(now, TIME_ZONE);
-          return (
-            slotDateLocal.getFullYear() === nowLocal.getFullYear() &&
-            slotDateLocal.getMonth() === nowLocal.getMonth() &&
-            slotDateLocal.getDate() === nowLocal.getDate()
-          );
-        });
-      
-      console.log('[SELFSERVICE] Reservas de hoy:', todayReservations.length);
+      const todayReservations = allReservations.filter((r: ReservationWithSlot) => {
+        const slotDateLocal = toZonedTime(new Date(r.slot.date), TIME_ZONE);
+        const nowLocal = toZonedTime(now, TIME_ZONE);
+        return (
+          slotDateLocal.getFullYear() === nowLocal.getFullYear() &&
+          slotDateLocal.getMonth() === nowLocal.getMonth() &&
+          slotDateLocal.getDate() === nowLocal.getDate()
+        );
+      });
 
-      let reservation: ReservationWithSlot | undefined;
+      // Generar reservas virtuales si no hay reservas manuales activas
+      let combinedReservations = [...todayReservations];
+      if (member.habitualSchedules && member.habitualSchedules.length > 0) {
+        const todayStr = now.toISOString().split('T')[0] || '';
+        const virtuals = generateVirtualReservations([member], todayStr, todayReservations);
+        // Simular slot para virtuales
+        const virtualReservations = virtuals.map(v => ({
+          id: v.id,
+          memberId: v.memberId,
+          accessedAt: null,
+          attended: null,
+          clientEmail: v.clientEmail,
+          clientPhone: v.clientPhone,
+          slot: {
+            id: v.id,
+            date: now,
+            time: v.time
+          },
+          isVirtual: true
+        }));
+        combinedReservations = [...todayReservations, ...virtualReservations];
+        console.log('[SELFSERVICE] Reservas virtuales generadas:', virtualReservations.length);
+      }
+
+      let reservation: any = undefined;
       let allowAccess = false;
 
-      // Caso 1: Buscar reserva con accessedAt dentro de la ventana de 2 horas
-      reservation = todayReservations.find((r: ReservationWithSlot) => {
-        if (!r.accessedAt) return false;
-        const accessedAt = new Date(r.accessedAt);
-        const diffMs = now.getTime() - accessedAt.getTime();
-        return diffMs >= 0 && diffMs <= WINDOW_MS;
+      // Buscar reserva (manual o virtual) activa
+      reservation = combinedReservations.find((r: any) => {
+        if (r.accessedAt) {
+          const accessedAt = new Date(r.accessedAt);
+          const diffMs = now.getTime() - accessedAt.getTime();
+          return diffMs >= 0 && diffMs <= WINDOW_MS;
+        }
+        // Para virtuales, no hay accessedAt
+        if (r.isVirtual) {
+          // Validar si la hora habitual está dentro de la ventana de acceso
+          const [h, m] = r.slot.time.split(':');
+          const slotDateTime = new Date(now);
+          slotDateTime.setHours(Number(h), Number(m), 0, 0);
+          const diffMs = now.getTime() - slotDateTime.getTime();
+          return diffMs >= 0 && diffMs <= WINDOW_MS;
+        }
+        // Para manuales sin accessedAt
+        return isWithinAccessWindow(r.slot, now);
       });
 
       if (reservation) {
-        // Acceso dentro de la ventana de acceso anterior
-        const accessedAt = new Date(reservation.accessedAt!);
-        console.log('[ACCESO RUTINA] Acceso posterior. now:', now.toISOString(), 'accessedAt:', accessedAt.toISOString());
         allowAccess = true;
-      } else {
-        // Caso 2: Buscar reserva sin accessedAt que esté dentro de la ventana del turno
-        reservation = todayReservations.find((r: ReservationWithSlot) => {
-          if (r.accessedAt) return false;
-          // Verificar que el turno esté dentro de la ventana de 2 horas
-          return isWithinAccessWindow(r.slot, now);
-        });
-
-        if (reservation) {
-          console.log('[ACCESO RUTINA] Primer acceso. now:', now.toISOString(), 'slotTime:', reservation.slot.time);
-          // Marcar como asistió y registrar el momento del acceso
+        if (!reservation.isVirtual && !reservation.accessedAt) {
+          // Marcar asistencia solo si es reserva manual y no fue accedida
           await prisma.reservation.update({ 
             where: { id: reservation.id }, 
             data: { accessedAt: now, attended: true } 
           });
-          allowAccess = true;
-        } else {
-          // Caso 3: Verificar si hay algún turno que ya pasó más de 2 horas (turno expirado)
-          const expiredReservation = todayReservations.find((r: ReservationWithSlot) => {
-            if (r.accessedAt) return false;
-            const slotTimeUTC = getSlotTimeInUTC(r.slot);
-            const diffMs = now.getTime() - slotTimeUTC.getTime();
-            return diffMs > WINDOW_MS; // Más de 2 horas desde el turno
-          });
-
-          if (expiredReservation) {
-            res.status(403).json({ 
-              error: 'Tu turno ha expirado. Solo puedes acceder hasta 2 horas después del horario reservado.',
-              code: 'SLOT_EXPIRED'
-            });
-            return;
-          }
-
-          // Caso 4: Hay turno pero aún no es la hora (turno futuro)
-          const futureReservation = todayReservations.find((r: ReservationWithSlot) => {
-            if (r.accessedAt) return false;
-            const slotTimeUTC = getSlotTimeInUTC(r.slot);
-            return now.getTime() < slotTimeUTC.getTime();
-          });
-
-          if (futureReservation) {
-            res.status(403).json({ 
-              error: `Tu turno es a las ${futureReservation.slot.time}. Vuelve a intentar en ese horario.`,
-              code: 'SLOT_NOT_STARTED'
-            });
-            return;
-          }
         }
       }
 
-      console.log('[SELFSERVICE] Reserva encontrada:', reservation?.id, 'allowAccess:', allowAccess);
-      
+      console.log('[SELFSERVICE] Reserva encontrada:', reservation?.id, 'allowAccess:', allowAccess, 'isVirtual:', reservation?.isVirtual);
+
       if (!reservation || !allowAccess) {
         res.status(403).json({ 
           error: 'No tienes un turno activo para hoy.',
