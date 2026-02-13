@@ -350,6 +350,9 @@ export const SlotsAPI = {
 
 // ==================== RESERVATIONS API ====================
 export const ReservationsAPI = {
+    // Obtener reservas manuales y virtuales (habituales) para una fecha
+    getWithHabitual: (date: string): Promise<any> =>
+      apiFetch(`/reservations/with-habitual?date=${date}`),
   list: (): Promise<Reservation[]> => apiFetch('/reservations'),
   
   get: (id: string): Promise<Reservation> => apiFetch(`/reservations/${id}`),
@@ -447,8 +450,8 @@ export interface Notification {
 
 export const NotificationsAPI = {
   // Obtener todas las notificaciones del usuario
-  list: (): Promise<Notification[]> => apiFetch('/notifications'),
-  
+    getWithHabitual: (date: string): Promise<import('../types').ReservationsWithHabitualResponse> => 
+      apiFetch(`/reservations/with-habitual?date=${date}`),
   // Obtener contador de no leídas
   getUnreadCount: (): Promise<{ count: number }> => apiFetch('/notifications/unread-count'),
   
