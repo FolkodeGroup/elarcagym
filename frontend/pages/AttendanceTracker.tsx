@@ -81,17 +81,43 @@ const AttendanceTracker: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
-  // Filtrado local por nombre
+  // Filtrado local por nombre, horario y estado
   const filteredReservations = useMemo(() => {
     if (!data?.reservations) return [];
-    if (!filterName.trim()) return data.reservations;
-    const search = filterName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    return data.reservations.filter(r => {
-      const name = (r.member ? `${r.member.firstName} ${r.member.lastName}` : r.clientName)
-        .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      return name.includes(search);
-    });
-  }, [data?.reservations, filterName]);
+    
+    let filtered = [...data.reservations];
+    
+    // Filtrar por nombre
+    if (filterName.trim()) {
+      const search = filterName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      filtered = filtered.filter(r => {
+        const name = (r.member ? `${r.member.firstName} ${r.member.lastName}` : r.clientName)
+          .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return name.includes(search);
+      });
+    }
+    
+    // Filtrar por horario
+    if (filterTime) {
+      filtered = filtered.filter(r => {
+        const time = r.time || r.slot?.time || '';
+        return time === filterTime;
+      });
+    }
+    
+    // Filtrar por estado de asistencia
+    if (filterStatus) {
+      if (filterStatus === 'attended') {
+        filtered = filtered.filter(r => r.attended === true);
+      } else if (filterStatus === 'absent') {
+        filtered = filtered.filter(r => r.attended === false);
+      } else if (filterStatus === 'pending') {
+        filtered = filtered.filter(r => r.attended === null || r.attended === undefined);
+      }
+    }
+    
+    return filtered;
+  }, [data?.reservations, filterName, filterTime, filterStatus]);
 
   // Agrupar las reservas filtradas por horario
   const groupedFiltered = useMemo(() => {
