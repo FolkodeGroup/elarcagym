@@ -24,6 +24,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [members, setMembers] = useState<Member[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [todayReservations, setTodayReservations] = useState<any[]>([]); // Incluye virtuales
   const [sales, setSales] = useState<Sale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -32,16 +33,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [membersData, slotsData, reservationsData, salesData] = await Promise.all([
+      const todayLocalStr = getLocalDateString();
+      const [membersData, slotsData, reservationsData, salesData, todayReservationsData] = await Promise.all([
         MembersAPI.list(),
         SlotsAPI.list(),
         ReservationsAPI.list(),
-        SalesAPI.list()
+        SalesAPI.list(),
+        ReservationsAPI.getWithHabitual(todayLocalStr) // Cargar reservas del día con habituales
       ]);
       setMembers(membersData);
       setSlots(slotsData);
       setReservations(reservationsData);
       setSales(salesData);
+      setTodayReservations(todayReservationsData.reservations || []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       setToast({ message: 'Error al cargar datos', type: 'error' });
@@ -78,40 +82,38 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const nowLocal = new Date(now.toLocaleString('en-US', { timeZone: TIME_ZONE }));
     const todayLocal = getLocalDateString(nowLocal);
 
-    // Obtener slots reales del día
-    const todaySlots = slots
-      .filter(s => {
-        const slotDate = typeof s.date === 'string' ? s.date.split('T')[0] : getLocalDateString(new Date(s.date));
-        if (slotDate !== todayLocal) return false;
-        // Calcular si el slot sigue vigente (no vencido)
-        const slotTime = s.time.length === 5 ? `${s.time}:00` : s.time;
-        const slotDateTime = new Date(`${slotDate}T${slotTime}`);
+    // Obtener slots únicos del día a partir de las reservas (manuales y virtuales)
+    const uniqueTimes = new Set<string>();
+    const slotMap = new Map<string, any>();
+    
+    todayReservations.forEach((r: any) => {
+      const time = r.time || r.slot?.time;
+      if (time) {
+        uniqueTimes.add(time);
+        if (!slotMap.has(time)) {
+          slotMap.set(time, {
+            id: r.isVirtual ? `virtual-${time}` : (r.slotId || `slot-${time}`),
+            time,
+            date: todayLocal,
+            duration: 60,
+            status: 'reserved',
+            isVirtual: r.isVirtual || false
+          });
+        }
+      }
+    });
+    
+    // Convertir mapa a array y ordenar por hora
+    const combined = Array.from(slotMap.values())
+      .sort((a, b) => a.time.localeCompare(b.time))
+      .filter(slot => {
+        // Filtrar slots que aún no han vencido (dentro de 2 horas)
+        const slotTime = slot.time.length === 5 ? `${slot.time}:00` : slot.time;
+        const slotDateTime = new Date(`${todayLocal}T${slotTime}`);
         const slotDateTimeLocal = new Date(slotDateTime.toLocaleString('en-US', { timeZone: TIME_ZONE }));
         const diffMs = nowLocal.getTime() - slotDateTimeLocal.getTime();
-        // Mostrar si no han pasado más de 2 horas desde el horario reservado
         return diffMs <= 2 * 60 * 60 * 1000;
-      })
-      .filter(s => reservations.some(r => r.slotId === s.id && !r.isVirtual));
-
-    // Obtener horarios habituales virtuales del día
-    const virtualReservations = reservations.filter(r => 
-      r.isVirtual && 
-      r.time && 
-      !r.slotId // Asegurarnos que es virtual
-    );
-
-    // Combinar y ordenar por hora
-    const combined = [
-      ...todaySlots.map(s => ({ ...s, isSlot: true })),
-      ...virtualReservations.map(r => ({
-        id: r.id,
-        time: r.time!,
-        date: todayLocal,
-        duration: 60,
-        status: 'reserved' as const,
-        isVirtual: true
-      }))
-    ].sort((a, b) => a.time.localeCompare(b.time));
+      });
 
     return combined;
   };
@@ -139,47 +141,53 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     onNavigate('Ingresos');
   };
 
-  // Obtener ausencias SOLO del día de la fecha
+  // Obtener ausencias SOLO del día de la fecha (incluye virtuales)
   const getRecentAbsences = () => {
-    // Usar zona horaria Buenos Aires
     const TIME_ZONE = 'America/Argentina/Buenos_Aires';
     const now = new Date();
-    // Convertir a la zona local
-    const nowLocal = new Date(
-      now.toLocaleString('en-US', { timeZone: TIME_ZONE })
-    );
-    const todayLocalStr = nowLocal.toISOString().slice(0, 10);
+    const nowLocal = new Date(now.toLocaleString('en-US', { timeZone: TIME_ZONE }));
+    const todayLocalStr = getLocalDateString(nowLocal);
 
-    return reservations.filter(r => {
+    return todayReservations.filter(r => {
       // Mostrar como ausente si NO tiene attended:true (incluye null, undefined, false)
-      if (r.attended === true || !r.slotId) return false;
+      if (r.attended === true) return false;
+      
+      // Para reservas virtuales, usar el time directamente
+      if (r.isVirtual && r.time) {
+        const slotTime = r.time.length === 5 ? `${r.time}:00` : r.time;
+        const slotDateTime = new Date(`${todayLocalStr}T${slotTime}`);
+        const slotDateTimeLocal = new Date(slotDateTime.toLocaleString('en-US', { timeZone: TIME_ZONE }));
+        const diffMs = nowLocal.getTime() - slotDateTimeLocal.getTime();
+        const diffHrs = diffMs / (1000 * 60 * 60);
+        return diffHrs > 2; // Más de 2 horas = ausente
+      }
+      
+      // Para reservas manuales, usar el slot
+      if (!r.slotId) return false;
       const slot = slots.find(s => s.id === r.slotId);
       if (!slot) return false;
-      // Convertir slot.date a la zona de Buenos Aires
+      
       const slotDateLocal = new Date(
         new Date(slot.date).toLocaleString('en-US', { timeZone: TIME_ZONE })
       );
       const slotDateStr = slotDateLocal.toISOString().slice(0, 10);
+      
       // Solo turnos del día local
       if (slotDateStr !== todayLocalStr) return false;
-      // Calcular si el turno ya expiró (más de 2 horas desde el horario reservado)
-      // slot.time puede ser HH:mm o HH:mm:ss
+      
       const slotTime = slot.time.length === 5 ? `${slot.time}:00` : slot.time;
-      const slotDateTime = new Date(
-        `${slotDateStr}T${slotTime}`
-      );
+      const slotDateTime = new Date(`${slotDateStr}T${slotTime}`);
       const slotDateTimeLocal = new Date(
         slotDateTime.toLocaleString('en-US', { timeZone: TIME_ZONE })
       );
       const diffMs = nowLocal.getTime() - slotDateTimeLocal.getTime();
       const diffHrs = diffMs / (1000 * 60 * 60);
-      // Mostrar como ausente si pasaron más de 2 horas y no tiene attended:true
+      
       return diffHrs > 2;
     }).sort((a, b) => {
-      const slotA = slots.find(s => s.id === a.slotId);
-      const slotB = slots.find(s => s.id === b.slotId);
-      if (!slotA || !slotB) return 0;
-      return new Date(slotB.date).getTime() - new Date(slotA.date).getTime();
+      const timeA = a.time || a.slot?.time || '';
+      const timeB = b.time || b.slot?.time || '';
+      return timeB.localeCompare(timeA);
     });
   };
 
@@ -304,9 +312,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             ) : (
               getTodaySlots().map(item => {
                 const isVirtual = 'isVirtual' in item && item.isVirtual === true;
-                const slotReservations = isVirtual 
-                  ? reservations.filter(r => r.isVirtual && r.time === item.time)
-                  : reservations.filter(r => r.slotId === item.id && !r.isVirtual);
+                const slotReservations = todayReservations.filter(r => {
+                  const resTime = r.time || r.slot?.time;
+                  return resTime === item.time;
+                });
                   
                 return (
                   <div 
@@ -339,7 +348,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                           className={`text-xs px-2 py-1 rounded truncate max-w-32 border font-bold
                             ${r.attended === true
                               ? 'bg-green-500/30 text-green-700 border-green-400'
-                              : isVirtual
+                              : r.isVirtual
                                 ? 'bg-purple-500/20 text-purple-300 border-purple-400/40'
                                 : 'bg-brand-gold/20 text-brand-gold border-brand-gold/40'}
                           `}
@@ -371,19 +380,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <p className="text-gray-500 text-sm text-center py-8">Sin ausencias registradas</p>
             ) : (
               ausenciasMostradas.map(r => {
-                const slot = slots.find(s => s.id === r.slotId);
-                const socio = members.find(m => m.id === r.memberId);
+                // Para virtuales, usar el time directamente; para manuales, buscar el slot
+                const timeStr = r.time || (r.slot ? r.slot.time : '??:??');
+                const dateStr = r.isVirtual ? getLocalDateString() : (
+                  r.slot ? new Date(r.slot.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : 'N/A'
+                );
+                const socio = r.member || members.find(m => m.id === r.memberId);
                 const phone = socio?.phone || '';
+                
                 return (
                   <div key={r.id} className="bg-black/40 p-3 rounded border border-red-700/50 hover:border-red-600 transition flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white font-bold truncate">{r.clientName}</p>
-                      {slot && (
-                        <p className="text-xs text-gray-400">
-                          📅 {new Date(slot.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })} 
-                          {' '} ⏰ {slot.time}
-                        </p>
-                      )}
+                      <p className="text-xs text-gray-400">
+                        📅 {dateStr} {' '} ⏰ {timeStr}
+                        {r.isVirtual && <span className="ml-2 text-purple-400 italic text-[10px]">(horario habitual)</span>}
+                      </p>
                       {phone && <p className="text-xs text-gray-500 mt-0.5">📱 {phone}</p>}
                     </div>
                     <div className="flex flex-col gap-1">
@@ -392,7 +404,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                           className="px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
                           title="Enviar mensaje por WhatsApp y eliminar"
                           onClick={async () => {
-                            // Normalizar número para WhatsApp
                             let wpp = phone.replace(/\D/g, '');
                             if (wpp.startsWith('549')) {
                               // Ya está correcto
@@ -404,9 +415,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                               wpp = '549' + wpp;
                             }
                             const memberName = r.clientName.split(' ')[0];
-                            const slotInfo = slot ? `${new Date(slot.date).toLocaleDateString('es-AR')} a las ${slot.time}` : 'tu turno';
+                            const slotInfo = `${dateStr} a las ${timeStr}`;
                             const message = `Hola ${memberName}, notamos que no pudiste asistir a ${slotInfo}. ¿Todo bien? ¿Te gustaría reagendar?`;
                             window.open(`https://wa.me/${wpp}?text=${encodeURIComponent(message)}`, '_blank');
+                            
+                            // Solo eliminar si es una reserva manual (no virtual)
+                            if (!r.isVirtual) {
+                              try {
+                                await ReservationsAPI.delete(r.id);
+                                setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id));
+                                setToast({ message: 'Ausencia eliminada correctamente', type: 'success' });
+                              } catch (error) {
+                                setToast({ message: 'Error al eliminar la ausencia', type: 'error' });
+                              }
+                            }
+                          }}
+                        >
+                          💬 WhatsApp{!r.isVirtual && ' y eliminar'}
+                        </button>
+                      )}
+                      {!r.isVirtual && (
+                        <button
+                          className="px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
+                          title="Eliminar de la lista"
+                          onClick={async () => {
                             try {
                               await ReservationsAPI.delete(r.id);
                               setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id));
@@ -416,24 +448,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                             }
                           }}
                         >
-                          💬 WhatsApp y eliminar
+                          🗑 Eliminar
                         </button>
                       )}
-                      <button
-                        className="px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 flex-shrink-0 transition"
-                        title="Eliminar de la lista"
-                        onClick={async () => {
-                          try {
-                            await ReservationsAPI.delete(r.id);
-                            setAusenciasMostradas(prev => prev.filter(a => a.id !== r.id));
-                            setToast({ message: 'Ausencia eliminada correctamente', type: 'success' });
-                          } catch (error) {
-                            setToast({ message: 'Error al eliminar la ausencia', type: 'error' });
-                          }
-                        }}
-                      >
-                        🗑 Eliminar
-                      </button>
                     </div>
                   </div>
                 );
