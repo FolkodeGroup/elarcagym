@@ -73,7 +73,7 @@ git commit -m "tus cambios"
 # 2. Push a GitHub
 git push origin main
 
-# 3. Forzar actualización inmediata (sin esperar 5 min)
+# 3. FORZAR actualización inmediata (sin esperar 5 min)
 ssh -p 5371 root@***REMOVED*** 'cd /opt/elarcagym && docker compose pull && docker compose up -d --force-recreate'
 
 ## 🔧 Configuración Inicial
