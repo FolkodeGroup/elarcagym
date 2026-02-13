@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { AttendanceAPI, ReservationsAPI } from '../services/api';
+import { ReservationsAPI } from '../services/api';
 import { AttendanceRecord, DailyAttendanceResponse } from '../types';
 import {
   ChevronLeft, ChevronRight, Search, Clock, Users,
@@ -9,7 +9,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import Toast from '../components/Toast';
 
 const AttendanceTracker: React.FC = () => {
-  const [data, setData] = useState<DailyAttendanceResponse | null>(null);
+  const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -26,14 +26,48 @@ const AttendanceTracker: React.FC = () => {
   };
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
 
+  // FUNCIÓN DE CARGA DE DATOS SOLO USA RESERVATIONSAPI
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const result = await AttendanceAPI.getDaily(selectedDate, {
-        ...(filterTime ? { time: filterTime } : {}),
-        ...(filterStatus ? { status: filterStatus } : {})
+      const result = await ReservationsAPI.getWithHabitual(selectedDate);
+      const now = new Date();
+      const processed = result.reservations.map((r: any) => {
+        // Para reservas virtuales sin asistencia, verificar si pasaron 2 horas
+        if (r.isVirtual && (r.attended === null || r.attended === undefined)) {
+          const timeStr = r.end || r.time || r.start;
+          if (timeStr) {
+            const [h, m] = timeStr.split(':');
+            const turnoEnd = new Date(selectedDate + 'T' + h.padStart(2, '0') + ':' + (m || '00').padStart(2, '0') + ':00');
+            turnoEnd.setHours(turnoEnd.getHours() + 2);
+            if (now > turnoEnd) {
+              return { ...r, attended: false };
+            }
+          }
+        }
+        return r;
       });
-      setData(result);
+      
+      // Extraer slots únicos de todas las reservas (tanto manuales como virtuales)
+      const uniqueTimes = new Set<string>();
+      processed.forEach((r: any) => {
+        const time = r.time || r.slot?.time;
+        if (time) uniqueTimes.add(time);
+      });
+      const slots = Array.from(uniqueTimes).sort().map(time => ({ id: time, time, duration: 60 }));
+      
+      setData({
+        date: result.date,
+        stats: {
+          total: processed.length,
+          attended: processed.filter((r: any) => r.attended === true).length,
+          absent: processed.filter((r: any) => r.attended === false).length,
+          pending: processed.filter((r: any) => r.attended === null || r.attended === undefined).length
+        },
+        slots,
+        reservations: processed,
+        groupedByTime: {}
+      });
     } catch (error) {
       console.error('Error loading attendance:', error);
       setToast({ message: 'Error al cargar datos de asistencia', type: 'error' });
@@ -45,7 +79,7 @@ const AttendanceTracker: React.FC = () => {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, filterTime, filterStatus]);
+  }, [selectedDate]);
 
   // Filtrado local por nombre
   const filteredReservations = useMemo(() => {
@@ -63,7 +97,7 @@ const AttendanceTracker: React.FC = () => {
   const groupedFiltered = useMemo(() => {
     const groups: Record<string, AttendanceRecord[]> = {};
     for (const r of filteredReservations) {
-      const time = r.slot?.time || 'Sin horario';
+      const time = r.time || r.slot?.time || 'Sin horario';
       if (!groups[time]) groups[time] = [];
       groups[time].push(r);
     }
@@ -71,8 +105,13 @@ const AttendanceTracker: React.FC = () => {
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredReservations]);
 
-  const handleToggleAttendance = async (reservation: AttendanceRecord) => {
+  const handleToggleAttendance = async (reservation: any) => {
     try {
+      // Solo permitir marcar asistencia sobre reservas manuales (no virtuales)
+      if (reservation.isVirtual) {
+        setToast({ message: 'No se puede marcar asistencia directamente sobre horarios habituales. Cree una reserva manual primero.', type: 'info' });
+        return;
+      }
       const newAttended = reservation.attended === true ? false : true;
       await ReservationsAPI.update(reservation.id, { attended: newAttended });
       await loadData();
