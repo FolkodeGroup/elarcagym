@@ -1,5 +1,10 @@
 import { Router, type Request, type Response } from 'express';
 import { fromZonedTime } from 'date-fns-tz';
+import { 
+  generateVirtualReservations, 
+  combineReservationsWithHabitual,
+  getDayName 
+} from '../utils/habitualScheduleUtils.js';
 
 const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 const WINDOW_MS = 2 * 60 * 60 * 1000; // 2 horas en milisegundos
@@ -64,6 +69,83 @@ export default function(prisma: any) {
       });
       res.json(reservations);
     } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  /**
+   * Nuevo endpoint: Obtener reservas con horarios habituales incluidos para una fecha
+   * GET /reservations/with-habitual?date=YYYY-MM-DD
+   */
+  router.get('/with-habitual', async (req, res) => {
+    try {
+      const { date } = req.query;
+      
+      if (!date || typeof date !== 'string') {
+        return res.status(400).json({ error: 'Fecha requerida en query param: ?date=YYYY-MM-DD' });
+      }
+
+      // Validar formato de fecha
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: 'Formato de fecha inválido. Use YYYY-MM-DD' });
+      }
+
+      // Obtener todos los socios activos con sus horarios habituales
+      const members = await prisma.member.findMany({
+        where: { status: 'ACTIVE' },
+        include: {
+          habitualSchedules: true,
+          scheduleExceptions: true
+        }
+      });
+
+      // Obtener todas las reservas manuales para la fecha especificada
+      const dateSlots = await prisma.slot.findMany({
+        where: {
+          date: {
+            gte: new Date(date + 'T00:00:00.000Z'),
+            lt: new Date(date + 'T23:59:59.999Z')
+          }
+        }
+      });
+
+      const slotIds = dateSlots.map((s: any) => s.id);
+      
+      const manualReservations = await prisma.reservation.findMany({
+        where: {
+          slotId: { in: slotIds }
+        },
+        include: {
+          member: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              email: true,
+              photoUrl: true
+            }
+          },
+          slot: true
+        }
+      });
+
+      // Combinar reservas manuales con virtuales generadas desde horarios habituales
+      const combinedReservations = combineReservationsWithHabitual(
+        manualReservations,
+        members,
+        date
+      );
+
+      res.json({
+        date,
+        total: combinedReservations.length,
+        manual: manualReservations.length,
+        virtual: combinedReservations.length - manualReservations.length,
+        reservations: combinedReservations
+      });
+    } catch (e) {
+      console.error('Error in /with-habitual:', e);
       res.status(500).json({ error: (e as Error).message });
     }
   });

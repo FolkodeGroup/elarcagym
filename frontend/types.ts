@@ -193,14 +193,37 @@ export interface Slot {
 
 export interface Reservation {
   id: string;
-  slotId: string;
+  slotId?: string;
   memberId?: string;
   clientName: string;
   clientPhone?: string;
   clientEmail?: string;
   notes?: string;
   attended?: boolean; 
-  createdAt: string;
+  createdAt?: string;
+  // Campos para reservas virtuales generadas desde horarios habituales
+  isVirtual?: boolean;
+  source?: 'habitual' | 'manual';
+  time?: string;
+  start?: string;
+  end?: string;
+  member?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    email?: string;
+    photoUrl?: string;
+  };
+  slot?: Slot;
+}
+
+export interface ReservationsWithHabitualResponse {
+  date: string;
+  total: number;
+  manual: number;
+  virtual: number;
+  reservations: Reservation[];
 }
 
 export interface ExerciseMaster {

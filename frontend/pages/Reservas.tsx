@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { SlotsAPI, ReservationsAPI, MembersAPI } from '../services/api';
-import { Slot, Reservation, Member, UserStatus } from '../types';
+import { Slot, Reservation, Member, UserStatus, ReservationsWithHabitualResponse } from '../types';
 import { 
   Plus, Edit2, Trash2, Clock, Search, X, Users, 
-  UserPlus, UserCheck, StickyNote, FileText, UserX, ChevronLeft, ChevronRight, AlignLeft, Timer
+  UserPlus, UserCheck, StickyNote, FileText, UserX, ChevronLeft, ChevronRight, AlignLeft, Timer, Info
 } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
@@ -49,14 +49,15 @@ const Reservas: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [slotsData, reservationsData, membersData] = await Promise.all([
+      const [slotsData, membersData] = await Promise.all([
         SlotsAPI.list(),
-        ReservationsAPI.list(),
         MembersAPI.list()
       ]);
       setSlots(slotsData);
-      setReservations(reservationsData);
       setAllMembers(membersData);
+      
+      // Cargar las reservas con horarios habituales para la fecha seleccionada
+      await loadReservationsForDate(selectedDate);
     } catch (error) {
       console.error('Error loading data:', error);
       setToast({ message: 'Error al cargar datos', type: 'error' });
@@ -65,9 +66,27 @@ const Reservas: React.FC = () => {
     }
   };
 
+  // Función separada para cargar reservas de una fecha específica
+  const loadReservationsForDate = async (date: string) => {
+    try {
+      const response = await ReservationsAPI.getWithHabitual(date);
+      setReservations(response.reservations);
+    } catch (error) {
+      console.error('Error loading reservations for date:', error);
+      setToast({ message: 'Error al cargar reservas', type: 'error' });
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
+
+  // Recargar reservas cuando cambia la fecha
+  useEffect(() => {
+    if (!isLoading) {
+      loadReservationsForDate(selectedDate);
+    }
+  }, [selectedDate]);
 
   useEffect(() => {
     setCanNavigate(!showQuickAdd);
@@ -243,6 +262,20 @@ const Reservas: React.FC = () => {
     return slotDate === selectedDate;
   });
 
+  // Agrupar reservas por hora considerando tanto slots como reservas virtuales
+  const getReservationsForHour = (hour: number): Reservation[] => {
+    const timeLabel = `${hour.toString().padStart(2, '0')}:00`;
+    
+    // Reservas manuales (con slot)
+    const slot = dateSlots.find(s => s.time === timeLabel);
+    const slotReservations = slot ? reservations.filter(r => r.slotId === slot.id && !r.isVirtual) : [];
+    
+    // Reservas virtuales (horarios habituales)
+    const virtualReservations = reservations.filter(r => r.isVirtual && r.time === timeLabel);
+    
+    return [...slotReservations, ...virtualReservations];
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] space-y-4">
       {/* HEADER */}
@@ -265,7 +298,15 @@ const Reservas: React.FC = () => {
             }} className="p-1 hover:text-brand-gold"><ChevronRight/></button>
           </div>
         </div>
-
+        
+        {/* Tooltip explicativo */}
+        <div className="flex items-center gap-2 bg-black/50 border border-gray-700 rounded-lg px-4 py-2">
+          <Info size={16} className="text-brand-gold" />
+          <span className="text-xs text-gray-400">
+            <span className="text-brand-gold font-bold">Borde sólido:</span> Reserva manual • 
+            <span className="text-purple-400 font-bold ml-2">Borde punteado:</span> Horario habitual
+          </span>
+        </div>
       </div>
 
       {/* GRILLA */}
@@ -273,7 +314,7 @@ const Reservas: React.FC = () => {
         {hours.map(hour => {
             const timeLabel = `${hour.toString().padStart(2, '0')}:00`;
             const slot = dateSlots.find(s => s.time === timeLabel);
-            const slotRes = slot ? reservations.filter(r => r.slotId === slot.id) : [];
+            const allReservationsForHour = getReservationsForHour(hour);
 
             return (
                 <div key={hour} className="flex border-b border-gray-800/50 min-h-[120px] group relative">
@@ -284,7 +325,7 @@ const Reservas: React.FC = () => {
                         className="flex-1 p-2 cursor-pointer hover:bg-white/[0.01] transition-colors"
                         onClick={() => handleSlotClick(hour, slot)}
                     >
-                        {slot ? (
+                        {allReservationsForHour.length > 0 ? (
                           <div className="h-full relative">
                             
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -296,9 +337,14 @@ const Reservas: React.FC = () => {
                               </button>
                             </div>
                                 <div className="flex flex-wrap gap-2">
-                                    {slotRes.map(res => {
+                                    {allReservationsForHour.map(res => {
+                                        // Determinar si es virtual o manual
+                                        const isVirtual = res.isVirtual === true;
+                                        
                                         // Calcular el estado del turno y si se puede cambiar asistencia
-                                        const slotInfo = slot;
+                                        const slotInfo = isVirtual 
+                                          ? { date: selectedDate, time: res.time || timeLabel }
+                                          : (slot || { date: selectedDate, time: timeLabel });
                                         const slotDateStr = typeof slotInfo.date === 'string' 
                                           ? slotInfo.date.split('T')[0] 
                                           : getLocalDateString(new Date(slotInfo.date));
@@ -310,12 +356,14 @@ const Reservas: React.FC = () => {
                                         // Estados posibles
                                         const isExpired = diffHrs > 2; // Más de 2 horas desde el turno
                                         const hasStarted = diffMs >= 0; // El turno ya empezó
-                                        const canChangeAttendance = hasStarted && !isExpired; // Dentro de la ventana de 2 horas
+                                        const canChangeAttendance = hasStarted && !isExpired && !isVirtual; // Virtual no se puede marcar
                                         
                                         // Determinar color y tooltip
-                                        let containerClass = 'bg-black/60 border-gray-800';
+                                        let containerClass = isVirtual 
+                                          ? 'bg-purple-900/30 border-purple-500 border-dashed' 
+                                          : 'bg-black/60 border-gray-800';
                                         let nameClass = 'text-gray-200';
-                                        let tooltip = 'Turno pendiente';
+                                        let tooltip = isVirtual ? 'Horario habitual' : 'Turno pendiente';
                                         
                                         if (res.attended === true) {
                                           // Asistió - verde
@@ -327,8 +375,8 @@ const Reservas: React.FC = () => {
                                           containerClass = 'bg-red-900/40 border-red-700';
                                           nameClass = 'text-red-400 line-through opacity-60';
                                           tooltip = 'No asistió';
-                                        } else if (isExpired) {
-                                          // Expiró sin registrar asistencia
+                                        } else if (isExpired && !isVirtual) {
+                                          // Expiró sin registrar asistencia (solo para manuales)
                                           containerClass = 'bg-red-900/20 border-red-800/50';
                                           nameClass = 'text-red-500 font-bold';
                                           tooltip = 'Ausente: no registró asistencia en las 2 horas';
@@ -341,47 +389,57 @@ const Reservas: React.FC = () => {
                                             title={tooltip}
                                           >
                                             {res.clientName}
+                                            {isVirtual && <span className="ml-1 text-[9px] opacity-60">⚡</span>}
                                           </span>
                                             <div className="flex items-center gap-1 ml-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                                <button 
-                                                  title="Editar notas/seguimiento"
-                                                  onClick={(e) => { e.stopPropagation(); setEditingReservation(res); setEditFormData({clientName: res.clientName, notes: res.notes || ''}); setShowEditModal(true); }} 
-                                                  className="text-gray-500 hover:text-brand-gold">
-                                                  <StickyNote size={12}/>
-                                                </button>
-                                                {(canChangeAttendance && res.attended !== true) ? (
-                                                  <button 
-                                                    title={res.attended === true ? 'Marcar como no asistió' : 'Marcar como asistió'}
-                                                    onClick={async (e) => { 
-                                                      e.stopPropagation(); 
-                                                      try {
-                                                        await ReservationsAPI.update(res.id, { attended: res.attended === true ? false : true }); 
-                                                        loadData(); 
-                                                      } catch (err: any) {
-                                                        setToast({ message: err.message || 'Error al cambiar asistencia', type: 'error' });
-                                                      }
-                                                    }} 
-                                                    className={res.attended === true ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'}>
-                                                    {res.attended === true ? <UserX size={12}/> : <UserCheck size={12}/>} 
-                                                  </button>
-                                                ) : (
-                                                  <button 
-                                                    title={
-                                                      res.attended === true
-                                                        ? 'Ya asistió, no se puede marcar como ausente'
-                                                        : (isExpired ? 'No se puede cambiar (más de 2 horas)' : 'El turno aún no comenzó')
-                                                    }
-                                                    className="text-gray-600 cursor-not-allowed opacity-50"
-                                                    disabled>
-                                                    <UserX size={12}/>
-                                                  </button>
+                                                {!isVirtual && (
+                                                  <>
+                                                    <button 
+                                                      title="Editar notas/seguimiento"
+                                                      onClick={(e) => { e.stopPropagation(); setEditingReservation(res); setEditFormData({clientName: res.clientName, notes: res.notes || ''}); setShowEditModal(true); }} 
+                                                      className="text-gray-500 hover:text-brand-gold">
+                                                      <StickyNote size={12}/>
+                                                    </button>
+                                                    {(canChangeAttendance && res.attended !== true) ? (
+                                                      <button 
+                                                        title={res.attended === true ? 'Marcar como no asistió' : 'Marcar como asistió'}
+                                                        onClick={async (e) => { 
+                                                          e.stopPropagation(); 
+                                                          try {
+                                                            await ReservationsAPI.update(res.id, { attended: res.attended === true ? false : true }); 
+                                                            await loadReservationsForDate(selectedDate); 
+                                                          } catch (err: any) {
+                                                            setToast({ message: err.message || 'Error al cambiar asistencia', type: 'error' });
+                                                          }
+                                                        }} 
+                                                        className={res.attended === true ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'}>
+                                                        {res.attended === true ? <UserX size={12}/> : <UserCheck size={12}/>} 
+                                                      </button>
+                                                    ) : (
+                                                      <button 
+                                                        title={
+                                                          res.attended === true
+                                                            ? 'Ya asistió, no se puede marcar como ausente'
+                                                            : (isExpired ? 'No se puede cambiar (más de 2 horas)' : 'El turno aún no comenzó')
+                                                        }
+                                                        className="text-gray-600 cursor-not-allowed opacity-50"
+                                                        disabled>
+                                                        <UserX size={12}/>
+                                                      </button>
+                                                    )}
+                                                    <button 
+                                                      title="Quitar socio del turno"
+                                                      onClick={(e) => { e.stopPropagation(); setSelectedReservation(res); setShowDeleteConfirm(true); }} 
+                                                      className="text-red-500">
+                                                      <X size={12}/>
+                                                    </button>
+                                                  </>
                                                 )}
-                                                <button 
-                                                  title="Quitar socio del turno"
-                                                  onClick={(e) => { e.stopPropagation(); setSelectedReservation(res); setShowDeleteConfirm(true); }} 
-                                                  className="text-red-500">
-                                                  <X size={12}/>
-                                                </button>
+                                                {isVirtual && (
+                                                  <span className="text-[9px] text-purple-400 italic">
+                                                    horario habitual
+                                                  </span>
+                                                )}
                                             </div>
                                         </div>
                                       );
