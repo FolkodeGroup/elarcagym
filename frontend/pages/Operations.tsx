@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { MembersAPI, ExercisesAPI } from '../services/api';
 import { Member, ExerciseMaster, RoutineDay, ExerciseDetail, Routine } from '../types';
 import { Dumbbell, Plus, Save, Trash2, ClipboardList, Edit2, RotateCcw, Search, ChevronDown, Check } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
 
-const Operations: React.FC = () => {
+interface OperationsProps {
+  onNavigate?: (page: string) => void;
+}
+
+const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
+  const { isAdmin } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [exercisesMaster, setExercisesMaster] = useState<ExerciseMaster[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -633,14 +639,21 @@ const Operations: React.FC = () => {
                                 ) : (
                                   <div className="p-2 flex flex-col gap-2">
                                     <p className="text-xs text-gray-500 px-2 py-1">No se encontraron resultados.</p>
-                                    <a
-                                      href="/ExercisesAdmin"
-                                      className="w-full text-left px-2 py-2 text-brand-gold hover:bg-[#333] rounded text-sm font-bold flex items-center gap-2 border border-brand-gold justify-center"
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                    <button
+                                      type="button"
+                                      className={`w-full text-left px-2 py-2 text-brand-gold rounded text-sm font-bold flex items-center gap-2 border border-brand-gold justify-center transition-colors ${isAdmin ? 'hover:bg-[#333] cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                                      disabled={!isAdmin}
+                                      onClick={() => {
+                                        if (isAdmin && onNavigate) {
+                                          onNavigate('exercises_admin');
+                                        }
+                                      }}
                                     >
                                       Gestionar ejercicios
-                                    </a>
+                                    </button>
+                                    {!isAdmin && (
+                                      <span className="text-xs text-gray-500 px-2">Solo administradores pueden gestionar ejercicios</span>
+                                    )}
                                   </div>
                                 )}
                               </div>
