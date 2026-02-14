@@ -449,6 +449,8 @@ export const NotificationsAPI = {
   // Obtener todas las notificaciones del usuario
     getWithHabitual: (date: string): Promise<import('../types').ReservationsWithHabitualResponse> => 
       apiFetch(`/reservations/with-habitual?date=${date}`),
+  // Listar todas las notificaciones
+  list: (): Promise<Notification[]> => apiFetch('/notifications'),
   // Obtener contador de no leídas
   getUnreadCount: (): Promise<{ count: number }> => apiFetch('/notifications/unread-count'),
   
