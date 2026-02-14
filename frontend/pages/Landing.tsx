@@ -75,7 +75,7 @@ const Landing: React.FC<LandingProps> = ({ onGoToLogin }) => {
           title=""
           aria-label="Acceso interno"
         >
-          Acceso staff
+          <strong>Acceso staff</strong> 
         </button>
       </footer>
     </div>
