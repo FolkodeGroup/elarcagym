@@ -28,9 +28,3 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
-
-if ('Notification' in window) {
-  Notification.requestPermission().then(permission => {
-    console.log('Permiso de notificación:', permission);
-  });
-}
