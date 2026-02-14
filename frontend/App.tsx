@@ -158,7 +158,7 @@ const AppContent: React.FC = () => {
       case 'qr_manager': return <QRManager />;
       case 'members': return <Members initialFilter={pageFilter} currentPage={currentPage} membersResetKey={membersResetKey} />;
       case 'biometrics': return <Biometrics />;
-      case 'operations': return <Operations />;
+      case 'operations': return <Operations onNavigate={handleNavigate} />;
       case 'nutrition': return <Nutrition />;
       case 'admin': return <Admin />;
       case 'Ingresos': return <Ingresos />;
