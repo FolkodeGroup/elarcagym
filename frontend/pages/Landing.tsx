@@ -66,7 +66,7 @@ const Landing: React.FC<LandingProps> = ({ onGoToLogin }) => {
       {/* Footer with hidden login access */}
       <footer className="relative z-10 py-6 text-center">
         <p className="text-gray-700 text-xs">
-          © {new Date().getFullYear()} El Arca Gym. Todos los derechos reservados.
+          © {new Date().getFullYear()} El Arca Gym. <strong>Desarrollado por:</strong> <a href="https://www.folkode.com.ar" className="text-cyan-400 hover:underline">Folkode</a>  Todos los derechos reservados.
         </p>
         {/* Acceso oculto al login: doble click en el footer */}
         <button
