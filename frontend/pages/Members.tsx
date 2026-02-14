@@ -93,7 +93,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
     dni: '',
     email: '',
     phone: '',
-    status: UserStatus.ACTIVE,
+    status: UserStatus.PENDING,
     phase: 'volumen',
     habitualSchedules: []
   });
@@ -113,7 +113,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
     dni: '',
     email: '',
     phone: '',
-    status: UserStatus.ACTIVE,
+    status: UserStatus.PENDING,
     phase: 'volumen',
     habitualSchedules: []
   });
@@ -622,7 +622,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
         habitualSchedules: newMember.habitualSchedules
       });
       setShowAddModal(false);
-      setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.ACTIVE, phase: 'volumen', habitualSchedules: [] });
+      setNewMember({ firstName: '', lastName: '', dni: '', email: '', phone: '', status: UserStatus.PENDING, phase: 'volumen', habitualSchedules: [] });
       await refreshMembers();
       setToast({ message: t('cambiosGuardados'), type: 'success' });
     } catch (err) {
@@ -1294,14 +1294,16 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                                   <Edit2 size={16} /> Editar
                               </button>
                           </div>
-                          <span className={`px-4 py-2 rounded-full text-sm font-bold border ${
+                            <span className={`px-4 py-2 rounded-full text-sm font-bold border ${
                               selectedMember.status === UserStatus.ACTIVE ? 'bg-green-900/30 border-green-800 text-green-400' :
                               selectedMember.status === UserStatus.DEBTOR ? 'bg-red-900/30 border-red-800 text-red-400' :
+                              selectedMember.status === UserStatus.PENDING ? 'bg-yellow-900/30 border-yellow-800 text-yellow-400' :
                               'bg-gray-800 border-gray-700 text-gray-400'
-                          }`}>
+                            }`}>
                               {selectedMember.status === UserStatus.ACTIVE ? 'ACTIVO' : 
-                               selectedMember.status === UserStatus.DEBTOR ? 'MOROSO' : 'INACTIVO'}
-                          </span>
+                               selectedMember.status === UserStatus.DEBTOR ? 'MOROSO' : 
+                               selectedMember.status === UserStatus.PENDING ? 'PENDIENTE' : 'INACTIVO'}
+                            </span>
                           
                           {(selectedMember.status === UserStatus.DEBTOR || selectedMember.status === UserStatus.INACTIVE) && (
                               <div className="flex items-center gap-1">
