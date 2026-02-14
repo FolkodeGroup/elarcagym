@@ -111,6 +111,7 @@ export default function(prisma: any) {
           dni: dniClean,
           email,
           phone: phoneClean,
+          status: 'PENDIENTE',
           habitualSchedules: habitualSchedules ? {
             create: habitualSchedules
           } : undefined
