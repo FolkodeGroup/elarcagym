@@ -66,11 +66,6 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
       setNotifications(prev => [notification, ...prev]);
       setUnreadCount(prev => prev + 1);
       
-      // Mostrar notificación nativa usando la función utilitaria
-      showNativeNotification(notification.title, {
-        body: notification.message,
-        icon: '/favicon_io/favicon.ico',
-      });
     });
 
     socket.on('disconnect', () => {
@@ -89,12 +84,6 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
     loadNotifications();
   }, []);
 
-  // Pedir permiso para notificaciones del navegador
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
