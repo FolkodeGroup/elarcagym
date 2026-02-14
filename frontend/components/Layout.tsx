@@ -32,6 +32,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { UserStatus } from '../types';
 import { QrCode } from 'lucide-react'; // Asegúrate de tener este import
+import { LOGO_BASE64 } from '../services/assets';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -116,9 +117,18 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
         lg:relative lg:translate-x-0 flex flex-col
       `}>
         <div className="h-20 flex items-center justify-center border-b border-gray-800 bg-black flex-shrink-0">
-            <div className="flex flex-col items-center">
-                <h1 className="text-2xl font-display font-bold text-brand-gold tracking-widest">EL ARCA</h1>
-                <span className="text-xs text-gray-400 tracking-[0.2em] uppercase">Centro Deportivo</span>
+            <div className="flex !mt-4 !pt-4 flex-col items-center">
+              <div className="h-20 w-20 rounded-full border-2 border-brand-gold flex items-center justify-center bg-black mb-1 shadow-[0_0_10px_rgba(212,175,55,0.3)] overflow-hidden">
+                <img
+                  src="/images/arca-logo.png"
+                  onError={(e) => {
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (img.src !== LOGO_BASE64) img.src = LOGO_BASE64;
+                  }}
+                  alt="El Arca Logo"
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
         </div>
 
@@ -717,11 +727,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                 <div className="bg-gray-800/50 p-4 rounded-lg space-y-2">
                   <p className="text-white"><strong>Versión:</strong> 1.0.0</p>
                   <p className="text-white"><strong>Lanzamiento:</strong> Enero 2026</p>
-                  <p className="text-white"><strong>Desarrollado por:</strong> Folkode</p>
+                  <p className="text-white"><strong>Desarrollado por:</strong> <a href="https://www.folkode.com.ar" className="text-cyan-400 hover:underline">Folkode</a></p>
                 </div>
 
                 <div className="text-xs text-gray-500 space-y-1">
-                  <p>© 2026 El Arca Gym. Todos los derechos reservados.</p>
+                  <p>© 2026 El Arca Gym. <strong>Desarrollado por:</strong> <a href="https://www.folkode.com.ar" className="text-cyan-400 hover:underline">Folkode</a> Todos los derechos reservados.</p>
                   <p className="cursor-pointer text-cyan-400 hover:underline">Términos de Servicio</p>
                   <p className="cursor-pointer text-cyan-400 hover:underline">Política de Privacidad</p>
                 </div>
