@@ -1,7 +1,8 @@
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
-  DEBTOR = 'DEBTOR' 
+  DEBTOR = 'DEBTOR',
+  PENDING = 'PENDIENTE'
 }
 
 export interface BiometricLog {
