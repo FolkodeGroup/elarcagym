@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import './src/index.css';
 import './styles/theme.css';
 
 const rootElement = document.getElementById('root');
@@ -25,11 +26,5 @@ if ('serviceWorker' in navigator) {
       .catch(error => {
         console.error('Error al registrar Service Worker:', error);
       });
-  });
-}
-
-if ('Notification' in window) {
-  Notification.requestPermission().then(permission => {
-    console.log('Permiso de notificación:', permission);
   });
 }
