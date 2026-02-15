@@ -403,18 +403,18 @@ const Reservas: React.FC = () => {
                                                     </button>
                                                     {(canChangeAttendance && res.attended !== true) ? (
                                                       <button 
-                                                        title={res.attended === true ? 'Marcar como no asistió' : 'Marcar como asistió'}
+                                                        title='Marcar como asistió'
                                                         onClick={async (e) => { 
                                                           e.stopPropagation(); 
                                                           try {
-                                                            await ReservationsAPI.update(res.id, { attended: res.attended === true ? false : true }); 
+                                                            await ReservationsAPI.update(res.id, { attended: true }); 
                                                             await loadReservationsForDate(selectedDate); 
                                                           } catch (err: any) {
                                                             setToast({ message: err.message || 'Error al cambiar asistencia', type: 'error' });
                                                           }
                                                         }} 
-                                                        className={res.attended === true ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'}>
-                                                        {res.attended === true ? <UserX size={12}/> : <UserCheck size={12}/>} 
+                                                        className='text-green-500 hover:text-green-400'>
+                                                        <UserCheck size={12}/>
                                                       </button>
                                                     ) : (
                                                       <button 

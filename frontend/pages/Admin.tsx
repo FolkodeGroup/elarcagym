@@ -53,7 +53,7 @@ const Admin: React.FC = () => {
     // Actualizar productos al editar/eliminar categoría
     const updateProductsCategory = (oldCat: string, newCat: string) => {
         const updated = inventory.map(p =>
-            p.category === oldCat ? { ...p, category: newCat } : p
+            p.category === oldCat ? { ...p, category: newCat as 'SUPPLEMENT' | 'DRINK' | 'MERCHANDISE' | 'OTHER' } : p
         );
         setInventory(updated);
         localStorage.setItem('inventory', JSON.stringify(updated));
@@ -562,7 +562,7 @@ const Admin: React.FC = () => {
                                         }
                                     }
                                     try {
-                                        await ProductsAPI.create({ name: newProductForm.name, price: Number(newProductForm.price), category: categoryToUse, stock: Number(newProductForm.stock), imageUrl: newProductForm.imageUrl || undefined });
+                                        await ProductsAPI.create({ name: newProductForm.name, price: Number(newProductForm.price), category: categoryToUse as 'SUPPLEMENT' | 'DRINK' | 'MERCHANDISE' | 'OTHER', stock: Number(newProductForm.stock), imageUrl: newProductForm.imageUrl || undefined });
                                         await loadInventory();
                                         setToast({ message: `Producto agregado.`, type: 'success' });
                                         setShowAddModal(false);
@@ -633,7 +633,7 @@ const Admin: React.FC = () => {
                                         }
                                     }
                                     try {
-                                        await ProductsAPI.update(editingProduct.id, { name: editProductForm.name, price: Number(editProductForm.price), category: categoryToUse, stock: Number(editProductForm.stock), imageUrl: editProductForm.imageUrl || undefined });
+                                        await ProductsAPI.update(editingProduct.id, { name: editProductForm.name, price: Number(editProductForm.price), category: categoryToUse as 'SUPPLEMENT' | 'DRINK' | 'MERCHANDISE' | 'OTHER', stock: Number(editProductForm.stock), imageUrl: editProductForm.imageUrl || undefined });
                                         await loadInventory();
                                         setToast({ message: `Cambios guardados.`, type: 'success' });
                                         setShowEditModal(false);
