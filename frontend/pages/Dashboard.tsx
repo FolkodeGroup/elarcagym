@@ -14,8 +14,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
 
-import { showNativeNotification } from '../services/nativeNotification';
-
 interface DashboardProps {
   onNavigate: (page: string, filter?: string) => void;
 }

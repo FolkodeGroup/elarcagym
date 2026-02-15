@@ -19,8 +19,8 @@ const Reminders: React.FC = () => {
 
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [reminderToDeleteId, setReminderToDeleteId] = useState<string | null>(null);
-  const [newReminderForm, setNewReminderForm] = useState({ text: '', date: '', priority: 'medium' as const });
-  const [editReminderForm, setEditReminderForm] = useState({ text: '', date: '', priority: 'medium' as const });
+  const [newReminderForm, setNewReminderForm] = useState<{ text: string; date: string; priority: 'low' | 'medium' | 'high' }>({ text: '', date: '', priority: 'medium' });
+  const [editReminderForm, setEditReminderForm] = useState<{ text: string; date: string; priority: 'low' | 'medium' | 'high' }>({ text: '', date: '', priority: 'medium' });
 
   const loadReminders = async () => {
     setIsLoading(true);
