@@ -71,10 +71,15 @@ async function main() {
   let nuevos = 0;
   for (const ex of exercises) {
     // Normalizar el grupo muscular a mayúsculas
-    const exNormalized = { ...ex, category: ex.category.toUpperCase() };
-    const existe = await prisma.exerciseMaster.findFirst({ where: { name: exNormalized.name } });
+    const categoryName = ex.category.trim().toUpperCase();
+    const category = await prisma.exerciseCategory.findUnique({ where: { name: categoryName } });
+    if (!category) {
+      console.warn(`Categoría no encontrada para: ${categoryName}`);
+      continue;
+    }
+    const existe = await prisma.exerciseMaster.findFirst({ where: { name: ex.name } });
     if (!existe) {
-      await prisma.exerciseMaster.create({ data: exNormalized });
+      await prisma.exerciseMaster.create({ data: { name: ex.name, categoryId: category.id } });
       nuevos++;
     }
   }

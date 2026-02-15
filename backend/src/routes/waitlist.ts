@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { WaitlistController } from '../controllers/waitlistController';
+import { WaitlistController } from '../controllers/waitlistController.js';
 
 const router = Router();
 
