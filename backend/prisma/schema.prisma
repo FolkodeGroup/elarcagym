@@ -87,6 +87,8 @@ model Routine {
   memberId  String
   member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   days      RoutineDay[]
+
+  @@unique([name, memberId])
 }
 
 model RoutineDay {

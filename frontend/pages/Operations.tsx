@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { MembersAPI, ExercisesAPI } from '../services/api';
 import { Member, ExerciseMaster, RoutineDay, ExerciseDetail, Routine } from '../types';
-import { Dumbbell, Plus, Save, Trash2, ClipboardList, Edit2, RotateCcw, Search, ChevronDown, Check } from 'lucide-react';
+import { Dumbbell, Plus, Save, Trash2, ClipboardList, Edit2, RotateCcw, Search, ChevronDown, Check, User } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
 
@@ -237,6 +237,7 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
         };
 
   const handleAddDay = () => {
+        if (routineDays.length >= 7) return;
         setRoutineDays([...routineDays, { dayName: `Día ${routineDays.length + 1}`, exercises: [] }]);
         setActiveDayIndex(routineDays.length);
         setIsDirty(true);
@@ -329,7 +330,7 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
     // Limpiar los días y ejercicios antes de enviar
     const cleanedDays = cleanRoutineDays(routineDays);
     const payload = {
-        name: routineName,
+        name: routineName.trim().toUpperCase(),
         goal: routineGoal,
         days: cleanedDays,
         assignedBy: 'El Arca' // TODO: obtener del contexto de autenticación
@@ -346,9 +347,10 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
       await loadData();
       resetForm();
       setIsDirty(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving routine:', error);
-      setToast({ message: 'Error al guardar rutina', type: 'error' });
+      const errorMessage = error.response?.data?.error || 'Error al guardar rutina';
+      setToast({ message: errorMessage, type: 'error' });
     }
   };
 
@@ -381,6 +383,17 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
 
   const selectedMember = members.find(m => m.id === selectedMemberId);
 
+  // --- Validación de nombre de rutina duplicado (case-insensitive) ---
+  const routineNameDuplicate = useMemo(() => {
+    if (!routineName.trim() || !selectedMember) return false;
+    const normalizedInput = routineName.trim().toUpperCase();
+    return selectedMember.routines.some(r => {
+      // Si estamos editando, excluir la rutina que estamos editando
+      if (editingRoutineId && r.id === editingRoutineId) return false;
+      return r.name.toUpperCase() === normalizedInput;
+    });
+  }, [routineName, selectedMember, editingRoutineId]);
+
   return (
     <div className="space-y-6 h-[calc(100vh-140px)] flex flex-col">
       <div className="flex justify-between items-center">
@@ -404,7 +417,8 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
             )}
             <button 
                 onClick={handleSaveRoutine}
-                className="bg-brand-gold text-black px-6 py-2 rounded font-bold hover:bg-yellow-500 flex items-center gap-2"
+                disabled={routineNameDuplicate || !routineName.trim()}
+                className="bg-brand-gold text-black px-6 py-2 rounded font-bold hover:bg-yellow-500 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-brand-gold"
             >
                 <Save size={20} /> {editingRoutineId ? 'Actualizar Rutina' : 'Guardar Rutina'}
             </button>
@@ -444,11 +458,22 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
                                   setMemberSearchText(`${member.firstName} ${member.lastName}`);
                                   setShowMemberDropdown(false);
                                 }}
-                                className="w-full text-left px-3 py-2 hover:bg-gray-800 text-white text-sm border-b border-gray-800 last:border-0 transition flex justify-between items-center"
+                                className="w-full text-left px-3 py-2 hover:bg-gray-800 text-white text-sm border-b border-gray-800 last:border-0 transition flex items-center gap-2"
                               >
-                                <span>{member.firstName} {member.lastName}</span>
+                                {member.photoUrl ? (
+                                  <img 
+                                    src={member.photoUrl} 
+                                    alt={`${member.firstName} ${member.lastName}`}
+                                    className="w-7 h-7 rounded-full object-cover flex-shrink-0 border border-gray-600"
+                                  />
+                                ) : (
+                                  <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0 border border-gray-600">
+                                    <User size={14} className="text-gray-400" />
+                                  </div>
+                                )}
+                                <span className="flex-1">{member.firstName} {member.lastName}</span>
                                 {selectedMemberId === member.id && (
-                                  <Check size={16} className="text-brand-gold" />
+                                  <Check size={16} className="text-brand-gold flex-shrink-0" />
                                 )}
                               </button>
                             ))}
@@ -466,8 +491,13 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
                             type="text" placeholder="Ej: Hipertrofia Fase 1"
                             value={routineName}
                             onChange={e => { setRoutineName(e.target.value); setIsDirty(true); }}
-                            className="w-full bg-black border border-gray-700 text-white p-2 rounded text-sm focus:border-brand-gold focus:outline-none"
+                            className={`w-full bg-black border text-white p-2 rounded text-sm focus:outline-none ${
+                              routineNameDuplicate ? 'border-red-500 focus:border-red-500' : 'border-gray-700 focus:border-brand-gold'
+                            }`}
                         />
+                        {routineNameDuplicate && (
+                          <p className="text-red-400 text-xs mt-1">⚠️ Ya existe una rutina con este nombre para este socio.</p>
+                        )}
                     </div>
                     <div>
                         <label className="text-gray-400 text-xs block mb-1">Objetivo</label>
@@ -533,7 +563,12 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
             <div>
                 <div className="flex justify-between items-center mb-2 border-t border-gray-700 pt-4">
                     <h3 className="font-bold text-white uppercase tracking-wider text-xs">Días de Entrenamiento</h3>
-                    <button onClick={handleAddDay} className="text-brand-gold hover:text-white">
+                    <button 
+                        onClick={handleAddDay} 
+                        disabled={routineDays.length >= 7}
+                        className={`${routineDays.length >= 7 ? 'text-gray-600 cursor-not-allowed' : 'text-brand-gold hover:text-white'}`}
+                        title={routineDays.length >= 7 ? 'Máximo 7 días de entrenamiento' : 'Agregar día'}
+                    >
                         <Plus size={16} />
                     </button>
                 </div>
