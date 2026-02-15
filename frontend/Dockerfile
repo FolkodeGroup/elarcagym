@@ -16,11 +16,12 @@ COPY .env.production* ./
 # Build arg para sobreescribir la URL del API si se necesita
 # Si no se pasa, Vite usará el valor de .env.production
 ARG VITE_API_URL
-# Solo establecer la ENV si el ARG tiene un valor no vacío
-# Esto evita que una ENV vacía sobreescriba .env.production
+# Establecer tanto el archivo .env.production como la variable de entorno
+# para que Vite lo tome correctamente durante el build
 RUN if [ -n "$VITE_API_URL" ]; then \
       echo "VITE_API_URL=$VITE_API_URL" > .env.production; \
     fi
+ENV VITE_API_URL=${VITE_API_URL}
 
 # Construir la app (vite build carga .env.production automáticamente)
 RUN npm run build
