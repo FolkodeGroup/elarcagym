@@ -193,10 +193,18 @@ model Reservation {
   createdAt   DateTime @default(now())
 }
 
+
+model ExerciseCategory {
+  id    String  @id @default(uuid())
+  name  String  @unique
+  exercises ExerciseMaster[]
+}
+
 model ExerciseMaster {
-  id        String   @id @default(uuid())
-  name      String
-  category  String
+  id          String   @id @default(uuid())
+  name        String
+  categoryId  String
+  category    ExerciseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 }
 
 model Config {

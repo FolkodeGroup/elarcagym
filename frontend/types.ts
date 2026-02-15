@@ -230,7 +230,8 @@ export interface ReservationsWithHabitualResponse {
 export interface ExerciseMaster {
   id: string;
   name: string;
-  category: string; 
+  categoryId: string;
+  category?: { id: string; name: string };
 }
 
 export interface AppState {

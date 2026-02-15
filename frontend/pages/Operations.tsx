@@ -119,15 +119,16 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
     if (!exerciseSearch) return exercisesMaster;
     return exercisesMaster.filter(ex => 
       ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()) || 
-      ex.category.toLowerCase().includes(exerciseSearch.toLowerCase())
+      (ex.category?.name || '').toLowerCase().includes(exerciseSearch.toLowerCase())
     );
   }, [exercisesMaster, exerciseSearch]);
 
   const groupedExercises = useMemo(() => {
     const groups: Record<string, ExerciseMaster[]> = {};
     filteredExercises.forEach(ex => {
-      if (!groups[ex.category]) groups[ex.category] = [];
-      groups[ex.category].push(ex);
+      const catName = ex.category?.name || 'Sin categoría';
+      if (!groups[catName]) groups[catName] = [];
+      groups[catName].push(ex);
     });
     return groups;
   }, [filteredExercises]);
@@ -286,7 +287,7 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
   const handleCreateMasterExercise = async () => {
     if(!newExName) return;
     try {
-      const newEx = await ExercisesAPI.create({ name: newExName, category: newExCategory || 'General' });
+      const newEx = await ExercisesAPI.create({ name: newExName, categoryId: newExCategory });
       setExercisesMaster([...exercisesMaster, newEx]);
       
       // Auto select the new exercise

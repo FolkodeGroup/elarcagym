@@ -41,7 +41,8 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:4000
     image: dgimenezdeveloper/el-arca-gym-manager-frontend:latest
     container_name: elarca-frontend
     restart: unless-stopped

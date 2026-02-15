@@ -322,6 +322,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                        <p className="text-xs text-gray-400">Gestionar ejercicios</p>
                      </div>
                    </button>
+
                    {/* Reportes */}
                    <button
                      onClick={() => {

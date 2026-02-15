@@ -23,7 +23,8 @@ import configController from './controllers/configController.js';
 import userController from './controllers/userController.js';
 import nutritionTemplateController from './controllers/nutritionTemplateController.js';
 import notificationRoutes from './routes/notificationRoutes.js';
-import waitlistRoutes from './routes/waitlist';
+import waitlistRoutes from './routes/waitlist.js';
+import exerciseCategoryRoutes from './routes/exerciseCategoryRoutes.js';
 import { authenticateToken, requireAdmin, requirePermission } from './middleware/auth.js';
 import routineTokenController from './controllers/routineTokenController.js';
 import routineAccessController from './controllers/routineAccessController.js';
@@ -157,10 +158,18 @@ app.use('/reminders', authenticateToken, reminderController(prisma));
 app.use('/slots', authenticateToken, slotController(prisma));
 app.use('/exercises', authenticateToken, exerciseMasterController(prisma));
 app.use('/config', authenticateToken, configController(prisma));
+
+// CRUD de categorías de ejercicios (solo admin)
+app.use('/exercise-categories', authenticateToken, exerciseCategoryRoutes);
+
+// Notificaciones
+app.use('/notifications', authenticateToken, notificationRoutes(prisma));
+
+// Plantillas de nutrición
 app.use('/nutrition-templates', authenticateToken, nutritionTemplateController(prisma));
-app.use('/notifications', notificationRoutes(prisma));
+
+// Lista de espera
 app.use('/waitlist', authenticateToken, waitlistRoutes);
-app.use('/attendance', authenticateToken, attendanceController(prisma));
 
 const PORT = process.env.PORT || 4000;
 httpServer.listen({ port: PORT, host: '0.0.0.0' }, () => {
