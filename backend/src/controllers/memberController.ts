@@ -368,9 +368,30 @@ export default function(prisma: any) {
   router.post('/:memberId/routines', async (req, res) => {
     try {
       const { days, ...routineData } = req.body;
+      
+      // Normalizar el nombre a mayúsculas
+      const normalizedName = routineData.name?.trim().toUpperCase();
+      
+      if (!normalizedName) {
+        return res.status(400).json({ error: 'El nombre de la rutina es requerido' });
+      }
+      
+      // Verificar si ya existe una rutina con ese nombre para el mismo socio
+      const existingRoutine = await prisma.routine.findFirst({
+        where: {
+          name: normalizedName,
+          memberId: req.params.memberId
+        }
+      });
+      
+      if (existingRoutine) {
+        return res.status(400).json({ error: 'Ya existe una rutina con este nombre para este socio' });
+      }
+      
       const routine = await prisma.routine.create({
         data: {
           ...routineData,
+          name: normalizedName,
           memberId: req.params.memberId,
           days: days ? {
             create: days.map((day: any) => ({
@@ -390,8 +411,12 @@ export default function(prisma: any) {
         }
       });
       res.status(201).json(routine);
-    } catch (e) {
-      res.status(400).json({ error: (e as Error).message });
+    } catch (e: any) {
+      // Manejar error de unicidad de Prisma
+      if (e.code === 'P2002') {
+        return res.status(400).json({ error: 'Ya existe una rutina con este nombre' });
+      }
+      res.status(400).json({ error: e.message });
     }
   });
 
@@ -399,6 +424,26 @@ export default function(prisma: any) {
   router.put('/:memberId/routines/:routineId', async (req, res) => {
     try {
       const { days, ...routineData } = req.body;
+      
+      // Normalizar el nombre a mayúsculas si se proporciona
+      if (routineData.name) {
+        const normalizedName = routineData.name.trim().toUpperCase();
+        
+        // Verificar si ya existe otra rutina con ese nombre para el mismo socio (excluyendo la actual)
+        const existingRoutine = await prisma.routine.findFirst({
+          where: {
+            name: normalizedName,
+            memberId: req.params.memberId,
+            id: { not: req.params.routineId }
+          }
+        });
+        
+        if (existingRoutine) {
+          return res.status(409).json({ error: 'Ya existe una rutina con este nombre para este socio' });
+        }
+        
+        routineData.name = normalizedName;
+      }
       
       // Si se envían días, eliminar los existentes y crear nuevos
       if (days) {
@@ -427,8 +472,12 @@ export default function(prisma: any) {
         }
       });
       res.json(routine);
-    } catch (e) {
-      res.status(400).json({ error: (e as Error).message });
+    } catch (e: any) {
+      // Manejar error de unicidad de Prisma
+      if (e.code === 'P2002') {
+        return res.status(400).json({ error: 'Ya existe una rutina con este nombre' });
+      }
+      res.status(400).json({ error: e.message });
     }
   });
 
