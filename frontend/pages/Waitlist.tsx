@@ -492,9 +492,7 @@ const WaitlistPage: React.FC = () => {
           message={toast.message}
           type={toast.type}
           onClose={() => setToast(null)}
-        >
-          {toast.action}
-        </Toast>
+        />
       )}
     </div>
   );
