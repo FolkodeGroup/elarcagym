@@ -20,7 +20,7 @@
   "dependencies": {
     "@faker-js/faker": "^10.3.0",
     "@prisma/adapter-pg": "^7.3.0",
-    "@prisma/client": "^7.3.0",
+    "@prisma/client": "^7.4.0",
     "@sendgrid/mail": "^8.1.6",
     "@types/axios": "^0.9.36",
     "axios": "^1.13.4",

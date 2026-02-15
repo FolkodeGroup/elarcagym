@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 // ...existing code...
-import { ExercisesAPI } from '../services/api';
+import { ExercisesAPI, ExerciseCategoriesAPI, ExerciseCategory } from '../services/api';
 import { ExerciseMaster } from '../types';
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import Toast from '../components/Toast';
@@ -12,7 +12,8 @@ const ExercisesAdmin: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editExercise, setEditExercise] = useState<ExerciseMaster | null>(null);
-  const [form, setForm] = useState({ name: '', category: '' });
+  const [form, setForm] = useState({ name: '', categoryId: '' });
+  const [categories, setCategories] = useState<ExerciseCategory[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const loadExercises = async () => {
@@ -29,30 +30,31 @@ const ExercisesAdmin: React.FC = () => {
 
   useEffect(() => {
     loadExercises();
+    ExerciseCategoriesAPI.list().then(setCategories).catch(() => setCategories([]));
   }, []);
 
   const handleOpenModal = (exercise?: ExerciseMaster) => {
     if (exercise) {
       setEditExercise(exercise);
-      setForm({ name: exercise.name, category: exercise.category });
+      setForm({ name: exercise.name, categoryId: exercise.categoryId });
     } else {
       setEditExercise(null);
-      setForm({ name: '', category: '' });
+      setForm({ name: '', categoryId: '' });
     }
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.category.trim()) {
+    if (!form.name.trim() || !form.categoryId.trim()) {
       setToast({ message: 'Completa todos los campos', type: 'error' });
       return;
     }
     try {
       if (editExercise) {
-        await ExercisesAPI.update(editExercise.id, form);
+        await ExercisesAPI.update(editExercise.id, { name: form.name, categoryId: form.categoryId });
         setToast({ message: 'Ejercicio actualizado', type: 'success' });
       } else {
-        await ExercisesAPI.create(form);
+        await ExercisesAPI.create({ name: form.name, categoryId: form.categoryId });
         setToast({ message: 'Ejercicio creado', type: 'success' });
       }
       setShowModal(false);
@@ -99,7 +101,7 @@ const ExercisesAdmin: React.FC = () => {
             {exercises.map(ex => (
               <tr key={ex.id} className="border-b border-gray-700 hover:bg-[#222]">
                 <td className="p-2 text-white">{ex.name}</td>
-                <td className="p-2 text-gray-300">{ex.category}</td>
+                <td className="p-2 text-gray-300">{categories.find(c => c.id === ex.categoryId)?.name ?? '-'}</td>
                 <td className="p-2 flex gap-2">
                   <button onClick={() => handleOpenModal(ex)} className="text-blue-400 hover:text-blue-200"><Edit2 size={16} /></button>
                   <button onClick={() => handleDelete(ex.id)} className="text-red-400 hover:text-red-200"><Trash2 size={16} /></button>
@@ -123,7 +125,16 @@ const ExercisesAdmin: React.FC = () => {
               </div>
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Categoría</label>
-                <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="w-full bg-black border border-gray-600 text-white p-2 rounded" />
+                <select
+                  value={form.categoryId}
+                  onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
+                  className="w-full bg-black border border-gray-600 text-white p-2 rounded"
+                >
+                  <option value="">Selecciona una categoría</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <button onClick={() => setShowModal(false)} className="px-3 py-2 text-gray-400 text-sm flex items-center gap-1"><X size={16} /> Cancelar</button>

@@ -1,3 +1,16 @@
+// ==================== EXERCISE CATEGORIES API ====================
+export interface ExerciseCategory {
+  id: string;
+  name: string;
+}
+
+export const ExerciseCategoriesAPI = {
+  list: (): Promise<ExerciseCategory[]> => apiFetch('/exercise-categories'),
+  get: (id: string): Promise<ExerciseCategory> => apiFetch(`/exercise-categories/${id}`),
+  create: (data: { name: string }): Promise<ExerciseCategory> => apiFetch('/exercise-categories', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: { name: string }): Promise<ExerciseCategory> => apiFetch(`/exercise-categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string): Promise<void> => apiFetch(`/exercise-categories/${id}`, { method: 'DELETE' }),
+};
 // ==================== RUTINA SELF-SERVICE (TOKEN) ====================
 export const RoutineAccessAPI = {
   validateRoutineAccess: async (token: string, dni: string) => {
