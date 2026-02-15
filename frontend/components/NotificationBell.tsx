@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { showNativeNotification } from '../services/nativeNotification';
 import { Bell, X, Check, CheckCheck, Trash2, Users, ShoppingCart, DollarSign, UserPlus } from 'lucide-react';
 import { type Notification as NotificationData, NotificationsAPI } from '../services/api';
 import { io, Socket } from 'socket.io-client';
