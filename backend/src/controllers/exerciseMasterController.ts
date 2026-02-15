@@ -16,7 +16,10 @@ export default function(prisma: any) {
 
   // Obtener todos los ejercicios
   router.get('/', async (req, res) => {
-    const exercises = await prisma.exerciseMaster.findMany();
+    const exercises = await prisma.exerciseMaster.findMany({
+      include: { category: true },
+      orderBy: { name: 'asc' }
+    });
     res.json(exercises);
   });
 

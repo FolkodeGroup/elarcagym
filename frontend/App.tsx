@@ -12,7 +12,6 @@ import Ingresos from './pages/Ingresos';
 import Reservas from './pages/Reservas';
 import RoutineSelfService from './pages/RoutineSelfService';
 import ExercisesAdmin from './pages/ExercisesAdmin';
-import ExerciseCategoriesAdmin from './pages/ExerciseCategoriesAdmin';
 import UsersManagement from './pages/UsersManagement';
 import UserProfile from './pages/UserProfile';
 import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
@@ -166,7 +165,6 @@ const AppContent: React.FC = () => {
       case 'reservas': return <Reservas />;
       case 'attendance': return <AttendanceTracker />;
       case 'exercises_admin': return <ExercisesAdmin />;
-      case 'exercise_categories_admin': return <ExerciseCategoriesAdmin />;
       case 'users_management': return <UsersManagement />;
       case 'user_profile': return <UserProfile />;
       case 'waitlist': return <WaitlistPage />;
