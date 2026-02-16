@@ -15,9 +15,22 @@ export default function(prisma: PrismaClient) {
      *     summary: Obtener todas las categorías de ejercicios
      *     tags:
      *       - ExerciseCategory
+     *     security:
+     *       - bearerAuth: []
      *     responses:
      *       200:
      *         description: Lista de categorías
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 type: object
+     *                 properties:
+     *                   id:
+     *                     type: string
+     *                   name:
+     *                     type: string
      */
     async getAll(req: Request, res: Response) {
       const categories = await prisma.exerciseCategory.findMany({ orderBy: { name: 'asc' } });
@@ -31,6 +44,8 @@ export default function(prisma: PrismaClient) {
      *     summary: Crear nueva categoría de ejercicio
      *     tags:
      *       - ExerciseCategory
+     *     security:
+     *       - bearerAuth: []
      *     requestBody:
      *       required: true
      *       content:
@@ -70,6 +85,8 @@ export default function(prisma: PrismaClient) {
      *     summary: Actualizar categoría de ejercicio
      *     tags:
      *       - ExerciseCategory
+     *     security:
+     *       - bearerAuth: []
      *     parameters:
      *       - in: path
      *         name: id
@@ -122,6 +139,8 @@ export default function(prisma: PrismaClient) {
      *     summary: Eliminar categoría de ejercicio
      *     tags:
      *       - ExerciseCategory
+     *     security:
+     *       - bearerAuth: []
      *     parameters:
      *       - in: path
      *         name: id
@@ -155,6 +174,8 @@ export default function(prisma: PrismaClient) {
      *     summary: Obtener una categoría de ejercicio
      *     tags:
      *       - ExerciseCategory
+     *     security:
+     *       - bearerAuth: []
      *     parameters:
      *       - in: path
      *         name: id
