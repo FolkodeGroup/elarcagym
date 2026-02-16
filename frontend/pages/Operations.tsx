@@ -141,20 +141,21 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
 
   // Get sorted and filtered members for member search
   const filteredMembers = useMemo(() => {
-    const search = memberSearchText.toLowerCase().trim();
+    const search = (memberSearchText ?? '').toLowerCase().trim();
     let result = members.filter(m => {
-      const fullName = `${m.firstName} ${m.lastName}`.toLowerCase();
-      const searchName = `${m.lastName} ${m.firstName}`.toLowerCase();
-      return fullName.includes(search) || searchName.includes(search) || m.email.toLowerCase().includes(search);
+      const fullName = `${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase();
+      const searchName = `${m.lastName ?? ''} ${m.firstName ?? ''}`.toLowerCase();
+      const email = (m.email ?? '').toLowerCase();
+      return fullName.includes(search) || searchName.includes(search) || email.includes(search);
     });
     // Sort by firstName, then lastName
     return result.sort((a, b) => {
-      const aFirstName = a.firstName.toLowerCase();
-      const bFirstName = b.firstName.toLowerCase();
+      const aFirstName = (a.firstName ?? '').toLowerCase();
+      const bFirstName = (b.firstName ?? '').toLowerCase();
       if (aFirstName !== bFirstName) {
         return aFirstName.localeCompare(bFirstName);
       }
-      return a.lastName.toLowerCase().localeCompare(b.lastName.toLowerCase());
+      return (a.lastName ?? '').toLowerCase().localeCompare((b.lastName ?? '').toLowerCase());
     });
   }, [members, memberSearchText]);
 
