@@ -41,8 +41,8 @@ const INITIAL_INVENTORY: Product[] = [
 ];
 
 const INITIAL_EXERCISES: ExerciseMaster[] = [
-  { id: 'e1', name: 'Press de Banca Plano', category: 'Pecho' },
-  { id: 'e2', name: 'Sentadilla Libre', category: 'Piernas' },
+  { id: 'e1', name: 'Press de Banca Plano', categoryId: 'cat-pecho', category: { id: 'cat-pecho', name: 'PECHO' } },
+  { id: 'e2', name: 'Sentadilla Libre', categoryId: 'cat-piernas', category: { id: 'cat-piernas', name: 'PIERNAS' } },
 ];
 
 const generateInitialSlots = (): Slot[] => {
@@ -236,8 +236,8 @@ class MockDB {
 
   getExercises() { return this.state.exercises; }
 
-  createMasterExercise(name: string, category: string) {
-    const newEx: ExerciseMaster = { id: Math.random().toString(36).substr(2, 9), name, category };
+  createMasterExercise(name: string, categoryId: string) {
+    const newEx: ExerciseMaster = { id: Math.random().toString(36).substr(2, 9), name, categoryId };
     this.state.exercises.push(newEx);
     this.save();
     return newEx;
