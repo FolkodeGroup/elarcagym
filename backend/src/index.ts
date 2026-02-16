@@ -160,7 +160,7 @@ app.use('/exercises', authenticateToken, exerciseMasterController(prisma));
 app.use('/config', authenticateToken, configController(prisma));
 
 // CRUD de categorías de ejercicios (solo admin)
-app.use('/exercise-categories', authenticateToken, exerciseCategoryRoutes);
+app.use('/exercise-categories', authenticateToken, exerciseCategoryRoutes(prisma));
 
 // Notificaciones
 app.use('/notifications', authenticateToken, notificationRoutes(prisma));
