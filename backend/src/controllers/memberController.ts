@@ -125,6 +125,8 @@ export default function(prisma: any) {
         }
       });
 
+      console.log(`[MEMBER] Nuevo socio creado: ${member.firstName} ${member.lastName} (ID: ${member.id}) con status: ${member.status}`);
+
       // Notificar a los administradores
       try {
         await sendNotificationToAdmins({
@@ -236,7 +238,10 @@ export default function(prisma: any) {
       if ('phase' in memberData) updateData.phase = memberData.phase;
       if ('bioObjective' in memberData) updateData.bioObjective = memberData.bioObjective;
       if ('photoUrl' in req.body) updateData.photoUrl = req.body.photoUrl;
-      if ('status' in memberData) updateData.status = memberData.status;
+      if ('status' in memberData) {
+        updateData.status = memberData.status;
+        console.log(`[MEMBER] Actualizando status del socio ${req.params.id} a: ${memberData.status}`);
+      }
       if ('nutritionPlan' in memberData) updateData.nutritionPlan = memberData.nutritionPlan;
       // ...agrega aquí otros campos si es necesario
       const member = await prisma.member.update({
@@ -512,6 +517,7 @@ export default function(prisma: any) {
       // Validar existencia del miembro
       const member = await prisma.member.findUnique({ where: { id: req.params.memberId } });
       if (!member) {
+        console.error(`[PAYMENT] Error: El miembro ${req.params.memberId} no existe`);
         return res.status(400).json({ error: 'El miembro no existe' });
       }
 
@@ -520,7 +526,6 @@ export default function(prisma: any) {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        
         const existingPayment = await prisma.paymentLog.findFirst({
           where: {
             memberId: req.params.memberId,
@@ -531,8 +536,8 @@ export default function(prisma: any) {
             }
           }
         });
-        
         if (existingPayment) {
+          console.warn(`[PAYMENT] Socio ${member.firstName} ${member.lastName} ya tiene pago de cuota mensual este mes.`);
           return res.status(409).json({ 
             error: 'El socio ya tiene registrado el pago de Cuota Mensual para este mes.' 
           });
@@ -547,16 +552,25 @@ export default function(prisma: any) {
         }
       });
 
-      // Actualizar estado del miembro a ACTIVE si estaba DEBTOR o INACTIVE
-      if (member.status === 'DEBTOR' || member.status === 'INACTIVE') {
-        await prisma.member.update({
-          where: { id: req.params.memberId },
-          data: { status: 'ACTIVE' }
-        });
+      // Forzar actualización de status a ACTIVE si no lo está
+      if (member.status !== 'ACTIVE') {
+        const prevStatus = member.status;
+        try {
+          await prisma.member.update({
+            where: { id: req.params.memberId },
+            data: { status: 'ACTIVE' }
+          });
+          console.log(`[PAYMENT] Estado del socio ${member.firstName} ${member.lastName} actualizado de ${prevStatus} a ACTIVE`);
+        } catch (err) {
+          console.error(`[PAYMENT] Error actualizando status del socio ${member.firstName} (${member.id}):`, err);
+        }
+      } else {
+        console.log(`[PAYMENT] Socio ${member.firstName} ${member.lastName} ya estaba ACTIVE`);
       }
 
       res.status(201).json(payment);
     } catch (e) {
+      console.error('[PAYMENT] Error general en registro de pago:', e);
       res.status(400).json({ error: (e as Error).message });
     }
   });
