@@ -700,9 +700,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
     const searchTerm = normalizeText(filter);
     const memberLastName = normalizeText(m.lastName);
     const memberFirstName = normalizeText(m.firstName);
+    const fullName = `${memberFirstName} ${memberLastName}`;
+    const inverseName = `${memberLastName} ${memberFirstName}`;
 
-    const matchesSearch = memberLastName.includes(searchTerm) || 
-                          memberFirstName.includes(searchTerm);
+    const matchesSearch = fullName.includes(searchTerm) || 
+                          inverseName.includes(searchTerm) ||
+                          (m.dni && m.dni.includes(searchTerm));
                           
     const matchesStatus = !statusFilter || 
                (statusFilter === 'active' && m.status === UserStatus.ACTIVE) ||

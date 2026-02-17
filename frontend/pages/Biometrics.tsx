@@ -85,8 +85,10 @@ const dateToInput = (dateStr: string) => {
         : [];
 
     const filteredSearch = members.filter(m => {
-        const term = searchMember.toLowerCase();
-        return `${m.firstName} ${m.lastName}`.toLowerCase().includes(term) || (m.dni && m.dni?.includes(term));
+        const term = searchMember.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const fullName = `${m.firstName} ${m.lastName}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const alternativeName = `${m.lastName} ${m.firstName}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return fullName.includes(term) || alternativeName.includes(term) || (m.dni && m.dni?.includes(term));
     });
 
     const loadMembers = async () => {
@@ -214,9 +216,18 @@ const dateToInput = (dateStr: string) => {
             </div>
 
             {selectedMember ? (
+                /* ... Biometrics table content ... */
                 <div className="flex-1 bg-[#1a1a1a] rounded-xl border border-gray-800 flex flex-col overflow-hidden shadow-2xl">
                     <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-black/20">
-                        <h3 className="text-xl font-bold text-brand-gold uppercase tracking-widest">{selectedMember.firstName} {selectedMember.lastName}</h3>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => setSelectedMemberId('')}
+                                className="text-gray-400 hover:text-white transition-colors flex items-center gap-1 text-sm bg-gray-800/50 px-3 py-1 rounded-full border border-gray-700 hover:border-brand-gold/50"
+                            >
+                                <X size={14} /> Volver al listado
+                            </button>
+                            <h3 className="text-xl font-bold text-brand-gold uppercase tracking-widest">{selectedMember.firstName} {selectedMember.lastName}</h3>
+                        </div>
                         <button onClick={() => handleOpenModal()} className="bg-brand-gold text-black px-6 py-2 rounded-lg font-black hover:bg-yellow-500 shadow-lg shadow-brand-gold/20 transition-all active:scale-95">Cargar Datos</button>
                     </div>
 
@@ -282,8 +293,48 @@ const dateToInput = (dateStr: string) => {
                     </div>
                 </div>
             ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 border-2 border-dashed border-gray-800 rounded-xl bg-[#1a1a1a]/50">
-                    <p className="text-lg font-bold">Seleccioná un socio para ver su evolución</p>
+                <div className="flex-1 bg-[#1a1a1a] rounded-xl border border-gray-800 flex flex-col overflow-hidden shadow-2xl">
+                    <div className="p-4 border-b border-gray-800 bg-black/20 flex justify-between items-center">
+                        <h3 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em]">Listado de Socios (Orden Alfabético)</h3>
+                        <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest bg-gray-900 border border-gray-800 px-3 py-1 rounded-full">
+                            Total: {filteredSearch.length} socios
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-auto p-4 custom-scrollbar bg-black/40">
+                        {filteredSearch.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {[...filteredSearch].sort((a,b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`)).map(m => (
+                                    <button 
+                                        key={m.id} 
+                                        onClick={() => setSelectedMemberId(m.id)}
+                                        className="bg-[#111] border border-gray-800 rounded-2xl p-4 flex items-center gap-4 hover:border-brand-gold/50 transition-all hover:bg-black group shadow-lg shadow-black/40"
+                                    >
+                                        <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-900 border-2 border-gray-800 group-hover:border-brand-gold/30 transition-all flex-shrink-0 relative">
+                                            {m.photoUrl ? (
+                                                <img src={m.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="flex items-center justify-center w-full h-full text-3xl">🦁</span>
+                                            )}
+                                        </div>
+                                        <div className="text-left overflow-hidden">
+                                            <p className="text-white font-bold truncate group-hover:text-brand-gold transition-colors">{m.lastName}, {m.firstName}</p>
+                                            <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">{m.dni || 'Sin DNI'}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className={`w-2 h-2 rounded-full ${m.status === 'ACTIVE' ? 'bg-green-500 shadow-sm shadow-green-900' : 'bg-red-500 shadow-sm shadow-red-900'}`}></span>
+                                                <span className="text-[9px] font-bold text-gray-400 uppercase">{m.status}</span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-600 space-y-4">
+                                <Search size={64} strokeWidth={1} className="opacity-20" />
+                                <p className="font-bold uppercase text-xs tracking-[0.3em]">No se encontraron socios</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 

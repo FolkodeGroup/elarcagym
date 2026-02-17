@@ -134,6 +134,19 @@ const Reservas: React.FC = () => {
         return;
     }
 
+    // Verificar cupo máximo (15 personas)
+    const currentRes = reservations.filter(r => 
+        (activeSlotId && r.slotId === activeSlotId) || 
+        (r.time === quickAddForm.time)
+    );
+    const currentMemberIds = currentRes.map(r => r.memberId);
+    const newAdditionCount = quickAddForm.selectedMembers.filter(m => !currentMemberIds.includes(m.id)).length;
+
+    if (currentRes.length + newAdditionCount > 15) {
+        setToast({ message: "Cupo completo. El límite es de 15 personas por turno.", type: 'error' });
+        return;
+    }
+
     try {
       let targetSlotId = activeSlotId;
 
@@ -146,26 +159,23 @@ const Reservas: React.FC = () => {
           });
           targetSlotId = newSlot.id;
       }
+      
+      const resForThisSlot = reservations.filter(r => r.slotId === targetSlotId);
+      const resMemberIds = resForThisSlot.map(r => r.memberId);
 
-    const currentRes = reservations.filter(r => r.slotId === targetSlotId);
-    const currentMemberIds = currentRes.map(r => r.memberId);
-
-    // IDs de los socios que vamos a procesar
-    const selectedIds = quickAddForm.selectedMembers.map(m => m.id);
-
-    // Crear reservaciones para cada miembro
-    let newReservationsCount = 0;
-    for (const member of quickAddForm.selectedMembers) {
-      if (!currentMemberIds.includes(member.id)) {
-          await ReservationsAPI.create({
-            slotId: targetSlotId!,
-            memberId: member.id,
-            clientName: `${member.firstName} ${member.lastName}`,
-            notes: quickAddForm.notes
-          });
-          newReservationsCount++;
+      // Crear reservaciones para cada miembro
+      let newReservationsCount = 0;
+      for (const member of quickAddForm.selectedMembers) {
+        if (!resMemberIds.includes(member.id)) {
+            await ReservationsAPI.create({
+              slotId: targetSlotId!,
+              memberId: member.id,
+              clientName: `${member.firstName} ${member.lastName}`,
+              notes: quickAddForm.notes
+            });
+            newReservationsCount++;
+        }
       }
-    }
 
     await SlotsAPI.update(targetSlotId!, { status: 'reserved' });
 
@@ -260,13 +270,17 @@ const Reservas: React.FC = () => {
       .filter(r => todaySlotsIds.includes(r.slotId))
       .map(r => r.memberId);
     
+    const term = searchMember.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    
     return allMembers
-      .filter(m => 
-        m.status === UserStatus.ACTIVE && 
-        !selectedIds.includes(m.id) && 
-        !reservedMemberIds.includes(m.id) && 
-        (`${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().includes(searchMember?.toLowerCase() ?? ''))
-      )
+      .filter(m => {
+        if (m.status !== UserStatus.ACTIVE || selectedIds.includes(m.id) || reservedMemberIds.includes(m.id)) {
+          return false;
+        }
+        const fullName = `${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const alternativeName = `${m.lastName ?? ''} ${m.firstName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return fullName.includes(term) || alternativeName.includes(term) || (m.dni && m.dni.includes(term));
+      })
       .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
       .slice(0, 8);
   }, [allMembers, searchMember, quickAddForm.selectedMembers, slots, reservations, selectedDate]);

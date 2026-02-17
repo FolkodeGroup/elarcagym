@@ -207,10 +207,12 @@ HORARIOS
         setIsDirty(true);
     };
 
-    const filteredMembers = members.filter(m => 
-        (`${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().includes(searchMember?.toLowerCase() ?? '')) ||
-        (m.dni && m.dni.includes(searchMember))
-    );
+    const filteredMembers = members.filter(m => {
+        const term = searchMember?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') ?? '';
+        const fullName = `${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const alternativeName = `${m.lastName ?? ''} ${m.firstName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return fullName.includes(term) || alternativeName.includes(term) || (m.dni && m.dni.includes(term));
+    });
 
     const selectedMember = members.find(m => m.id === selectedMemberId);
 
