@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import { sendNotificationToAdmins } from '../utils/notificationService.js';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
+
+const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
 export default function(prisma: any) {
   const router = Router();
@@ -308,11 +311,21 @@ export default function(prisma: any) {
   // Agregar biométrico a un miembro
   router.post('/:memberId/biometrics', async (req, res) => {
     try {
+      // Usar fecha de Argentina como default
+      let biometricDate: Date;
+      if (req.body.date) {
+        // Si viene solo fecha YYYY-MM-DD, añadir hora para evitar desfase
+        const dateStr = req.body.date.includes('T') ? req.body.date : `${req.body.date}T12:00:00`;
+        biometricDate = fromZonedTime(dateStr, TIME_ZONE);
+      } else {
+        biometricDate = toZonedTime(new Date(), TIME_ZONE);
+      }
+
       const biometric = await prisma.biometricLog.create({
         data: {
           ...req.body,
           memberId: req.params.memberId,
-          date: req.body.date ? new Date(req.body.date) : new Date()
+          date: biometricDate
         }
       });
       res.status(201).json(biometric);
@@ -324,11 +337,17 @@ export default function(prisma: any) {
   // Actualizar biométrico
   router.put('/:memberId/biometrics/:biometricId', async (req, res) => {
     try {
+      let biometricDate = undefined;
+      if (req.body.date) {
+        const dateStr = req.body.date.includes('T') ? req.body.date : `${req.body.date}T12:00:00`;
+        biometricDate = fromZonedTime(dateStr, TIME_ZONE);
+      }
+
       const biometric = await prisma.biometricLog.update({
         where: { id: req.params.biometricId },
         data: {
           ...req.body,
-          date: req.body.date ? new Date(req.body.date) : undefined
+          date: biometricDate
         }
       });
       res.json(biometric);

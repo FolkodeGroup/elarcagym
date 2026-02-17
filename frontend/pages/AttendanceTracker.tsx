@@ -86,9 +86,11 @@ const AttendanceTracker: React.FC = () => {
     if (filterName.trim()) {
       const search = filterName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       filtered = filtered.filter(r => {
-        const name = (r.member ? `${r.member.firstName} ${r.member.lastName}` : r.clientName)
-          .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        return name.includes(search);
+        const firstName = r.member ? r.member.firstName : (r.clientName ? r.clientName.split(' ')[0] : '');
+        const lastName = r.member ? r.member.lastName : (r.clientName ? r.clientName.split(' ').slice(1).join(' ') : '');
+        const fullName = `${firstName} ${lastName}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const inverseName = `${lastName} ${firstName}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return fullName.includes(search) || inverseName.includes(search);
       });
     }
     

@@ -192,9 +192,14 @@ const RoutineSelfService: React.FC = () => {
             />
           </div>
           {error && (
-            <div className={`bg-red-900/30 border border-red-800/50 p-4 rounded-2xl text-red-400 text-[10px] text-center font-black uppercase tracking-widest animate-shake ${expired ? 'flex flex-col items-center gap-2' : ''}`}>
-              {expired && <AlertTriangle size={24} className="text-yellow-400 mb-1" />}
-              {error}
+            <div className={`bg-red-600/20 border-2 border-red-500 p-6 rounded-[32px] text-red-100 text-xs sm:text-sm text-center font-black uppercase tracking-[0.15em] animate-shake shadow-lg shadow-red-900/40 flex flex-col items-center gap-3 backdrop-blur-md`}>
+              <AlertTriangle size={32} className="text-brand-gold animate-pulse" />
+              <span className="leading-relaxed drop-shadow-md">{error}</span>
+              {expired && (
+                <p className="text-[10px] text-red-300/80 font-bold mt-1">
+                  Verificá tu reserva o hablá con administración
+                </p>
+              )}
             </div>
           )}
           {isRequestingLocation && (
