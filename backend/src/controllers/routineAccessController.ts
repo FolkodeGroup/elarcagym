@@ -185,7 +185,8 @@ export default function(prisma: any) {
       // Generar reservas virtuales si no hay reservas manuales activas
       let combinedReservations = [...todayReservations];
       if (member.habitualSchedules && member.habitualSchedules.length > 0) {
-        const todayStr = now.toISOString().split('T')[0] || '';
+        // Usar locale local (con TZ=Buenos Aires configurado en Docker) para obtener YYYY-MM-DD correcto
+        const todayStr = now.toLocaleDateString('sv-SE');
         const virtuals = generateVirtualReservations([member], todayStr, todayReservations);
         // Simular slot para virtuales
         const virtualReservations = virtuals.map(v => ({

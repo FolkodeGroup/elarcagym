@@ -3,6 +3,7 @@ import { MembersAPI } from '../services/api';
 import { Member, BiometricLog } from '../types';
 import { Plus, Trash2, Edit2, X, Search } from 'lucide-react';
 import Toast from '../components/Toast';
+import { getLocalISODate } from '../services/dateUtils';
 
 const Biometrics: React.FC = () => {
     const [members, setMembers] = useState<Member[]>([]);
@@ -128,7 +129,7 @@ const dateToInput = (dateStr: string) => {
             }
         } else {
             setEditingLogId(null);
-            setFormDate(new Date().toISOString().split('T')[0]); 
+            setFormDate(getLocalISODate()); 
             setFormData({ weight: '', height: '', chest: '', waist: '', abdomen: '', glutes: '', rightThigh: '', leftThigh: '', rightCalf: '', leftCalf: '', rightArm: '', leftArm: '', neck: '' });
         }
         setShowModal(true);

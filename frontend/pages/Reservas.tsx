@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
+import { getLocalISODate, getLocalDateString } from '../services/dateUtils';
 
 const Reservas: React.FC = () => {
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -14,13 +15,7 @@ const Reservas: React.FC = () => {
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getLocalDateString = (date: Date = new Date()) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
-  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalISODate());
   
   // Modales
   const [showQuickAdd, setShowQuickAdd] = useState(false);
