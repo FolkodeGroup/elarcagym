@@ -1,10 +1,3 @@
-// Utilidad para obtener fecha local YYYY-MM-DD
-const getLocalDateString = (date = new Date()) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
 import React, { useEffect, useState } from 'react';
 import { MembersAPI, SlotsAPI, ReservationsAPI, SalesAPI } from '../services/api';
 import { Member, UserStatus, Slot, Reservation, Sale } from '../types';
@@ -13,6 +6,7 @@ import { Users, AlertCircle, TrendingUp, DollarSign, CreditCard, Clock, UserX } 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useNavigation } from '../contexts/NavigationContext';
 import Toast from '../components/Toast';
+import { getLocalISODate } from '../services/dateUtils';
 
 interface DashboardProps {
   onNavigate: (page: string, filter?: string) => void;
@@ -31,7 +25,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const todayLocalStr = getLocalDateString();
+      const todayLocalStr = getLocalISODate();
       const [membersData, slotsData, reservationsData, salesData, todayReservationsData] = await Promise.all([
         MembersAPI.list(),
         SlotsAPI.list(),
@@ -78,7 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const TIME_ZONE = 'America/Argentina/Buenos_Aires';
     const now = new Date();
     const nowLocal = new Date(now.toLocaleString('en-US', { timeZone: TIME_ZONE }));
-    const todayLocal = getLocalDateString(nowLocal);
+    const todayLocal = getLocalISODate(nowLocal);
 
     // Obtener slots únicos del día a partir de las reservas (manuales y virtuales)
     const uniqueTimes = new Set<string>();
@@ -118,9 +112,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   // Calcular ingresos de hoy
   const getTodayIncome = () => {
-    const hoy = getLocalDateString(new Date());
+    const hoy = getLocalISODate(new Date());
     const ventasHoy = sales.filter(venta => {
-      const fechaVenta = getLocalDateString(new Date(venta.date));
+      const fechaVenta = getLocalISODate(new Date(venta.date));
       return fechaVenta === hoy;
     });
     return ventasHoy.reduce((acc, venta) => acc + venta.total, 0);
@@ -144,7 +138,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const TIME_ZONE = 'America/Argentina/Buenos_Aires';
     const now = new Date();
     const nowLocal = new Date(now.toLocaleString('en-US', { timeZone: TIME_ZONE }));
-    const todayLocalStr = getLocalDateString(nowLocal);
+    const todayLocalStr = getLocalISODate(nowLocal);
 
     return todayReservations.filter(r => {
       // Mostrar como ausente si NO tiene attended:true (incluye null, undefined, false)
@@ -380,7 +374,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               ausenciasMostradas.map(r => {
                 // Para virtuales, usar el time directamente; para manuales, buscar el slot
                 const timeStr = r.time || (r.slot ? r.slot.time : '??:??');
-                const dateStr = r.isVirtual ? getLocalDateString() : (
+                const dateStr = r.isVirtual ? getLocalISODate() : (
                   r.slot ? new Date(r.slot.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : 'N/A'
                 );
                 const socio = r.member || members.find(m => m.id === r.memberId);

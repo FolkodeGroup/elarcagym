@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import Toast from '../components/Toast';
+import { getLocalISODate } from '../services/dateUtils';
 
 const AttendanceTracker: React.FC = () => {
   const [data, setData] = useState<any>(null);
@@ -18,13 +19,7 @@ const AttendanceTracker: React.FC = () => {
   const [filterTime, setFilterTime] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
 
-  const getLocalDateString = (date: Date = new Date()) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
-  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalISODate());
 
   // FUNCIÓN DE CARGA DE DATOS SOLO USA RESERVATIONSAPI
   const loadData = async () => {
@@ -188,7 +183,7 @@ const AttendanceTracker: React.FC = () => {
             <button onClick={() => {
               const d = new Date(selectedDate + 'T00:00:00');
               d.setDate(d.getDate() - 1);
-              setSelectedDate(getLocalDateString(d));
+              setSelectedDate(getLocalISODate(d));
             }} className="p-1 hover:text-brand-gold transition-colors">
               <ChevronLeft size={20} />
             </button>
@@ -198,7 +193,7 @@ const AttendanceTracker: React.FC = () => {
             <button onClick={() => {
               const d = new Date(selectedDate + 'T00:00:00');
               d.setDate(d.getDate() + 1);
-              setSelectedDate(getLocalDateString(d));
+              setSelectedDate(getLocalISODate(d));
             }} className="p-1 hover:text-brand-gold transition-colors">
               <ChevronRight size={20} />
             </button>

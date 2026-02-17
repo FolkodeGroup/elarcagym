@@ -51,7 +51,7 @@ import Toast from '../components/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LOGO_BASE64 } from '../services/assets';
-// import * as XLSX from 'xlsx'; // Remove unused import
+import { getLocalISODate, formatDisplayDate } from '../services/dateUtils';
 
 // Exponer NutritionTemplatesAPI globalmente para uso en generateNutritionPDF
 (window as any).NutritionTemplatesAPI = NutritionTemplatesAPI;
@@ -1483,7 +1483,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                           <span className="text-xs text-gray-500 uppercase font-bold tracking-wider block mb-2">Próximos cambios de horario</span>
                           <div className="space-y-1.5">
                             {selectedMember.scheduleExceptions
-                              .filter(ex => new Date(ex.date) >= new Date(new Date().toDateString()))
+                              .filter(ex => getLocalISODate(ex.date) >= getLocalISODate())
                               .map(ex => (
                               <div key={ex.id} className="flex items-center justify-between bg-yellow-900/10 border border-yellow-800/30 rounded-lg px-3 py-2">
                                 <div className="flex items-center gap-2">
@@ -1564,7 +1564,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                           value={exceptionForm.date}
                           onChange={e => setExceptionForm({ ...exceptionForm, date: e.target.value })}
                           className="w-full bg-black border border-gray-600 text-white p-2 rounded"
-                          min={new Date().toISOString().split('T')[0]}
+                          min={getLocalISODate()}
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
