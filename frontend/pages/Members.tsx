@@ -1,12 +1,26 @@
+// Devuelve el rango de horarios permitido según los días seleccionados
+function getCurrentTimeOptions(selectedDays: Record<string, boolean>) {
+  // Si solo sábado está seleccionado, usar rango de sábado
+  const onlySaturday = Object.keys(selectedDays).filter(d => selectedDays[d]).length === 1 && selectedDays['Sábado'];
+  if (onlySaturday) return TIME_OPTIONS_SAT;
+  // Si sábado y otros días, usar el rango más restrictivo (10-17)
+  if (selectedDays['Sábado'] && Object.values(selectedDays).some((v, i) => i < 5 && v)) return TIME_OPTIONS_SAT;
+  // Si solo días de semana, usar rango de semana
+  if (Object.keys(selectedDays).some(d => selectedDays[d] && d !== 'Sábado')) return TIME_OPTIONS_WEEK;
+  // Por defecto, rango de semana
+  return TIME_OPTIONS_WEEK;
+}
 // --- Utilidades y componentes auxiliares para horarios ---
-const WEEKDAY_OPTIONS = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
-const timeOptions = Array.from({length: 24*2}, (_,i) => {
+const WEEKDAY_OPTIONS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const TIME_OPTIONS_ALL = Array.from({length: 24*2}, (_,i) => {
   const h = Math.floor(i/2).toString().padStart(2,'0');
   const m = i%2===0 ? '00' : '30';
   return `${h}:${m}`;
 });
+const TIME_OPTIONS_WEEK = TIME_OPTIONS_ALL.filter(t => t >= '08:00' && t <= '22:00');
+const TIME_OPTIONS_SAT = TIME_OPTIONS_ALL.filter(t => t >= '10:00' && t <= '17:00');
 
-function TimeDropdown({ value, onChange, label }:{ value:string, onChange:(v:string)=>void, label?:string }) {
+function TimeDropdown({ value, onChange, label, options }:{ value:string, onChange:(v:string)=>void, label?:string, options?:string[] }) {
   return (
     <select
       aria-label={label}
@@ -15,7 +29,7 @@ function TimeDropdown({ value, onChange, label }:{ value:string, onChange:(v:str
       className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-3 rounded-lg text-base focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold/60 transition"
     >
       <option value="">--:--</option>
-      {timeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+      {(options || TIME_OPTIONS_WEEK).map(opt => <option key={opt} value={opt}>{opt}</option>)}
     </select>
   );
 }
@@ -1904,7 +1918,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                             <div className="md:col-span-2">
                               <p className="text-xs uppercase text-gray-500 font-semibold mb-2">Días (Lunes a Viernes)</p>
                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {WEEKDAY_OPTIONS.map(day => (
+                                {["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"].map(day => (
                                   <label key={day} className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition ${selectedScheduleDays[day] ? 'bg-brand-gold/10 border-brand-gold/60' : 'bg-gray-900 border-gray-800 hover:border-gray-700'}`}>
                                     <input
                                       type="checkbox"
@@ -1923,11 +1937,19 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                               <p className="text-xs uppercase text-gray-500 font-semibold">Rango habitual</p>
                               <div className="flex items-center gap-3">
                                 <div className="flex-1">
-                                  <TimeDropdown value={scheduleRange.start} onChange={val => handleScheduleRangeChange('start', val)} label="Inicio" />
+                                  <TimeDropdown 
+                                    value={scheduleRange.start} 
+                                    onChange={val => handleScheduleRangeChange('start', val)} 
+                                    label="Inicio" 
+                                  />
                                 </div>
                                 <span className="text-gray-500 text-sm">a</span>
                                 <div className="flex-1">
-                                  <TimeDropdown value={scheduleRange.end} onChange={val => handleScheduleRangeChange('end', val)} label="Fin" />
+                                  <TimeDropdown 
+                                    value={scheduleRange.end} 
+                                    onChange={val => handleScheduleRangeChange('end', val)} 
+                                    label="Fin" 
+                                  />
                                 </div>
                               </div>
                               <p className="text-xs text-gray-500">Se aplica el mismo rango a todos los días seleccionados.</p>
@@ -1944,11 +1966,13 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                             <p className="text-xs uppercase text-gray-500 font-semibold">Resumen</p>
                             <div className="flex flex-wrap gap-2">
                               {editMember.habitualSchedules && editMember.habitualSchedules.length > 0 ? (
-                                editMember.habitualSchedules.map(sch => (
-                                  <span key={sch.day} className="px-3 py-2 rounded-full bg-brand-gold/10 text-brand-gold text-sm border border-brand-gold/40">
-                                    {sch.day}: {sch.start} - {sch.end}
-                                  </span>
-                                ))
+                                editMember.habitualSchedules
+                                  .filter(sch => ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"].includes(sch.day))
+                                  .map(sch => (
+                                    <span key={sch.day} className="px-3 py-2 rounded-full bg-brand-gold/10 text-brand-gold text-sm border border-brand-gold/40">
+                                      {sch.day}: {sch.start} - {sch.end}
+                                    </span>
+                                  ))
                               ) : (
                                 <span className="text-gray-500 text-sm">Sin horarios asignados</span>
                               )}
