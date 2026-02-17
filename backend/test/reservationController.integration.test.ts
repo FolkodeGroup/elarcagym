@@ -23,6 +23,7 @@ describe('Integración: reservas', () => {
       },
       member: {
         findUnique: vi.fn(),
+        findMany: vi.fn(),
       }
     };
     app = express();
@@ -35,7 +36,8 @@ describe('Integración: reservas', () => {
   });
 
   it('crea una reserva exitosamente', async () => {
-    prisma.slot.findUnique.mockResolvedValue({ id: 's1', status: 'available' });
+    prisma.slot.findUnique.mockResolvedValue({ id: 's1', status: 'available', date: new Date('2026-02-05T10:00:00.000Z'), time: '10:00' });
+    prisma.member.findMany = vi.fn().mockResolvedValue([]);
     prisma.reservation.findFirst.mockResolvedValue(null); // No hay reserva previa
     prisma.reservation.create.mockResolvedValue({ id: 'r1', memberId: 'm1', slotId: 's1' });
     prisma.slot.update.mockResolvedValue({ id: 's1', status: 'reserved' });
@@ -47,7 +49,8 @@ describe('Integración: reservas', () => {
   });
 
   it('no permite reservas duplicadas', async () => {
-    prisma.slot.findUnique.mockResolvedValue({ id: 's1', status: 'available' });
+    prisma.slot.findUnique.mockResolvedValue({ id: 's1', status: 'available', date: new Date('2026-02-05T10:00:00.000Z'), time: '10:00' });
+    prisma.member.findMany = vi.fn().mockResolvedValue([]);
     prisma.reservation.findFirst.mockResolvedValue({ id: 'r1', memberId: 'm1', slotId: 's1' });
     const res = await request(app)
       .post('/reservations')
