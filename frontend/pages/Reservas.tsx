@@ -43,8 +43,27 @@ const Reservas: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   
   const { setCanNavigate } = useNavigation();
-  // Mostrar desde las 07:00 hasta las 23:00 inclusive
-  const hours = Array.from({ length: 17 }, (_, i) => i + 7);
+  
+  // Obtener horarios permitidos según el día de la semana
+  const getHoursForDate = (dateStr: string): number[] => {
+    const date = new Date(dateStr + 'T12:00:00'); // Agregar hora para evitar problemas de timezone
+    const dayOfWeek = date.getDay(); // 0=Domingo, 1=Lunes, ..., 6=Sábado
+    
+    // Lunes a Viernes (1-5): 08:00 a 22:00
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      return Array.from({ length: 15 }, (_, i) => i + 8); // 8 a 22 (15 horas)
+    }
+    // Sábado (6): 10:00 a 17:00
+    else if (dayOfWeek === 6) {
+      return Array.from({ length: 8 }, (_, i) => i + 10); // 10 a 17 (8 horas)
+    }
+    // Domingo (0): Sin horarios
+    else {
+      return [];
+    }
+  };
+  
+  const hours = getHoursForDate(selectedDate);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -311,7 +330,18 @@ const Reservas: React.FC = () => {
 
       {/* GRILLA */}
       <div className="flex-1 overflow-y-auto bg-[#111] border border-gray-800 rounded-xl custom-scrollbar relative">
-        {hours.map(hour => {
+        {hours.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="text-center">
+              <Info size={48} className="mx-auto mb-4 text-gray-600" />
+              <p className="text-lg font-bold">Gimnasio cerrado los domingos</p>
+              <p className="text-sm mt-2">El gimnasio está abierto:</p>
+              <p className="text-sm text-brand-gold">Lunes a Viernes: 08:00 - 22:00</p>
+              <p className="text-sm text-brand-gold">Sábados: 10:00 - 17:00</p>
+            </div>
+          </div>
+        ) : (
+          hours.map(hour => {
             const timeLabel = `${hour.toString().padStart(2, '0')}:00`;
             const slot = dateSlots.find(s => s.time === timeLabel);
             const allReservationsForHour = getReservationsForHour(hour);
@@ -459,7 +489,8 @@ const Reservas: React.FC = () => {
                     </div>
                 </div>
             );
-        })}
+        })
+        )}
       </div>
 
       {/* MODAL: ADMINISTRAR CUPO */}
