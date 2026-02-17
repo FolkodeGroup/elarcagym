@@ -71,7 +71,7 @@ export function hasScheduleException(
   return member.scheduleExceptions.some((exception: any) => {
     const exceptionDate = typeof exception.date === 'string' 
       ? exception.date.split('T')[0] 
-      : new Date(exception.date).toISOString().split('T')[0];
+      : new Date(exception.date).toLocaleDateString('sv-SE', { timeZone: 'America/Argentina/Buenos_Aires' });
     return exceptionDate === date;
   });
 }

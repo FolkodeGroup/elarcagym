@@ -6,6 +6,7 @@ import Toast from '../components/Toast';
 import { useLanguage } from '../contexts/LanguageContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getLocalISODate, formatDisplayDate } from '../services/dateUtils';
 
 // Tipo unificado para mostrar ventas y pagos de membresía juntos
 interface IncomeItem {
@@ -26,8 +27,9 @@ const Ingresos = () => {
     const [totalGeneral, setTotalGeneral] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
     const [filtroFecha, setFiltroFecha] = useState<string>(() => {
-        return new Date().toISOString().split('T')[0];
+        return getLocalISODate();
     });
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [itemAEliminar, setItemAEliminar] = useState<IncomeItem | null>(null);
@@ -46,10 +48,10 @@ const Ingresos = () => {
             setVentas(todasLasVentas);
             setPagos(todosLosPagos);
 
-            const hoy = new Date().toISOString().split('T')[0];
+            const hoy = getLocalISODate();
             
-            const ventasHoy = todasLasVentas.filter(v => new Date(v.date).toISOString().split('T')[0] === hoy);
-            const pagosHoy = todosLosPagos.filter(p => new Date(p.date).toISOString().split('T')[0] === hoy);
+            const ventasHoy = todasLasVentas.filter(v => getLocalISODate(v.date) === hoy);
+            const pagosHoy = todosLosPagos.filter(p => getLocalISODate(p.date) === hoy);
 
             const totalDia = ventasHoy.reduce((acc, v) => acc + v.total, 0) + pagosHoy.reduce((acc, p) => acc + p.amount, 0);
             const totalG = todasLasVentas.reduce((acc, v) => acc + v.total, 0) + todosLosPagos.reduce((acc, p) => acc + p.amount, 0);
@@ -65,13 +67,7 @@ const Ingresos = () => {
     };
 
     const formatearFecha = (fecha: string) => {
-        return new Date(fecha).toLocaleDateString('es-AR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return formatDisplayDate(fecha);
     };
 
     const eliminarItem = (item: IncomeItem) => {
@@ -206,21 +202,21 @@ const Ingresos = () => {
         const finalY = (doc as any).lastAutoTable.finalY + 10;
         doc.text(`${t('total')}: $${totalFiltrado.toFixed(2)}`, pageWidth - 15, finalY, { align: 'right' });
         
-        doc.save(`ingresos-${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`ingresos-${getLocalISODate()}.pdf`);
         setToast({ message: t('reporteDescargadoCorrectamente'), type: 'success' });
     };
 
     // Combinar ventas y pagos en una lista unificada
     const buildIncomeItems = (): IncomeItem[] => {
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = getLocalISODate();
         
         const ventasFiltradas = filtroFecha 
-            ? ventas.filter(v => new Date(v.date).toISOString().split('T')[0] === filtroFecha)
-            : ventas.filter(v => new Date(v.date).toISOString().split('T')[0] === hoy);
+            ? ventas.filter(v => getLocalISODate(v.date) === filtroFecha)
+            : ventas.filter(v => getLocalISODate(v.date) === hoy);
         
         const pagosFiltrados = filtroFecha
-            ? pagos.filter(p => new Date(p.date).toISOString().split('T')[0] === filtroFecha)
-            : pagos.filter(p => new Date(p.date).toISOString().split('T')[0] === hoy);
+            ? pagos.filter(p => getLocalISODate(p.date) === filtroFecha)
+            : pagos.filter(p => getLocalISODate(p.date) === hoy);
 
         const items: IncomeItem[] = [
             ...ventasFiltradas.map(v => ({
@@ -306,11 +302,11 @@ const Ingresos = () => {
                     </button>
                     <button
                         onClick={() => {
-                            const hoy = new Date().toISOString().split('T')[0];
+                            const hoy = getLocalISODate();
                             setFiltroFecha(hoy);
                         }}
                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                            filtroFecha === new Date().toISOString().split('T')[0]
+                            filtroFecha === getLocalISODate()
                                 ? 'bg-green-600 text-white'
                                 : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                         }`}
