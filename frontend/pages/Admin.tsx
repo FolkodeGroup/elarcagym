@@ -43,12 +43,15 @@ const Admin: React.FC = () => {
         loadConfig();
     }, []);
 
-    // Gestión de edición/eliminación de categorías
+    // Gestión de edición/eliminación/creación de categorías
     const [showCategoryManager, setShowCategoryManager] = useState(false);
     const [editingCategory, setEditingCategory] = useState<string | null>(null);
     const [editCategoryValue, setEditCategoryValue] = useState('');
     const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
     const [reassignCategory, setReassignCategory] = useState('OTHER');
+    // Modal para nueva categoría
+    const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
+    const [newCategoryValue, setNewCategoryValue] = useState('');
 
     // Actualizar productos al editar/eliminar categoría
     const updateProductsCategory = (oldCat: string, newCat: string) => {
@@ -299,19 +302,48 @@ const Admin: React.FC = () => {
                                     </ul>
                                     <button className="mt-2 px-4 py-2 rounded bg-gray-700 text-white w-full cursor-pointer" onClick={() => setShowCategoryManager(false)}>Cerrar</button>
                                     <button className="mt-2 px-4 py-2 rounded bg-brand-gold text-black w-full font-bold cursor-pointer" onClick={() => {
-                                        const newCatName = prompt('Nombre de la nueva categoría:');
-                                        if (newCatName && newCatName.trim()) {
-                                            const formatted = newCatName.trim().toUpperCase();
-                                            if (!categories.includes(formatted)) {
-                                                const updated = [...categories, formatted];
-                                                setCategories(updated);
-                                                localStorage.setItem('categories', JSON.stringify(updated));
-                                                setToast({ message: `Categoría "${formatted}" agregada.`, type: 'success' });
-                                            } else {
-                                                setToast({ message: 'Esa categoría ya existe.', type: 'error' });
-                                            }
-                                        }
+                                        setShowNewCategoryModal(true);
+                                        setNewCategoryValue('');
                                     }}>+ Nueva Categoría</button>
+                                                        {/* Modal nueva categoría */}
+                                                        {showNewCategoryModal && (
+                                                            <div className="fixed inset-0 z-60 flex items-center justify-center">
+                                                                <div className="absolute inset-0 bg-black/70" onClick={() => setShowNewCategoryModal(false)} />
+                                                                <div className="bg-[#111] p-6 rounded-lg border border-gray-800 z-20 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                                                                    <h4 className="text-lg font-bold mb-2 text-white">Nueva categoría</h4>
+                                                                    <input
+                                                                        className="w-full bg-black border border-gray-700 p-2 rounded text-white mb-3 uppercase"
+                                                                        value={newCategoryValue}
+                                                                        onChange={e => setNewCategoryValue(e.target.value.toUpperCase())}
+                                                                        placeholder="Ej: PROTEÍNAS, BEBIDAS, ROPA..."
+                                                                        maxLength={50}
+                                                                        autoFocus
+                                                                    />
+                                                                    <div className="flex gap-2 justify-end">
+                                                                        <button className="px-4 py-2 rounded bg-gray-700 text-white cursor-pointer" onClick={() => setShowNewCategoryModal(false)}>Cancelar</button>
+                                                                        <button
+                                                                            className="px-4 py-2 rounded bg-brand-gold text-black cursor-pointer font-bold"
+                                                                            onClick={() => {
+                                                                                const formatted = newCategoryValue.trim().toUpperCase();
+                                                                                if (!formatted) {
+                                                                                    setToast({ message: 'El nombre es requerido', type: 'error' });
+                                                                                    return;
+                                                                                }
+                                                                                if (!categories.includes(formatted)) {
+                                                                                    const updated = [...categories, formatted];
+                                                                                    setCategories(updated);
+                                                                                    localStorage.setItem('categories', JSON.stringify(updated));
+                                                                                    setToast({ message: `Categoría "${formatted}" agregada.`, type: 'success' });
+                                                                                    setShowNewCategoryModal(false);
+                                                                                } else {
+                                                                                    setToast({ message: 'Esa categoría ya existe.', type: 'error' });
+                                                                                }
+                                                                            }}
+                                                                        >Guardar</button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                 </div>
                             </div>
                         )}
