@@ -13,8 +13,21 @@ export default function(prisma: any) {
   // Crear un producto
   router.post('/', async (req, res) => {
     try {
-      const product = await prisma.product.create({ data: req.body });
-      
+      const { name, price, category, stock, imageUrl } = req.body;
+      // Validaciones estrictas
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ error: 'El nombre es obligatorio.' });
+      }
+      if (!category || typeof category !== 'string' || !category.trim()) {
+        return res.status(400).json({ error: 'La categoría es obligatoria.' });
+      }
+      if (price === undefined || isNaN(Number(price)) || Number(price) <= 0) {
+        return res.status(400).json({ error: 'El precio debe ser mayor a 0.' });
+      }
+      if (stock === undefined || isNaN(Number(stock)) || Number(stock) < 0) {
+        return res.status(400).json({ error: 'El stock debe ser 0 o mayor.' });
+      }
+      const product = await prisma.product.create({ data: { name: name.trim(), price: Number(price), category, stock: Number(stock), imageUrl } });
       // Notificar a admins
       try {
         await sendNotificationToAdmins({
@@ -26,7 +39,6 @@ export default function(prisma: any) {
       } catch (err) {
         console.error('Error enviando notificación:', err);
       }
-      
       res.status(201).json(product);
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
