@@ -552,6 +552,10 @@ const Admin: React.FC = () => {
                             <div className="flex gap-3 pt-4">
                                 <button className="flex-1 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold" onClick={() => setShowAddModal(false)}>CANCELAR</button>
                                 <button className="flex-1 py-3 rounded-xl bg-brand-gold text-black font-black uppercase tracking-tighter shadow-lg shadow-brand-gold/10" onClick={async () => {
+                                    // Validación de campos obligatorios
+                                    const name = newProductForm.name.trim();
+                                    const price = Number(newProductForm.price);
+                                    const stock = Number(newProductForm.stock);
                                     let categoryToUse = newProductForm.category;
                                     if (addingNewCategory && newProductForm.newCategory.trim()) {
                                         categoryToUse = newProductForm.newCategory.trim().toUpperCase();
@@ -561,8 +565,24 @@ const Admin: React.FC = () => {
                                             localStorage.setItem('categories', JSON.stringify(updated));
                                         }
                                     }
+                                    if (!name) {
+                                        setToast({ message: 'El nombre es obligatorio.', type: 'error' });
+                                        return;
+                                    }
+                                    if (!categoryToUse) {
+                                        setToast({ message: 'La categoría es obligatoria.', type: 'error' });
+                                        return;
+                                    }
+                                    if (!newProductForm.price || isNaN(price) || price <= 0) {
+                                        setToast({ message: 'El precio debe ser mayor a 0.', type: 'error' });
+                                        return;
+                                    }
+                                    if (!newProductForm.stock || isNaN(stock) || stock < 0) {
+                                        setToast({ message: 'El stock debe ser 0 o mayor.', type: 'error' });
+                                        return;
+                                    }
                                     try {
-                                        await ProductsAPI.create({ name: newProductForm.name, price: Number(newProductForm.price), category: categoryToUse as 'SUPPLEMENT' | 'DRINK' | 'MERCHANDISE' | 'OTHER', stock: Number(newProductForm.stock), imageUrl: newProductForm.imageUrl || undefined });
+                                        await ProductsAPI.create({ name, price, category: categoryToUse as 'SUPPLEMENT' | 'DRINK' | 'MERCHANDISE' | 'OTHER', stock, imageUrl: newProductForm.imageUrl || undefined });
                                         await loadInventory();
                                         setToast({ message: `Producto agregado.`, type: 'success' });
                                         setShowAddModal(false);
