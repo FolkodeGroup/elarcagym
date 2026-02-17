@@ -57,6 +57,7 @@ function getSlotTimeInUTC(slot: { date: Date | string; time: string }): Date {
 function isWithinAccessWindow(slot: { date: Date | string; time: string }, now: Date = new Date()): boolean {
   const slotTimeUTC = getSlotTimeInUTC(slot);
   const diffMs = now.getTime() - slotTimeUTC.getTime();
+  console.log('[ACCESS WINDOW] now:', now.toISOString(), 'slotTimeUTC:', slotTimeUTC.toISOString(), 'diffMs:', diffMs, 'WINDOW_MS:', WINDOW_MS);
   // Permitir acceso desde el inicio del turno hasta 2 horas después
   return diffMs >= 0 && diffMs <= WINDOW_MS;
 }
@@ -207,28 +208,49 @@ export default function(prisma: any) {
         console.log('[SELFSERVICE] Reservas virtuales generadas:', virtualReservations.length);
       }
 
+
+      // Separar reservas manuales y virtuales
+      const manualReservations = combinedReservations.filter((r: any) => !r.isVirtual);
+      const virtualReservations = combinedReservations.filter((r: any) => r.isVirtual);
+
       let reservation: any = undefined;
       let allowAccess = false;
 
-      // Buscar reserva (manual o virtual) activa
-      reservation = combinedReservations.find((r: any) => {
-        if (r.accessedAt) {
-          const accessedAt = new Date(r.accessedAt);
-          const diffMs = now.getTime() - accessedAt.getTime();
-          return diffMs >= 0 && diffMs <= WINDOW_MS;
-        }
-        // Para virtuales, no hay accessedAt
-        if (r.isVirtual) {
+      if (manualReservations.length > 0) {
+        // Si hay reservas manuales, solo considerar esas
+        reservation = manualReservations.find((r: any) => {
+          if (r.accessedAt) {
+            const accessedAt = new Date(r.accessedAt);
+            const diffMs = now.getTime() - accessedAt.getTime();
+            console.log('[SELFSERVICE] Reserva manual con accessedAt:', {
+              now: now.toISOString(),
+              accessedAt: accessedAt.toISOString(),
+              diffMs,
+              WINDOW_MS
+            });
+            return diffMs >= 0 && diffMs <= WINDOW_MS;
+          }
+          // Para manuales sin accessedAt
+          return isWithinAccessWindow(r.slot, now);
+        });
+      } else {
+        // Si no hay manuales, considerar virtuales
+        reservation = virtualReservations.find((r: any) => {
           // Validar si la hora habitual está dentro de la ventana de acceso
           const [h, m] = r.slot.time.split(':');
           const slotDateTime = new Date(now);
           slotDateTime.setHours(Number(h), Number(m), 0, 0);
           const diffMs = now.getTime() - slotDateTime.getTime();
+          console.log('[SELFSERVICE] Reserva virtual:', {
+            now: now.toISOString(),
+            slotTime: slotDateTime.toISOString(),
+            habitual: r.slot.time,
+            diffMs,
+            WINDOW_MS
+          });
           return diffMs >= 0 && diffMs <= WINDOW_MS;
-        }
-        // Para manuales sin accessedAt
-        return isWithinAccessWindow(r.slot, now);
-      });
+        });
+      }
 
       if (reservation) {
         allowAccess = true;
