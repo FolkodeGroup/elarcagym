@@ -179,13 +179,37 @@ export default function(prisma: any) {
   router.post('/', async (req, res) => {
     try {
       const { slotId, memberId, clientName, clientPhone, clientEmail, notes } = req.body;
-      
+
+      // Validación explícita de datos requeridos
+      if (!slotId || (!memberId && !clientName)) {
+        return res.status(400).json({ error: 'slotId y (memberId o clientName) son requeridos' });
+      }
+
       // Verificar que el slot existe
       const slot = await prisma.slot.findUnique({ where: { id: slotId } });
       if (!slot) {
         return res.status(404).json({ error: 'Slot not found' });
       }
-      
+
+      // 1. Limitar a 15 personas por turno (manuales + virtuales)
+      // Formato YYYY-MM-DD para generateVirtualReservations
+      const dateStr = slot.date.toISOString().split('T')[0];
+      const membersForVirtuals = await prisma.member.findMany({
+        where: { status: 'ACTIVE' },
+        include: {
+          habitualSchedules: true,
+          scheduleExceptions: true
+        }
+      });
+
+      const virtualRes = generateVirtualReservations(membersForVirtuals, dateStr);
+      const virtualCountForThisTime = virtualRes.filter((v: any) => v.time === slot.time).length;
+      const manualCountForThisSlot = await prisma.reservation.count({ where: { slotId } });
+
+      if (virtualCountForThisTime + manualCountForThisSlot >= 15) {
+        return res.status(400).json({ error: 'Cupo completo. El límite es de 15 personas por turno.' });
+      }
+
       // Verificar que el miembro no tenga ya una reserva en este slot
       if (memberId) {
         const existingReservation = await prisma.reservation.findFirst({
@@ -195,7 +219,7 @@ export default function(prisma: any) {
           return res.status(409).json({ error: 'Member already has a reservation in this slot' });
         }
       }
-      
+
       const reservation = await prisma.reservation.create({
         data: {
           slotId,
@@ -218,16 +242,17 @@ export default function(prisma: any) {
           slot: true
         }
       });
-      
+
       // Actualizar estado del slot
       await prisma.slot.update({
         where: { id: slotId },
         data: { status: 'reserved' }
       });
-      
+
       res.status(201).json(reservation);
     } catch (e) {
-      res.status(400).json({ error: (e as Error).message });
+      console.error('Error en POST /reservations:', e);
+      res.status(500).json({ error: (e as Error).message });
     }
   });
 
