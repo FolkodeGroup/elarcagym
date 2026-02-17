@@ -245,6 +245,38 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
         setIsDirty(true);
   };
 
+  const handleRemoveDay = (dayIndex: number) => {
+    // No permitir eliminar si solo hay un día
+    if (routineDays.length <= 1) {
+      setToast({ message: 'Debe haber al menos un día de entrenamiento', type: 'error' });
+      return;
+    }
+
+    // Eliminar el día
+    const updatedDays = routineDays.filter((_, idx) => idx !== dayIndex);
+    
+    // Renumerar los días
+    const renumberedDays = updatedDays.map((day, idx) => ({
+      ...day,
+      dayName: `Día ${idx + 1}`
+    }));
+
+    setRoutineDays(renumberedDays);
+
+    // Ajustar el índice activo
+    if (activeDayIndex >= renumberedDays.length) {
+      // Si el día activo era el último, mover al nuevo último
+      setActiveDayIndex(renumberedDays.length - 1);
+    } else if (activeDayIndex >= dayIndex) {
+      // Si el día activo estaba después del eliminado, ajustar el índice
+      setActiveDayIndex(Math.max(0, activeDayIndex - 1));
+    }
+    // Si el día activo está antes del eliminado, no hacer nada
+
+    setIsDirty(true);
+    setToast({ message: 'Día eliminado correctamente', type: 'success' });
+  };
+
   const handleAddExerciseToDay = (e: React.FormEvent) => {
     e.preventDefault();
     if(!selectedExerciseId) {
@@ -576,15 +608,30 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
                 </div>
                 <div className="space-y-2 max-h-[200px] overflow-y-auto">
                         {routineDays.map((day, idx) => (
-                        <button
+                        <div
                             key={idx}
-                            onClick={() => attemptChangeDay(idx)}
-                            className={`w-full text-left p-3 rounded flex justify-between items-center transition-colors
+                            className={`w-full p-3 rounded flex justify-between items-center transition-colors group
                                 ${activeDayIndex === idx ? 'bg-brand-gold text-black font-bold' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                         >
-                            <span>{day.dayName}</span>
-                            <span className="text-xs opacity-70">{day.exercises.length} Ej.</span>
-                        </button>
+                            <button
+                                onClick={() => attemptChangeDay(idx)}
+                                className="flex-1 text-left flex justify-between items-center"
+                            >
+                                <span>{day.dayName}</span>
+                                <span className="text-xs opacity-70">{day.exercises.length} Ej.</span>
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveDay(idx);
+                                }}
+                                className={`ml-2 opacity-0 group-hover:opacity-100 transition-opacity
+                                    ${activeDayIndex === idx ? 'text-black hover:text-red-600' : 'text-gray-400 hover:text-red-500'}`}
+                                title="Eliminar día"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
                     ))}
                 </div>
             </div>
