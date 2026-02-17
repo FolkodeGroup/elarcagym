@@ -29,6 +29,19 @@ export default function(prisma: any) {
   router.post('/', async (req, res) => {
     try {
       const payment = await prisma.paymentLog.create({ data: req.body });
+      
+      // Si el pago está asociado a un socio, actualizar su estado a ACTIVE si es necesario
+      if (req.body.memberId) {
+        const member = await prisma.member.findUnique({ where: { id: req.body.memberId } });
+        if (member && (member.status === 'DEBTOR' || member.status === 'INACTIVE' || member.status === 'PENDIENTE')) {
+          await prisma.member.update({
+            where: { id: req.body.memberId },
+            data: { status: 'ACTIVE' }
+          });
+          console.log(`[PAYMENT] Estado del socio ${member.firstName} ${member.lastName} actualizado de ${member.status} a ACTIVE`);
+        }
+      }
+      
       res.status(201).json(payment);
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
