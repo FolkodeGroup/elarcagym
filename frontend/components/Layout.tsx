@@ -268,7 +268,8 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                  </div>
 
                  <div className="py-2">
-                   {/* Preferencias */}
+                   {/* Preferencias (Oculto por requerimiento, código preservado) */}
+                   {false && (
                    <button
                      onClick={() => {
                        setShowPreferences(true);
@@ -287,6 +288,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
                        <p className="text-xs text-gray-400">{t('temaIdioma')}</p>
                      </div>
                    </button>
+                   )}
 
                    {/* Respaldos */}
                    <button

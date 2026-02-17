@@ -141,12 +141,12 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
 
   // Get sorted and filtered members for member search
   const filteredMembers = useMemo(() => {
-    const search = (memberSearchText ?? '').toLowerCase().trim();
+    const term = (memberSearchText ?? '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     let result = members.filter(m => {
-      const fullName = `${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase();
-      const searchName = `${m.lastName ?? ''} ${m.firstName ?? ''}`.toLowerCase();
+      const fullName = `${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const alternativeName = `${m.lastName ?? ''} ${m.firstName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const email = (m.email ?? '').toLowerCase();
-      return fullName.includes(search) || searchName.includes(search) || email.includes(search);
+      return fullName.includes(term) || alternativeName.includes(term) || email.includes(term) || (m.dni && m.dni.includes(term));
     });
     // Sort by firstName, then lastName
     return result.sort((a, b) => {

@@ -207,10 +207,12 @@ HORARIOS
         setIsDirty(true);
     };
 
-    const filteredMembers = members.filter(m => 
-        (`${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().includes(searchMember?.toLowerCase() ?? '')) ||
-        (m.dni && m.dni.includes(searchMember))
-    );
+    const filteredMembers = members.filter(m => {
+        const term = searchMember?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') ?? '';
+        const fullName = `${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const alternativeName = `${m.lastName ?? ''} ${m.firstName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return fullName.includes(term) || alternativeName.includes(term) || (m.dni && m.dni.includes(term));
+    });
 
     const selectedMember = members.find(m => m.id === selectedMemberId);
 
@@ -339,6 +341,42 @@ HORARIOS
                                 </div>
                             )}
                         </div>
+                        {/* Lista compacta de socios activos debajo del buscador */}
+                        {!selectedMember && (
+                            <div className="w-full mt-2">
+                                <div className="bg-[#181818] border border-gray-800 rounded-xl shadow-inner overflow-hidden">
+                                    {filteredMembers.length > 0 ? (
+                                        <div className="divide-y divide-gray-800">
+                                            {[...filteredMembers]
+                                                .filter(m => m.status === 'ACTIVE')
+                                                .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`))
+                                                .slice(0, 8)
+                                                .map(m => (
+                                                    <button
+                                                        key={m.id}
+                                                        onClick={() => handleMemberSelect(m.id, `${m.firstName} ${m.lastName}`)}
+                                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-brand-gold/10 transition-all group text-left"
+                                                    >
+                                                        <span className="inline-block w-8 h-8 rounded-full overflow-hidden bg-gray-700 border border-gray-600 flex-shrink-0">
+                                                            {m.photoUrl ? (
+                                                                <img src={m.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <span className="flex items-center justify-center w-full h-full text-2xl">🦁</span>
+                                                            )}
+                                                        </span>
+                                                        <span className="flex-1 truncate">
+                                                            <span className="text-white font-bold group-hover:text-brand-gold transition-colors">{m.lastName}, {m.firstName}</span>
+                                                            <span className="block text-[10px] text-gray-500 font-black uppercase tracking-widest">{m.dni || 'Sin DNI'}</span>
+                                                        </span>
+                                                    </button>
+                                                ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-gray-500 text-xs py-4 text-center">No se encontraron socios activos.</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {selectedMember && (
@@ -461,6 +499,7 @@ HORARIOS
                     )}
                 </div>
             </div>
+
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </div>
