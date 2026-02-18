@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Dumbbell, 
   Users, 
@@ -23,7 +23,8 @@ import {
   Apple,
   User,
   UserCog,
-  Clock
+  Clock,
+  ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from './Toast';
@@ -33,6 +34,9 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { UserStatus } from '../types';
 import { QrCode } from 'lucide-react'; // Asegúrate de tener este import
 import { LOGO_BASE64 } from '../services/assets';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { SalesAPI, PaymentLogsAPI, MembersAPI, ReservationsAPI } from '../services/api';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -56,6 +60,76 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
   const { language, setLanguage, t } = useLanguage();
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null);
   const { user, isAdmin, hasPermission, hasAnyPermission } = useAuth();
+  const [activeReport, setActiveReport] = useState<string | null>(null);
+  const [reportData, setReportData] = useState<any>(null); // Para guardar los datos antes de exportar
+  const [totalHoy, setTotalHoy] = useState(0);
+  const [ventasHoyList, setVentasHoyList] = useState<any[]>([]);
+  const [statsReporte, setStatsReporte] = useState({
+  activos: 0,
+  nuevosMes: 0,
+  bajas: 0,
+  total: 0
+  });
+  const [pagosMesList, setPagosMesList] = useState<any[]>([]);
+  const [ocupacionStats, setOcupacionStats] = useState({ porcentaje: 0, totalTurnos: 0, asistencias: 0 });
+
+useEffect(() => {
+  const cargarDatosReporte = async () => {
+    if (!showReports) return;
+    try {
+      const [ventas, pagos, socios, reservas] = await Promise.all([
+        SalesAPI.list().catch(() => []),
+        PaymentLogsAPI.list().catch(() => []),
+        MembersAPI.list().catch(() => []),
+        ReservationsAPI.list().catch(() => [])
+      ]);
+
+      const ahora = new Date();
+      const hoyStr = ahora.toISOString().split('T')[0];
+      const mesActual = ahora.getMonth();
+      const anioActual = ahora.getFullYear();
+
+      // --- INGRESOS MENSUALES (Pagos de este mes) ---
+      const pMes = pagos.filter((p: any) => {
+        const d = new Date(p.date);
+        return d.getMonth() === mesActual && d.getFullYear() === anioActual;
+      });
+      setPagosMesList(pMes);
+
+      // --- RECAUDACIÓN DE HOY (Ventas + Pagos hoy) ---
+      const vHoyTotal = ventas.filter((v: any) => v.date?.split('T')[0] === hoyStr).reduce((acc: number, v: any) => acc + v.total, 0);
+      const pHoyTotal = pagos.filter((p: any) => p.date?.split('T')[0] === hoyStr).reduce((acc: number, p: any) => acc + p.amount, 0);
+      setTotalHoy(vHoyTotal + pHoyTotal);
+
+      // --- OCUPACIÓN (Reservas de hoy) ---
+      const resHoy = reservas.filter((r: any) => {
+        // Asumiendo que r.slot.date o r.date es la fecha
+        const fechaRes = r.slot?.date || r.date;
+        return fechaRes?.split('T')[0] === hoyStr;
+      });
+      const asistencias = resHoy.filter((r: any) => r.attended === true).length;
+      const porcentaje = resHoy.length > 0 ? Math.round((asistencias / resHoy.length) * 100) : 0;
+      setOcupacionStats({ porcentaje, totalTurnos: resHoy.length, asistencias });
+
+      // --- AFILIACIONES ---
+      const nuevos = socios.filter((s: any) => {
+        const d = new Date(s.joinDate);
+        return d.getMonth() === mesActual && d.getFullYear() === anioActual;
+      }).length;
+      setStatsReporte({
+        activos: socios.filter((s: any) => s.status === 'ACTIVE').length,
+        nuevosMes: nuevos,
+        bajas: socios.filter((s: any) => s.status === 'INACTIVE').length,
+        total: socios.length
+      });
+
+      // --- VENTAS ---
+      setVentasHoyList(ventas.filter((v: any) => v.date?.split('T')[0] === hoyStr));
+
+    } catch (error) { console.error(error); }
+  };
+  cargarDatosReporte();
+}, [showReports]);
 
   // Mapeo de páginas a permisos requeridos
   const PAGE_PERMISSIONS: Record<string, string[]> = {
@@ -72,6 +146,130 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
     waitlist: ['members.view'],
     users_management: ['users.view'],
   };
+  const exportAllReportsPDF = async () => {
+  setToast({ message: "Generando reporte integral con diseño...", type: "info" });
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const hoy = new Date().toLocaleDateString();
+
+  // --- FUNCIÓN PARA EL DISEÑO IGUAL AL PLAN NUTRICIONAL ---
+  const aplicarDisenoPagina = (doc: any, tituloReporte: string) => {
+    // 1. Fondo Oscuro (#1a1a1a)
+    doc.setFillColor(26, 26, 26);
+    doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+    // 2. Marca de Agua GIGANTE (Ocupa el 80% del alto de la página)
+    doc.saveGraphicsState();
+    try {
+        // Opacidad muy sutil (0.08 como en el plan nutricional)
+        if (typeof (doc as any).GState === 'function') {
+            doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
+        }
+        const imgSize = pageHeight * 0.8; // TAMAÑO GIGANTE
+        const xCentered = (pageWidth - imgSize) / 2;
+        const yCentered = (pageHeight - imgSize) / 2;
+        
+        doc.addImage(LOGO_BASE64, 'PNG', xCentered, yCentered, imgSize, imgSize);
+    } catch (e) { console.warn("Error en marca de agua", e); }
+    doc.restoreGraphicsState();
+
+    // 3. Barras Doradas Decorativas
+    doc.setFillColor(212, 175, 55);
+    doc.rect(0, 0, pageWidth, 3, 'F'); // Superior
+    doc.rect(0, pageHeight - 5, pageWidth, 5, 'F'); // Inferior
+
+    // 4. Logo Corporativo (esquina superior derecha)
+    doc.addImage(LOGO_BASE64, 'PNG', pageWidth - 45, 8, 35, 25);
+
+    // 5. Títulos Principales
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(28);
+    doc.setTextColor(212, 175, 55); // Dorado
+    doc.text(tituloReporte, pageWidth / 2, 22, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.setTextColor(180, 180, 180); // Gris claro
+    doc.text("REPORTE INTEGRAL DE GESTIÓN", pageWidth / 2, 30, { align: "center" });
+    doc.text("EL ARCA - GYM & FITNESS", pageWidth / 2, 38, { align: "center" });
+
+    // Datos del pie de página
+    doc.setFontSize(8);
+    doc.setTextColor(212, 175, 55);
+    doc.text(`Generado por: ${user?.firstName || 'Admin'}`, 10, pageHeight - 8);
+    doc.text(`Fecha: ${hoy}`, pageWidth - 40, pageHeight - 8);
+  };
+
+  try {
+    const [ventas, pagos, socios] = await Promise.all([
+      SalesAPI.list().catch(() => []),
+      PaymentLogsAPI.list().catch(() => []),
+      MembersAPI.list().catch(() => [])
+    ]);
+
+    // --- PÁGINA 1: INGRESOS ---
+    aplicarDisenoPagina(doc, "INGRESOS DEL MES");
+    doc.setFontSize(14);
+    doc.setTextColor(212, 175, 55);
+    doc.text("Desglose de Membresías y Matrículas", 14, 55);
+
+    autoTable(doc, {
+      startY: 60,
+      head: [['Fecha', 'Socio', 'Concepto', 'Monto']],
+      body: pagos.map(p => [new Date(p.date).toLocaleDateString(), p.memberName || 'Socio', p.concept, `$${p.amount}`]),
+      theme: 'plain',
+      styles: { textColor: [255, 255, 255], fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [212, 175, 55], textColor: [0, 0, 0], fontStyle: 'bold' },
+    });
+
+    // --- PÁGINA 2: VENTAS ---
+    doc.addPage();
+    aplicarDisenoPagina(doc, "VENTAS DE PRODUCTOS");
+    doc.setFontSize(14);
+    doc.setTextColor(212, 175, 55);
+    doc.text("Resumen de Comercio / Shop", 14, 55);
+
+    autoTable(doc, {
+      startY: 60,
+      head: [['Fecha', 'Productos', 'Total']],
+      body: ventas.map(v => [new Date(v.date).toLocaleDateString(), v.items.map((i:any) => i.productName).join(", "), `$${v.total}`]),
+      theme: 'plain',
+      styles: { textColor: [255, 255, 255], fontSize: 9 },
+      headStyles: { fillColor: [212, 175, 55], textColor: [0, 0, 0], fontStyle: 'bold' }
+    });
+
+    // --- PÁGINA 3: AFILIACIONES ---
+    doc.addPage();
+    aplicarDisenoPagina(doc, "ESTADO DE SOCIOS");
+    doc.setFontSize(14);
+    doc.setTextColor(212, 175, 55);
+    doc.text("Resumen de la Comunidad", 14, 55);
+
+    const activos = socios.filter(s => s.status === 'ACTIVE').length;
+    const morosos = socios.filter(s => s.status === 'DEBTOR').length;
+
+    autoTable(doc, {
+      startY: 60,
+      head: [['Métrica', 'Valor']],
+      body: [
+          ['Socios Activos', activos],
+          ['Socios Morosos', morosos],
+          ['Socios Inactivos', socios.filter(s => s.status === 'INACTIVE').length],
+          ['TOTAL EN BASE DE DATOS', socios.length]
+      ],
+      theme: 'plain',
+      styles: { textColor: [255, 255, 255], fontSize: 11 },
+      headStyles: { fillColor: [212, 175, 55], textColor: [0, 0, 0], fontStyle: 'bold' }
+    });
+
+    doc.save(`Reporte_Integral_ArcaGym_${hoy.replace(/\//g, '-')}.pdf`);
+    setToast({ message: "Reporte generado con éxito", type: "success" });
+
+  } catch (error) {
+    console.error(error);
+    setToast({ message: "Error al generar el PDF", type: "error" });
+  }
+};
 
   const allMenuItems = [
     { id: 'dashboard', label: t('panelPrincipal'), icon: Activity },
@@ -623,46 +821,191 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 
         {/* Modal Reportes */}
         {showReports && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0b0b0b] border border-gray-800 rounded-lg max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                {activeReport && (
+                  <button 
+                      onClick={() => setActiveReport(null)}
+                      className="p-1 hover:bg-gray-800 rounded-full text-gray-400 transition"
+                  >
+                      <ChevronLeft size={24} />
+                  </button>
+                )}
                 <h3 className="text-2xl font-bold text-white flex items-center gap-2">
                   <BarChart3 className="text-purple-400" />
-                  Reportes
+                  {activeReport ? `Reporte: ${activeReport}` : "Reportes y Estadísticas"}
                 </h3>
-                <button onClick={() => setShowReports(false)} className="text-gray-400 hover:text-white">
-                  <X size={24} />
-                </button>
               </div>
-
-              <div className="space-y-3">
-                <button className="w-full bg-purple-600/20 border border-purple-700 p-4 rounded-lg text-left hover:bg-purple-600/40 transition">
-                  <p className="text-white font-semibold">📊 Reporte de Ingresos Mensuales</p>
-                  <p className="text-xs text-gray-400">Analiza tus ingresos por mes</p>
-                </button>
-
-                <button className="w-full bg-purple-600/20 border border-purple-700 p-4 rounded-lg text-left hover:bg-purple-600/40 transition">
-                  <p className="text-white font-semibold">💰 Reporte de Ventas</p>
-                  <p className="text-xs text-gray-400">Detalles de productos vendidos</p>
-                </button>
-
-                <button className="w-full bg-purple-600/20 border border-purple-700 p-4 rounded-lg text-left hover:bg-purple-600/40 transition">
-                  <p className="text-white font-semibold">👥 Reporte de Afiliaciones</p>
-                  <p className="text-xs text-gray-400">Nuevos miembros y cancelaciones</p>
-                </button>
-
-                <button className="w-full bg-purple-600/20 border border-purple-700 p-4 rounded-lg text-left hover:bg-purple-600/40 transition">
-                  <p className="text-white font-semibold">📈 Reporte de Ocupación</p>
-                  <p className="text-xs text-gray-400">Uso de reservas y horarios</p>
-                </button>
-
-                <button className="w-full bg-purple-600 text-white py-2 rounded-lg font-bold hover:bg-purple-700 transition mt-4">
-                  📥 Exportar Reportes PDF
-                </button>
-              </div>
+              <button onClick={() => { setShowReports(false); setActiveReport(null); }} className="text-gray-400 hover:text-white">
+                <X size={24} />
+              </button>
             </div>
+
+            {!activeReport ? (
+              // --- VISTA DE MENÚ PRINCIPAL ---
+              <div className="space-y-3">
+                <button 
+                  onClick={() => setActiveReport("Ingresos")}
+                  className="w-full bg-purple-600/10 border border-purple-700/30 p-4 rounded-lg text-left hover:bg-purple-600/20 transition group"
+                >
+                  <p className="text-white font-semibold group-hover:text-purple-300">📊 Reporte de Ingresos Mensuales</p>
+                  <p className="text-xs text-gray-400">Ver pagos de cuotas y matrículas del mes actual</p>
+                </button>
+
+                <button 
+                  onClick={() => setActiveReport("Ventas")}
+                  className="w-full bg-purple-600/10 border border-purple-700/30 p-4 rounded-lg text-left hover:bg-purple-600/20 transition group"
+                >
+                  <p className="text-white font-semibold group-hover:text-purple-300">💰 Reporte de Ventas</p>
+                  <p className="text-xs text-gray-400">Detalles de suplementos y productos vendidos</p>
+                </button>
+
+                <button 
+                  onClick={() => setActiveReport("Afiliaciones")}
+                  className="w-full bg-purple-600/10 border border-purple-700/30 p-4 rounded-lg text-left hover:bg-purple-600/20 transition group"
+                >
+                  <p className="text-white font-semibold group-hover:text-purple-300">👥 Reporte de Afiliaciones</p>
+                  <p className="text-xs text-gray-400">Nuevos miembros activos vs bajas</p>
+                </button>
+
+                <button 
+                  onClick={() => setActiveReport("Ocupación")}
+                  className="w-full bg-purple-600/10 border border-purple-700/30 p-4 rounded-lg text-left hover:bg-purple-600/20 transition group"
+                >
+                  <p className="text-white font-semibold group-hover:text-purple-300">📈 Reporte de Ocupación</p>
+                  <p className="text-xs text-gray-400">Uso de turnos y niveles de asistencia</p>
+                </button>
+
+                <button 
+                  onClick={exportAllReportsPDF}
+                  className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition mt-4 flex items-center justify-center gap-2"
+                >
+                  <Download size={20} />
+                  Exportar Reportes PDF
+                </button>
+              </div>
+            ) : (
+              // --- VISTA DE DETALLE DESPLEGADA ---
+              <div className="bg-gray-900/40 p-6 rounded-xl border border-gray-800 border-t-4 border-t-purple-500">
+                  {activeReport === "Ingresos" && (
+                  <div className="text-gray-300">
+                    <div className="flex justify-between items-end mb-4">
+                      <p className="text-sm">Pagos de cuotas y matrículas (Mes actual):</p>
+                      <p className="text-2xl font-bold text-green-500">
+                        Total: $ {pagosMesList.reduce((acc, p) => acc + p.amount, 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      {pagosMesList.length === 0 ? (
+                        <p className="text-center text-gray-500 py-10">No hay pagos registrados este mes.</p>
+                      ) : (
+                        pagosMesList.map((p, idx) => (
+                          <div key={idx} className="bg-black/40 p-3 rounded border border-gray-800 flex justify-between items-center">
+                            <div>
+                              <p className="text-white font-bold text-sm">{p.memberName || 'Socio'}</p>
+                              <p className="text-[10px] text-gray-500 uppercase">{p.concept} - {new Date(p.date).toLocaleDateString()}</p>
+                            </div>
+                            <span className="text-brand-gold font-mono font-bold">$ {p.amount}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+                  {activeReport === "Ventas" && (
+                    <div className="text-gray-300">
+                      <p className="mb-4 text-sm font-semibold">Productos vendidos hoy:</p>
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                        {ventasHoyList.length === 0 ? (
+                          <p className="text-center text-gray-500 py-10">No se registraron ventas hoy.</p>
+                        ) : (
+                          ventasHoyList.map((venta, idx) => (
+                            <div key={idx} className="bg-black/40 p-3 rounded border border-gray-800 flex justify-between items-center">
+                              <div>
+                                <p className="text-xs text-brand-gold font-mono">
+                                  {new Date(venta.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}hs
+                                </p>
+                                <p className="text-sm font-medium">
+                                  {venta.items?.map((i: any) => `${i.productName || 'Producto'} x${i.quantity}`).join(', ')}
+                                </p>
+                              </div>
+                              <p className="text-sm font-bold text-white">$ {venta.total}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      {ventasHoyList.length > 0 && (
+                        <div className="mt-4 pt-3 border-t border-gray-700 flex justify-between items-center">
+                          <span className="text-xs text-gray-500 uppercase">Subtotal Ventas</span>
+                          <span className="text-lg font-bold text-brand-gold">
+                            $ {ventasHoyList.reduce((acc, v) => acc + v.total, 0).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* ... Aquí puedes agregar más detalles para los otros reportes ... */}
+                  {activeReport === "Afiliaciones" && (
+                    <div className="text-gray-300">
+                      <p className="mb-4 text-sm">Movimiento de socios en el mes actual:</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-black p-4 rounded text-center border border-green-500/30">
+                          <span className="text-3xl font-bold text-green-500">{statsReporte.nuevosMes}</span>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Nuevos este mes</p>
+                        </div>
+                        <div className="bg-black p-4 rounded text-center border border-red-500/30">
+                          <span className="text-3xl font-bold text-red-500">{statsReporte.bajas}</span>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Socios Inactivos</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 bg-gray-800/20 p-3 rounded text-center border border-gray-700">
+                        <p className="text-xs">Total de la base de datos: <span className="text-white font-bold">{statsReporte.total} socios</span></p>
+                      </div>
+                    </div>
+                  )}
+
+                {activeReport === "Ocupación" && (
+                  <div className="text-gray-300">
+                    <p className="mb-4 text-sm">Nivel de asistencia y uso de turnos hoy:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="bg-black p-4 rounded border border-gray-800 text-center">
+                        <p className="text-xs text-gray-500 uppercase">Turnos Reservados</p>
+                        <p className="text-2xl font-bold text-white">{ocupacionStats.totalTurnos}</p>
+                      </div>
+                      <div className="bg-black p-4 rounded border border-gray-800 text-center">
+                        <p className="text-xs text-gray-500 uppercase">Asistencias</p>
+                        <p className="text-2xl font-bold text-green-500">{ocupacionStats.asistencias}</p>
+                      </div>
+                      <div className="bg-black p-4 rounded border border-gray-800 text-center">
+                        <p className="text-xs text-gray-500 uppercase">% Asistencia</p>
+                        <p className="text-2xl font-bold text-brand-gold">{ocupacionStats.porcentaje}%</p>
+                      </div>
+                    </div>
+                    {/* Barra de progreso visual */}
+                    <div className="w-full bg-gray-800 rounded-full h-4 overflow-hidden border border-gray-700">
+                      <div 
+                        className="bg-brand-gold h-full transition-all duration-1000" 
+                        style={{ width: `${ocupacionStats.porcentaje}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-4 text-center">
+                      El nivel de ocupación se calcula en base a los turnos reservados y marcados como "Asistió" en la agenda.
+                    </p>
+                  </div>
+                )}
+                  <button 
+                      onClick={() => setActiveReport(null)}
+                      className="mt-4 text-xs text-purple-400 hover:underline uppercase tracking-widest font-bold"
+                  >
+                      Volver al panel principal
+                  </button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
         {/* Modal Auditoría */}
         {showAudit && (
@@ -784,3 +1127,13 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
 };
 
 export default Layout;
+
+const ReportButton = ({ title, desc, onClick }: { title: string, desc: string, onClick: () => void }) => (
+  <button 
+      onClick={onClick}
+      className="w-full bg-purple-600/10 border border-purple-700/50 p-4 rounded-lg text-left hover:bg-purple-600/30 transition group"
+  >
+      <p className="text-white font-semibold group-hover:text-purple-300">{title}</p>
+      <p className="text-xs text-gray-400">{desc}</p>
+  </button>
+);
