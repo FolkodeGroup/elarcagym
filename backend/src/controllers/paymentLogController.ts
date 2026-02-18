@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendNotificationToAdmins } from '../utils/notificationService.js';
 
 export default function(prisma: any) {
   const router = Router();
@@ -39,6 +40,25 @@ export default function(prisma: any) {
             data: { status: 'ACTIVE' }
           });
           console.log(`[PAYMENT] Estado del socio ${member.firstName} ${member.lastName} actualizado de ${member.status} a ACTIVE`);
+        }
+
+        // Alerta si el socio tiene datos incompletos (importado desde CSV sin DNI o email)
+        if (member && member.phase === 'DATOS_INCOMPLETOS') {
+          const missingFields: string[] = [];
+          if (!member.dni || member.dni.startsWith('SDNI_')) missingFields.push('DNI');
+          if (!member.email) missingFields.push('email');
+          const faltantes = missingFields.length > 0 ? missingFields.join(' y ') : 'algunos datos';
+          try {
+            await sendNotificationToAdmins({
+              title: '⚠️ Socio con datos incompletos',
+              message: `${member.firstName} ${member.lastName} registró un pago pero le falta completar: ${faltantes}. Por favor, actualiza su ficha.`,
+              type: 'warning',
+              link: 'Socios'
+            });
+            console.log(`[PAYMENT] Alerta de datos incompletos enviada para ${member.firstName} ${member.lastName}`);
+          } catch (notifErr) {
+            console.error('[PAYMENT] Error enviando notificación de datos incompletos:', notifErr);
+          }
         }
       }
       
