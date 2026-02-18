@@ -39,18 +39,27 @@ const Reservas: React.FC = () => {
   
   const { setCanNavigate } = useNavigation();
   
-  // Obtener horarios permitidos según el día de la semana
-  const getHoursForDate = (dateStr: string): number[] => {
+  // Obtener horarios permitidos según el día de la semana (intervalos de 30 min)
+  const getSlotsForDate = (dateStr: string): string[] => {
     const date = new Date(dateStr + 'T12:00:00'); // Agregar hora para evitar problemas de timezone
     const dayOfWeek = date.getDay(); // 0=Domingo, 1=Lunes, ..., 6=Sábado
-    
+
+    const generateSlots = (startHour: number, endHour: number): string[] => {
+      const result: string[] = [];
+      for (let h = startHour; h <= endHour; h++) {
+        result.push(`${h.toString().padStart(2, '0')}:00`);
+        if (h < endHour) result.push(`${h.toString().padStart(2, '0')}:30`);
+      }
+      return result;
+    };
+
     // Lunes a Viernes (1-5): 08:00 a 22:00
     if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      return Array.from({ length: 15 }, (_, i) => i + 8); // 8 a 22 (15 horas)
+      return generateSlots(8, 22);
     }
     // Sábado (6): 10:00 a 17:00
     else if (dayOfWeek === 6) {
-      return Array.from({ length: 8 }, (_, i) => i + 10); // 10 a 17 (8 horas)
+      return generateSlots(10, 17);
     }
     // Domingo (0): Sin horarios
     else {
@@ -58,7 +67,7 @@ const Reservas: React.FC = () => {
     }
   };
   
-  const hours = getHoursForDate(selectedDate);
+  const timeSlots = getSlotsForDate(selectedDate);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -108,8 +117,8 @@ const Reservas: React.FC = () => {
 
   // --- LÓGICA DE TURNOS Y CUPOS ---
 
-  const handleSlotClick = (hour: number, existingSlot?: Slot) => {
-    const timeLabel = existingSlot ? existingSlot.time : `${hour.toString().padStart(2, '0')}:00`;
+  const handleSlotClick = (timeLabel: string, existingSlot?: Slot) => {
+    const resolvedTime = existingSlot ? existingSlot.time : timeLabel;
     
     let currentMembers: Member[] = [];
     if (existingSlot) {
@@ -119,7 +128,7 @@ const Reservas: React.FC = () => {
 
     setActiveSlotId(existingSlot ? existingSlot.id : null);
     setQuickAddForm({
-      time: timeLabel,
+      time: resolvedTime,
       duration: existingSlot ? existingSlot.duration : 60,
       notes: '',
       selectedMembers: currentMembers
@@ -290,10 +299,8 @@ const Reservas: React.FC = () => {
     return slotDate === selectedDate;
   });
 
-  // Agrupar reservas por hora considerando tanto slots como reservas virtuales
-  const getReservationsForHour = (hour: number): Reservation[] => {
-    const timeLabel = `${hour.toString().padStart(2, '0')}:00`;
-    
+  // Agrupar reservas por horario considerando tanto slots como reservas virtuales
+  const getReservationsForTime = (timeLabel: string): Reservation[] => {
     // Reservas manuales (con slot)
     const slot = dateSlots.find(s => s.time === timeLabel);
     const slotReservations = slot ? reservations.filter(r => r.slotId === slot.id && !r.isVirtual) : [];
@@ -339,37 +346,36 @@ const Reservas: React.FC = () => {
 
       {/* GRILLA */}
       <div className="flex-1 overflow-y-auto bg-[#111] border border-gray-800 rounded-xl custom-scrollbar relative">
-        {hours.length === 0 ? (
+        {timeSlots.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
               <Info size={48} className="mx-auto mb-4 text-gray-600" />
               <p className="text-lg font-bold">Gimnasio cerrado los domingos</p>
               <p className="text-sm mt-2">El gimnasio está abierto:</p>
-              <p className="text-sm text-brand-gold">Lunes a Viernes: 08:00 - 22:00</p>
-              <p className="text-sm text-brand-gold">Sábados: 10:00 - 17:00</p>
+              <p className="text-sm text-brand-gold">Lunes a Viernes: 08:00 - 22:00 (cada 30 min)</p>
+              <p className="text-sm text-brand-gold">Sábados: 10:00 - 17:00 (cada 30 min)</p>
             </div>
           </div>
         ) : (
-          hours.map(hour => {
-            const timeLabel = `${hour.toString().padStart(2, '0')}:00`;
+          timeSlots.map(timeLabel => {
             const slot = dateSlots.find(s => s.time === timeLabel);
-            const allReservationsForHour = getReservationsForHour(hour);
+            const allReservationsForHour = getReservationsForTime(timeLabel);
 
             return (
-                <div key={hour} className="flex border-b border-gray-800/50 min-h-[120px] group relative">
+                <div key={timeLabel} className="flex border-b border-gray-800/50 min-h-[70px] group relative">
                     <div className="w-20 flex justify-center py-4 text-xs font-mono text-gray-600 bg-[#151515] border-r border-gray-800">
                         {timeLabel}
                     </div>
                     <div 
                         className="flex-1 p-2 cursor-pointer hover:bg-white/[0.01] transition-colors"
-                        onClick={() => handleSlotClick(hour, slot)}
+                        onClick={() => handleSlotClick(timeLabel, slot)}
                     >
                         {allReservationsForHour.length > 0 ? (
                           <div className="h-full relative">
                             
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                               <button 
-                                onClick={(e) => { e.stopPropagation(); handleSlotClick(hour, slot); }}
+                                onClick={(e) => { e.stopPropagation(); handleSlotClick(timeLabel, slot); }}
                                 className="p-1.5 bg-brand-gold text-black rounded-md hover:scale-110 transition shadow-lg shadow-brand-gold/20"
                               >
                                 <UserPlus size={14}/>
@@ -489,7 +495,7 @@ const Reservas: React.FC = () => {
                         ) : (
                           <div className="h-full relative">
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                              <button onClick={(e) => { e.stopPropagation(); handleSlotClick(hour, undefined); }} className="p-1.5 bg-brand-gold text-black rounded-md hover:scale-110 transition shadow-lg shadow-brand-gold/20">
+                              <button onClick={(e) => { e.stopPropagation(); handleSlotClick(timeLabel, undefined); }} className="p-1.5 bg-brand-gold text-black rounded-md hover:scale-110 transition shadow-lg shadow-brand-gold/20">
                                 <UserPlus size={14}/>
                               </button>
                             </div>
