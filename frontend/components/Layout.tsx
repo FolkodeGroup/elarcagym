@@ -72,6 +72,8 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, currentPage, onNavi
   });
   const [pagosMesList, setPagosMesList] = useState<any[]>([]);
   const [ocupacionStats, setOcupacionStats] = useState({ porcentaje: 0, totalTurnos: 0, asistencias: 0 });
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
 useEffect(() => {
   const cargarDatosReporte = async () => {
@@ -1072,14 +1074,24 @@ useEffect(() => {
 
                 <div className="bg-gray-800/50 p-4 rounded-lg space-y-2">
                   <p className="text-white"><strong>Versión:</strong> 1.0.0</p>
-                  <p className="text-white"><strong>Lanzamiento:</strong> Enero 2026</p>
+                  <p className="text-white"><strong>Lanzamiento:</strong> Febrero 2026</p>
                   <p className="text-white"><strong>Desarrollado por:</strong> <a href="https://www.folkode.com.ar" className="text-cyan-400 hover:underline">Folkode</a></p>
                 </div>
 
                 <div className="text-xs text-gray-500 space-y-1">
                   <p>© 2026 El Arca Gym. <strong>Desarrollado por:</strong> <a href="https://www.folkode.com.ar" className="text-cyan-400 hover:underline">Folkode</a> Todos los derechos reservados.</p>
-                  <p className="cursor-pointer text-cyan-400 hover:underline">Términos de Servicio</p>
-                  <p className="cursor-pointer text-cyan-400 hover:underline">Política de Privacidad</p>
+                  <p 
+                    onClick={() => { setShowAbout(false); setShowTerms(true); }} 
+                    className="cursor-pointer text-cyan-400 hover:underline"
+                  >
+                    Términos de Servicio
+                  </p>
+                  <p 
+                    onClick={() => { setShowAbout(false); setShowPrivacy(true); }} 
+                    className="cursor-pointer text-cyan-400 hover:underline"
+                  >
+                    Política de Privacidad
+                </p>
                 </div>
               </div>
             </div>
@@ -1121,6 +1133,83 @@ useEffect(() => {
       )}
       {toast && (
         <Toast message={toast.message} type={toast.type} duration={2500} onClose={() => setToast(null)} />
+      )}
+      {/* Modal: Términos de Servicio */}
+      {showTerms && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[110] p-4 backdrop-blur-sm">
+          <div className="bg-[#0b0b0b] border border-gray-800 rounded-2xl max-w-2xl w-full flex flex-col shadow-2xl overflow-hidden max-h-[90vh]">
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#111]">
+              <h3 className="text-xl font-bold text-brand-gold flex items-center gap-2 uppercase tracking-tighter">
+                <FileText size={20} /> Términos de Servicio
+              </h3>
+              <button onClick={() => setShowTerms(false)} className="text-gray-400 hover:text-white transition"><X size={24} /></button>
+            </div>
+            <div className="p-8 overflow-y-auto text-sm text-gray-300 space-y-6 leading-relaxed custom-scrollbar">
+              <section>
+                <h4 className="text-white font-bold mb-2 uppercase text-xs tracking-widest border-b border-gray-800 pb-1">1. Aceptación de los Términos</h4>
+                <p>El acceso y uso de la plataforma de EL ARCA GYM implica la aceptación plena de los presentes Términos y Condiciones por parte del socio o usuario administrativo.</p>
+              </section>
+              <section>
+                <h4 className="text-white font-bold mb-2 uppercase text-xs tracking-widest border-b border-gray-800 pb-1">2. Responsabilidad sobre la Salud</h4>
+                <p>Todo socio declara poseer un certificado de aptitud física vigente. EL GIMNASIO no se responsabiliza por lesiones resultantes de una mala ejecución de los ejercicios o de la omisión de patologías previas.</p>
+              </section>
+              <section>
+                <h4 className="text-white font-bold mb-2 uppercase text-xs tracking-widest border-b border-gray-800 pb-1">3. Sistema de Acceso QR y Geolocalización</h4>
+                <p>El uso del código QR y validación de DNI es personal e intransferible. El sistema requiere geolocalización activa para garantizar el uso lícito dentro de las instalaciones.</p>
+              </section>
+              <section>
+                <h4 className="text-white font-bold mb-2 uppercase text-xs tracking-widest border-b border-gray-800 pb-1">4. Régimen de Pagos</h4>
+                <p>Las membresías se abonan del 1 al 10 de cada mes. A partir del día 11, la falta de pago cambiará el estado a "Moroso", pudiendo restringir el acceso a rutinas digitales.</p>
+              </section>
+              <section>
+                <h4 className="text-white font-bold mb-2 uppercase text-xs tracking-widest border-b border-gray-800 pb-1">5. Jurisdicción</h4>
+                <p>Para cualquier controversia, las partes se someten a la jurisdicción de los Tribunales Ordinarios de la Ciudad de Lomas de Zamora, República Argentina.</p>
+              </section>
+            </div>
+            <div className="p-4 border-t border-gray-800 bg-[#111] flex justify-end">
+              <button onClick={() => setShowTerms(false)} className="px-6 py-2 bg-brand-gold text-black rounded-lg font-bold hover:bg-yellow-500 transition">Entendido</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Política de Privacidad */}
+      {showPrivacy && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[110] p-4 backdrop-blur-sm">
+          <div className="bg-[#0b0b0b] border border-gray-800 rounded-2xl max-w-2xl w-full flex flex-col shadow-2xl overflow-hidden max-h-[90vh]">
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#111]">
+              <h3 className="text-xl font-bold text-brand-gold flex items-center gap-2 uppercase tracking-tighter">
+                <Shield size={20} /> Política de Privacidad
+              </h3>
+              <button onClick={() => setShowPrivacy(false)} className="text-gray-400 hover:text-white transition"><X size={24} /></button>
+            </div>
+            <div className="p-8 overflow-y-auto text-sm text-gray-300 space-y-6 leading-relaxed custom-scrollbar">
+              <section>
+                <h4 className="text-white font-bold mb-2 uppercase text-xs tracking-widest border-b border-gray-800 pb-1">I. Marco Legal</h4>
+                <p>Esta política regula el tratamiento de datos personales de socios y personal conforme a la Ley de Protección de Datos Personales Nº 25.326 de la República Argentina.</p>
+              </section>
+              <section>
+                <h4 className="text-white font-bold mb-2 uppercase text-xs tracking-widest border-b border-gray-800 pb-1">II. Datos Biométricos</h4>
+                <p>EL USUARIO presta su consentimiento expreso para el tratamiento de datos biométricos (peso, medidas corporales) con fines exclusivos de salud y seguimiento del entrenamiento.</p>
+              </section>
+              <section>
+                <h4 className="text-white font-bold mb-2 uppercase text-xs tracking-widest border-b border-gray-800 pb-1">III. Geolocalización</h4>
+                <p>El sistema accede a la ubicación únicamente para validar la presencia física en el establecimiento durante el acceso por QR. Estos datos no se almacenan permanentemente.</p>
+              </section>
+              <section>
+                <h4 className="text-white font-bold mb-2 uppercase text-xs tracking-widest border-b border-gray-800 pb-1">IV. Seguridad</h4>
+                <p>Implementamos cifrado mediante algoritmos de hash (Bcrypt) y protocolos HTTPS para asegurar que la información personal esté protegida contra accesos no autorizados.</p>
+              </section>
+              <section>
+                <h4 className="text-white font-bold mb-2 uppercase text-xs tracking-widest border-b border-gray-800 pb-1">V. Derechos ARCO</h4>
+                <p>Usted tiene derecho a acceder, rectificar y suprimir sus datos en forma gratuita. El órgano de control es la Agencia de Acceso a la Información Pública.</p>
+              </section>
+            </div>
+            <div className="p-4 border-t border-gray-800 bg-[#111] flex justify-end">
+              <button onClick={() => setShowPrivacy(false)} className="px-6 py-2 bg-brand-gold text-black rounded-lg font-bold hover:bg-yellow-500 transition">Aceptar</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
