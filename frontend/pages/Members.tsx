@@ -38,7 +38,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { MembersAPI, ConfigAPI, NutritionTemplatesAPI } from '../services/api';
 import { Member, UserStatus, Routine, NutritionData, ScheduleException, AttendanceRecord } from '../types';
-import { isDebtorByPayment } from '../services/membershipUtils';
+import { isDebtorByPayment, getNextPaymentDate, getPaymentDeadline, formatPaymentDate } from '../services/membershipUtils';
 import { 
     Search, Plus, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, 
     ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X, 
@@ -77,6 +77,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [showNutritionDetailModal, setShowNutritionDetailModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{id: string, name: string} | null>(null);
+  const [showMissingDataAlert, setShowMissingDataAlert] = useState(true);
 
   // Attendance & Schedule Exceptions
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
@@ -296,6 +297,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
         };
       }
       setSelectedMember({ ...member, nutritionPlan });
+      setShowMissingDataAlert(true); // Reset alert on new member selection
   };
 
   // === SCHEDULE EXCEPTIONS ===
@@ -1190,8 +1192,66 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
   }, [selectedMember]);
 
   if (selectedMember) {
+    // Detectar datos faltantes
+    const missingFields: string[] = [];
+    const isTelVerificar = selectedMember.dni?.startsWith('TEL_VERIFICAR_');
+    const isDniPlaceholder = !selectedMember.dni || selectedMember.dni.startsWith('SDNI_') || isTelVerificar;
+    if (isDniPlaceholder) missingFields.push('DNI');
+    if (isTelVerificar) missingFields.push('Teléfono ⚠️ (verificar: el CSV registra un número diferente)');
+    if (!selectedMember.email) missingFields.push('Email');
+    if (!isTelVerificar && (!selectedMember.phone || selectedMember.phone === '0')) missingFields.push('Teléfono');
+
     return (
       <div>
+        {/* Modal de alerta: datos faltantes (persistente) */}
+        {missingFields.length > 0 && showMissingDataAlert && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#1a1a1a] border-2 border-brand-gold/60 rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+              {/* Header dorado */}
+              <div className="bg-gradient-to-r from-brand-gold/30 to-yellow-600/20 px-6 py-4 flex items-center gap-3 border-b border-brand-gold/30">
+                <div className="bg-brand-gold/20 p-2 rounded-full">
+                  <AlertTriangle size={28} className="text-brand-gold" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-display font-bold text-white">Datos Incompletos</h3>
+                  <p className="text-xs text-gray-400">Información requerida del socio</p>
+                </div>
+              </div>
+              {/* Body */}
+              <div className="px-6 py-5">
+                <p className="text-gray-300 text-sm mb-4">
+                  El socio <span className="font-bold text-white">{selectedMember.firstName} {selectedMember.lastName}</span> tiene información faltante que debe ser completada:
+                </p>
+                <div className="space-y-2 mb-5">
+                  {missingFields.map(field => (
+                    <div key={field} className="flex items-center gap-3 bg-red-900/20 border border-red-800/40 rounded-lg px-4 py-2.5">
+                      <XCircle size={18} className="text-red-400 flex-shrink-0" />
+                      <span className="text-red-300 font-semibold text-sm">{field}</span>
+                      <span className="text-gray-500 text-xs ml-auto">No registrado</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 italic mb-4">
+                  ⚠️ Este aviso aparecerá cada vez que se acceda a este socio hasta que se complete la información faltante.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowMissingDataAlert(false); handleOpenEditModal(); }}
+                    className="flex-1 px-4 py-2.5 bg-brand-gold hover:bg-yellow-500 text-black rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Edit2 size={16} /> Completar Datos
+                  </button>
+                  <button
+                    onClick={() => setShowMissingDataAlert(false)}
+                    className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg font-semibold transition-colors"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Header Profile Card */}
         <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-gray-900 to-black"></div>
@@ -1272,6 +1332,29 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                   </div>
                 )}
                 <span className="text-xs text-gray-500">Miembro desde {new Date(selectedMember.joinDate).toLocaleDateString('es-ES')}</span>
+                {/* Próxima fecha de cobro */}
+                {(() => {
+                  const nextDate = getNextPaymentDate(selectedMember);
+                  const deadline = getPaymentDeadline(selectedMember);
+                  const today = new Date();
+                  const isOverdue = deadline && today > deadline;
+                  const isClose = nextDate && !isOverdue && ((nextDate.getTime() - today.getTime()) / (1000*60*60*24)) <= 5;
+                  return nextDate ? (
+                    <div className={`mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+                      isOverdue ? 'bg-red-900/20 border-red-800/50 text-red-400' :
+                      isClose ? 'bg-yellow-900/20 border-yellow-800/50 text-yellow-400' :
+                      'bg-blue-900/20 border-blue-800/50 text-blue-400'
+                    }`}>
+                      <CalendarClock size={14} />
+                      <span className="text-xs font-semibold">
+                        Próx. cobro: {formatPaymentDate(nextDate)}
+                      </span>
+                      <span className="text-xs opacity-70">
+                        (límite: {formatPaymentDate(deadline)})
+                      </span>
+                    </div>
+                  ) : null;
+                })()}
                 <div className="mt-2">
                                 <span className="text-xs text-gray-400 mr-2">Fase/Objetivo:</span>
                                 <span className="font-bold text-brand-gold text-sm">
@@ -2153,6 +2236,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
               <tr className="bg-black text-gray-400 text-sm uppercase tracking-wider">
                 <th className="p-4">Socio</th>
                 <th className="p-4 hidden md:table-cell">Contacto</th>
+                <th className="p-4 hidden lg:table-cell">Próx. Cobro</th>
                 <th className="p-4">Estado</th>
                 <th className="p-4 text-right">Acciones Rápidas</th>
               </tr>
@@ -2185,6 +2269,25 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                   <td className="p-4 hidden md:table-cell text-gray-300">
                     <div>{member.email}</div>
                     <div className="text-xs">{member.phone}</div>
+                  </td>
+                  <td className="p-4 hidden lg:table-cell">
+                    {(() => {
+                      const nextDate = getNextPaymentDate(member);
+                      const deadline = getPaymentDeadline(member);
+                      const today = new Date();
+                      const isOverdue = deadline && today > deadline;
+                      const isClose = nextDate && !isOverdue && ((nextDate.getTime() - today.getTime()) / (1000*60*60*24)) <= 5;
+                      return (
+                        <div>
+                          <div className={`text-sm font-semibold ${isOverdue ? 'text-red-400' : isClose ? 'text-yellow-400' : 'text-gray-300'}`}>
+                            {formatPaymentDate(nextDate)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Límite: {formatPaymentDate(deadline)}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium

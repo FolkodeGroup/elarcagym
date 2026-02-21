@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: elarcagym_user
-      POSTGRES_PASSWORD: ***REMOVED***
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: elarcagym
       TZ: America/Argentina/Buenos_Aires
     ports:
@@ -27,10 +27,10 @@ services:
     ports:
       - "4000:4000"
     environment:
-      DATABASE_URL: postgresql://elarcagym_user:***REMOVED***@postgres:5432/elarcagym
+      DATABASE_URL: postgresql://elarcagym_user:${POSTGRES_PASSWORD}@postgres:5432/elarcagym
       NODE_ENV: production
       FRONTEND_URL: https://elarcagym.com.ar,https://www.elarcagym.com.ar
-      JWT_SECRET: ${JWT_SECRET:-***REMOVED***}
+      JWT_SECRET: 
       PORT: 4000
       TZ: America/Argentina/Buenos_Aires
     env_file:
