@@ -13,10 +13,20 @@
 
 set -e
 
-# Configuración
-VPS_IP="***REMOVED***"
-VPS_PORT="5371"
-VPS_USER="root"
+# ── Cargar variables desde .env de la raíz del proyecto ──
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  # Exportar solo las variables que necesitamos (sin comillas extra)
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+
+# Configuración (usa variables de .env o valores por defecto)
+VPS_IP="${VPS_HOST:?ERROR: VPS_HOST no definido en .env}"
+VPS_PORT="${VPS_PORT:-5371}"
+VPS_USER="${VPS_USER:-root}"
 PROJECT_DIR="/opt/elarcagym"
 DOMAIN="elarcagym.com.ar"
 

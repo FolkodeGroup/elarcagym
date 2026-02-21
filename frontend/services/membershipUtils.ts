@@ -59,3 +59,67 @@ export function isPaymentDueSoon(member: Member): boolean {
   const daysSinceLast = (today.getTime() - lastPaymentDate.getTime()) / (1000 * 60 * 60 * 24);
   return daysSinceLast >= 25 && daysSinceLast < 30;
 }
+
+/**
+ * Calcula la próxima fecha de cobro basada en la fecha de ingreso del socio.
+ * La fecha de cobro es el mismo día del mes de ingreso, cada mes.
+ * Si ya pagó el período actual, muestra la fecha del próximo mes.
+ * Retorna null si no hay joinDate.
+ */
+export function getNextPaymentDate(member: Member): Date | null {
+  if (!member.joinDate) return null;
+
+  const joinDate = new Date(member.joinDate);
+  const joinDay = joinDate.getDate();
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+
+  // Fecha de cobro del mes actual (mismo día que ingresó)
+  let nextPayment = new Date(currentYear, currentMonth, joinDay);
+
+  // Ajustar si el día de ingreso excede los días del mes actual
+  if (nextPayment.getMonth() !== currentMonth) {
+    // El mes actual no tiene suficientes días: usar el último día del mes
+    nextPayment = new Date(currentYear, currentMonth + 1, 0);
+  }
+
+  // Si hoy ya pasó la fecha de cobro Y ya pagó este período, avanzar al mes siguiente
+  const hasPaidCurrentPeriod = member.payments?.some((p: { date: string }) => {
+    const pd = new Date(p.date);
+    return pd.getMonth() === currentMonth && pd.getFullYear() === currentYear;
+  });
+
+  if (today > nextPayment || hasPaidCurrentPeriod) {
+    nextPayment = new Date(currentYear, currentMonth + 1, joinDay);
+    // Ajustar si el día excede los días del mes siguiente
+    if (nextPayment.getDate() !== joinDay) {
+      nextPayment = new Date(currentYear, currentMonth + 2, 0);
+    }
+  }
+
+  return nextPayment;
+}
+
+/**
+ * Calcula la fecha límite de pago (fecha de cobro + 5 días).
+ */
+export function getPaymentDeadline(member: Member): Date | null {
+  const nextPayment = getNextPaymentDate(member);
+  if (!nextPayment) return null;
+  const deadline = new Date(nextPayment);
+  deadline.setDate(deadline.getDate() + 5);
+  return deadline;
+}
+
+/**
+ * Formatea una fecha para mostrar en formato DD/MM/YYYY.
+ */
+export function formatPaymentDate(date: Date | null): string {
+  if (!date) return '—';
+  return date.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}

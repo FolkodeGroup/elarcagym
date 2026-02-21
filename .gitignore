@@ -31,3 +31,11 @@ dist-ssr
 # NO ignorar .env.production y .env.example (necesarios para el build)
 !frontend/.env.production
 !frontend/.env.example
+# Database backups
+backend/backups/
+*.sql
+!backend/prisma/migrations/**/*.sql
+!scripts/clean_exercise_duplicates.sql
+!backend/scripts/clean_exercise_duplicates.sql
+
+/venv
