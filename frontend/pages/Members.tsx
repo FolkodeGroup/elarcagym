@@ -717,6 +717,10 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                (statusFilter === 'dueSoon' && isPaymentDueSoon(m)) ||
                (statusFilter === 'all' && true);
     return matchesSearch && matchesStatus;
+  }).sort((a: Member, b: Member) => {
+    const nameA = `${a.lastName} ${a.firstName}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const nameB = `${b.lastName} ${b.firstName}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return nameA.localeCompare(nameB, 'es', { sensitivity: 'base' });
   });
 
   // Counts for dashboard cards
@@ -2261,7 +2265,9 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                             <Toast message={toast.message} type={toast.type} duration={3500} onClose={() => setToast(null)} />
                         )}
                         <div>
-                            <div className="font-bold text-white group-hover:text-brand-gold transition-colors">{member.firstName} {member.lastName}</div>
+                            <div className="font-bold text-white group-hover:text-brand-gold transition-colors">{capitalizeName(member.lastName)}, {capitalizeName(member.firstName)}</div>
+
+
                             <div className="text-xs text-gray-500">Desde: {new Date(member.joinDate).toLocaleDateString()}</div>
                         </div>
                     </div>
@@ -2452,6 +2458,14 @@ const NutritionSection = ({ title, icon, items }: { title: string, icon: any, it
   </div>
 );
 
-// export default Members; // Eliminado duplicado
+
+// --- Utilidad para capitalizar nombres ---
+function capitalizeName(name: string): string {
+  if (!name) return '';
+  return name
+    .split(' ')
+    .map(word => word.length > 0 ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : '')
+    .join(' ');
+}
 
 export default Members;

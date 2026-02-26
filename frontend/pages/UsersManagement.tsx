@@ -224,7 +224,11 @@ const UsersManagement: React.FC = () => {
     (user.lastName && user.lastName.toLowerCase().includes(searchTerm?.toLowerCase() ?? '')) ||
     (user.email && user.email.toLowerCase().includes(searchTerm?.toLowerCase() ?? '')) ||
     (user.dni && user.dni.includes(searchTerm ?? ''))
-  );
+  ).sort((a, b) => {
+    const nameA = `${a.lastName ?? ''} ${a.firstName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const nameB = `${b.lastName ?? ''} ${b.firstName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return nameA.localeCompare(nameB, 'es', { sensitivity: 'base' });
+  });
 
   if (!isAdmin) {
     return (

@@ -26,7 +26,7 @@ const AppContent: React.FC = () => {
   const { isAuthenticated, logout, isLoading, isAdmin, hasAnyPermission } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [pageFilter, setPageFilter] = useState<string | null>(null);
-  const [membersResetKey, setMembersResetKey] = useState(0);
+  const [pageResetKey, setPageResetKey] = useState(0);
   const [showNavModal, setShowNavModal] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isSelfServiceMode, setIsSelfServiceMode] = useState(false);
@@ -74,18 +74,17 @@ const AppContent: React.FC = () => {
       return;
     }
     setIsTransitioning(true);
+    setPageResetKey(prev => prev + 1);
     setTimeout(() => {
       setCurrentPage(page);
       setPageFilter(filter || null);
-      if (page === 'members') {
-        setMembersResetKey(prev => prev + 1);
-      }
       setIsTransitioning(false);
     }, 200);
   };
 
   const handleConfirmNavigation = (allow: boolean) => {
     if (allow && pendingPage) {
+      setPageResetKey(prev => prev + 1);
       setCurrentPage(pendingPage);
       confirmNavigation(true);
     } else {
@@ -154,21 +153,21 @@ const AppContent: React.FC = () => {
     }
 
     switch (currentPage) {
-      case 'dashboard': return <Dashboard onNavigate={handleNavigate} />;
-      case 'qr_manager': return <QRManager />;
-      case 'members': return <Members initialFilter={pageFilter} currentPage={currentPage} membersResetKey={membersResetKey} />;
-      case 'biometrics': return <Biometrics />;
-      case 'operations': return <Operations onNavigate={handleNavigate} />;
-      case 'nutrition': return <Nutrition />;
-      case 'admin': return <Admin />;
-      case 'Ingresos': return <Ingresos />;
-      case 'reservas': return <Reservas />;
-      case 'attendance': return <AttendanceTracker />;
-      case 'exercises_admin': return <ExercisesAdmin />;
-      case 'users_management': return <UsersManagement />;
-      case 'user_profile': return <UserProfile />;
-      case 'waitlist': return <WaitlistPage />;
-      default: return <Dashboard onNavigate={handleNavigate} />;
+      case 'dashboard': return <Dashboard onNavigate={handleNavigate} key={`dashboard-${pageResetKey}`} />;
+      case 'qr_manager': return <QRManager key={`qr-${pageResetKey}`} />;
+      case 'members': return <Members initialFilter={pageFilter} currentPage={currentPage} key={`members-${pageResetKey}`} />;
+      case 'biometrics': return <Biometrics key={`biometrics-${pageResetKey}`} />;
+      case 'operations': return <Operations onNavigate={handleNavigate} key={`operations-${pageResetKey}`} />;
+      case 'nutrition': return <Nutrition key={`nutrition-${pageResetKey}`} />;
+      case 'admin': return <Admin key={`admin-${pageResetKey}`} />;
+      case 'Ingresos': return <Ingresos key={`ingresos-${pageResetKey}`} />;
+      case 'reservas': return <Reservas key={`reservas-${pageResetKey}`} />;
+      case 'attendance': return <AttendanceTracker key={`attendance-${pageResetKey}`} />;
+      case 'exercises_admin': return <ExercisesAdmin key={`exercises-${pageResetKey}`} />;
+      case 'users_management': return <UsersManagement key={`users-${pageResetKey}`} />;
+      case 'user_profile': return <UserProfile key={`profile-${pageResetKey}`} />;
+      case 'waitlist': return <WaitlistPage key={`waitlist-${pageResetKey}`} />;
+      default: return <Dashboard onNavigate={handleNavigate} key={`dashboard-${pageResetKey}`} />;
     }
   };
 
