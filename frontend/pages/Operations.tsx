@@ -148,14 +148,11 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
       const email = (m.email ?? '').toLowerCase();
       return fullName.includes(term) || alternativeName.includes(term) || email.includes(term) || (m.dni && m.dni.includes(term));
     });
-    // Sort by firstName, then lastName
+    // Sort by lastName, then firstName (consistent with Biometrics and Members)
     return result.sort((a, b) => {
-      const aFirstName = (a.firstName ?? '').toLowerCase();
-      const bFirstName = (b.firstName ?? '').toLowerCase();
-      if (aFirstName !== bFirstName) {
-        return aFirstName.localeCompare(bFirstName);
-      }
-      return (a.lastName ?? '').toLowerCase().localeCompare((b.lastName ?? '').toLowerCase());
+      const nameA = `${a.lastName ?? ''} ${a.firstName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const nameB = `${b.lastName ?? ''} ${b.firstName ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return nameA.localeCompare(nameB, 'es', { sensitivity: 'base' });
     });
   }, [members, memberSearchText]);
 
