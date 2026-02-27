@@ -58,10 +58,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     // };
 
   // Usar lógica consistente con Members.tsx
-  const activeMembers = members.filter(m => m.status === UserStatus.ACTIVE).length;
-  const currentMembers = members.filter(m => m.status === UserStatus.ACTIVE && isCurrentOnPayment(m)).length;
-  // Morosos = Activos - Al Día
-  const debtors = activeMembers - currentMembers;
+    const activeMembers = members.filter(m => m.status === UserStatus.ACTIVE).length;
+    const currentMembers = members.filter(m => m.status === UserStatus.ACTIVE && isCurrentOnPayment(m)).length;
+    // Morosos: solo los que cumplen la lógica de isDebtorByPayment
+    const debtors = members.filter(m => m.status === UserStatus.ACTIVE && isDebtorByPayment(m)).length;
 
   // ...existing code...
 
