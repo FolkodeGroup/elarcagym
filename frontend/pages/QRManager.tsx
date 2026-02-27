@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import React, { useState, useRef } from 'react';
+import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { QrCode, Printer, Smartphone, Info, Copy } from 'lucide-react';
 import { RoutineAccessAPI } from '../services/api';
 import Toast from '../components/Toast';
+import jsPDF from 'jspdf';
+import { LOGO_BASE64 } from '../services/assets';
 
 const QRManager: React.FC = () => {
-  // Simulación: datos de socio y slot para demo QR (en producción, estos vendrían de la UI o selección)
-  // Forzar IP local en desarrollo para que el QR funcione en la red
-  const LOCAL_IP = '192.168.1.102'; // Cambia si tu IP cambia
+  const LOCAL_IP = '192.168.1.102';
   const qrUrl =
     process.env.NODE_ENV === 'development'
       ? `http://${LOCAL_IP}:3000/rutina`
@@ -16,14 +16,147 @@ const QRManager: React.FC = () => {
   const error = '';
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const qrCanvasRef = useRef<HTMLDivElement>(null);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(qrUrl);
     setToast({ message: `Enlace copiado: ${qrUrl}`, type: 'info' });
   };
 
+  const generateQRPdf = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // --- Fondo oscuro ---
+    doc.setFillColor(26, 26, 26);
+    doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+    // --- Barra dorada superior ---
+    doc.setFillColor(212, 175, 55);
+    doc.rect(0, 0, pageWidth, 4, 'F');
+
+    // --- Logo de fondo (marca de agua) ---
+    try {
+      if (typeof LOGO_BASE64 === 'string' && LOGO_BASE64.length > 0) {
+        doc.saveGraphicsState();
+        if (typeof (doc as any).GState === 'function') {
+          doc.setGState(new (doc as any).GState({ opacity: 0.07 }));
+        }
+        const imgSize = pageHeight * 0.75;
+        const xCentered = (pageWidth - imgSize) / 2;
+        const yCentered = (pageHeight - imgSize) / 2;
+        doc.addImage(LOGO_BASE64, 'JPEG', xCentered, yCentered, imgSize, imgSize);
+        doc.restoreGraphicsState();
+      }
+    } catch (e) {}
+
+    // --- Logo en encabezado (esquina superior derecha) ---
+    try {
+      if (typeof LOGO_BASE64 === 'string' && LOGO_BASE64.length > 0) {
+        doc.addImage(LOGO_BASE64, 'JPEG', pageWidth - 42, 8, 30, 20);
+      }
+    } catch (e) {}
+
+    // --- Título principal ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(28);
+    doc.setTextColor(212, 175, 55);
+    doc.text('EL ARCA', pageWidth / 2, 22, { align: 'center' });
+
+    doc.setFontSize(12);
+    doc.setTextColor(180, 180, 180);
+    doc.text('GYM & FITNESS', pageWidth / 2, 30, { align: 'center' });
+
+    // --- Subtítulo ---
+    doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255);
+    doc.text('CONSULTÁ TU RUTINA', pageWidth / 2, 48, { align: 'center' });
+
+    // --- Línea separadora dorada ---
+    doc.setDrawColor(212, 175, 55);
+    doc.setLineWidth(0.8);
+    doc.line(pageWidth / 2 - 40, 53, pageWidth / 2 + 40, 53);
+
+    // --- QR Code (renderizado desde el canvas oculto) ---
+    const qrCanvas = qrCanvasRef.current?.querySelector('canvas');
+    if (qrCanvas) {
+      const qrDataUrl = qrCanvas.toDataURL('image/png');
+      const qrSize = 100;
+      const qrX = (pageWidth - qrSize) / 2;
+      const qrY = 60;
+
+      // Fondo blanco para el QR
+      doc.setFillColor(255, 255, 255);
+      const padding = 8;
+      doc.roundedRect(qrX - padding, qrY - padding, qrSize + padding * 2, qrSize + padding * 2, 6, 6, 'F');
+
+      doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+
+      // "ESCANEAME" debajo del QR
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(26, 26, 26);
+      doc.text('ESCANEAME', pageWidth / 2, qrY + qrSize + padding - 1, { align: 'center' });
+    }
+
+    // --- Instrucciones para los socios ---
+    const instrY = 185;
+
+    // Línea dorada antes de instrucciones
+    doc.setDrawColor(212, 175, 55);
+    doc.setLineWidth(0.5);
+    doc.line(30, instrY - 8, pageWidth - 30, instrY - 8);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(212, 175, 55);
+    doc.text('¿CÓMO FUNCIONA?', pageWidth / 2, instrY, { align: 'center' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(220, 220, 220);
+
+    const pasos = [
+      '1.  Escaneá el código QR con la cámara de tu celular.',
+      '2.  Ingresá tu número de DNI.',
+      '3.  ¡Listo! Vas a ver tu rutina de entrenamiento actualizada.'
+    ];
+
+    let stepY = instrY + 14;
+    pasos.forEach(paso => {
+      doc.text(paso, pageWidth / 2, stepY, { align: 'center' });
+      stepY += 10;
+    });
+
+    // --- Mensaje motivacional ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(212, 175, 55);
+    doc.text('¡A ENTRENAR CON TODO! 💪', pageWidth / 2, stepY + 12, { align: 'center' });
+
+    // --- Barra dorada inferior ---
+    doc.setFillColor(212, 175, 55);
+    doc.rect(0, pageHeight - 6, pageWidth, 6, 'F');
+
+    // --- Pie de página ---
+    doc.setFontSize(8);
+    doc.setTextColor(212, 175, 55);
+    doc.text('EL ARCA - GYM & FITNESS', 10, pageHeight - 9);
+    doc.text(qrUrl, pageWidth - 10, pageHeight - 9, { align: 'right' });
+
+    // --- Descargar ---
+    doc.save('Cartelera_QR_ElArca.pdf');
+    setToast({ message: 'PDF generado correctamente', type: 'success' });
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
+      {/* Canvas oculto para generar el QR como imagen */}
+      <div ref={qrCanvasRef} className="hidden">
+        <QRCodeCanvas value={qrUrl} size={400} level="H" includeMargin={true} />
+      </div>
+
       <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl p-8 shadow-2xl">
         <div className="flex flex-col md:flex-row items-center gap-8">
           {/* Lado Izquierdo: QR */}
@@ -66,7 +199,7 @@ const QRManager: React.FC = () => {
 
             <div className="flex flex-wrap gap-3 justify-center md:justify-start">
               <button 
-                onClick={() => window.print()}
+                onClick={generateQRPdf}
                 className="bg-brand-gold text-black px-6 py-3 rounded-xl font-black text-xs uppercase flex items-center gap-2 hover:bg-yellow-500 transition shadow-lg shadow-brand-gold/20"
               >
                 <Printer size={18} /> Imprimir Cartelera
@@ -83,6 +216,7 @@ const QRManager: React.FC = () => {
         </div>
       </div>
 
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 };
