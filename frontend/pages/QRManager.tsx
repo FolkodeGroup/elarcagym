@@ -133,7 +133,7 @@ const QRManager: React.FC = () => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
     doc.setTextColor(212, 175, 55);
-    doc.text('¡A ENTRENAR CON TODO! 💪', pageWidth / 2, stepY + 12, { align: 'center' });
+    doc.text('¡A ENTRENAR CON TODO!', pageWidth / 2, stepY + 12, { align: 'center' });
 
     // --- Barra dorada inferior ---
     doc.setFillColor(212, 175, 55);
