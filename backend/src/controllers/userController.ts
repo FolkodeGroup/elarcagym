@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { sendNotificationToAdmins } from '../utils/notificationService.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
@@ -122,7 +122,7 @@ export default function(prisma: any) {
    *       200:
    *         description: Lista de usuarios
    */
-  router.get('/', async (req: any, res) => {
+  router.get('/', authenticateToken, requirePermission('users.view'), async (req: any, res) => {
     try {
       const users = await prisma.user.findMany({
         select: {
@@ -168,7 +168,7 @@ export default function(prisma: any) {
    *     summary: Obtener usuario por ID
    *     tags: [Users]
    */
-  router.get('/:id', async (req: any, res) => {
+  router.get('/:id', authenticateToken, requirePermission('users.view'), async (req: any, res) => {
     try {
       const user = await prisma.user.findUnique({
         where: { id: req.params.id },
@@ -482,7 +482,7 @@ export default function(prisma: any) {
    *     summary: Listar todos los permisos disponibles
    *     tags: [Users]
    */
-  router.get('/permissions/all', async (_req: any, res) => {
+  router.get('/permissions/all', authenticateToken, async (_req: any, res) => {
     try {
       const permissions = await prisma.permission.findMany({
         orderBy: [{ module: 'asc' }, { name: 'asc' }]
@@ -617,7 +617,7 @@ export default function(prisma: any) {
    *     summary: Cambiar contraseña del usuario actual
    *     tags: [Users]
    */
-  router.put('/me/password', async (req: any, res) => {
+  router.put('/me/password', authenticateToken, async (req: any, res) => {
     try {
       if (!req.user?.id) {
         return res.status(401).json({ error: 'No autenticado' });

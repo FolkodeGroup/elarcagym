@@ -1,10 +1,11 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/auth.js';
 
 export default function(prisma: any) {
   const router = Router();
 
   // Obtener la plantilla activa de recomendaciones nutricionales
-  router.get('/active', async (req, res) => {
+  router.get('/active', requirePermission('nutrition.view'), async (req, res) => {
     try {
       const template = await prisma.nutritionTemplate.findFirst({
         where: { isActive: true },
@@ -18,7 +19,7 @@ export default function(prisma: any) {
   });
 
   // Obtener todas las plantillas de recomendaciones
-  router.get('/', async (req, res) => {
+  router.get('/', requirePermission('nutrition.view'), async (req, res) => {
     try {
       const templates = await prisma.nutritionTemplate.findMany({
         orderBy: { updatedAt: 'desc' }
@@ -31,7 +32,7 @@ export default function(prisma: any) {
   });
 
   // Obtener una plantilla específica por ID
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', requirePermission('nutrition.view'), async (req, res) => {
     try {
       const template = await prisma.nutritionTemplate.findUnique({
         where: { id: req.params.id }
@@ -46,7 +47,7 @@ export default function(prisma: any) {
   });
 
   // Crear una nueva plantilla de recomendaciones
-  router.post('/', async (req, res) => {
+  router.post('/', requirePermission('nutrition.create'), async (req, res) => {
     try {
       const { title, content, isActive } = req.body;
       
@@ -72,7 +73,7 @@ export default function(prisma: any) {
   });
 
   // Actualizar una plantilla existente
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', requirePermission('nutrition.edit'), async (req, res) => {
     try {
       const { title, content, isActive } = req.body;
       
@@ -98,7 +99,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar una plantilla
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requirePermission('nutrition.delete'), async (req, res) => {
     try {
       await prisma.nutritionTemplate.delete({ 
         where: { id: req.params.id } 

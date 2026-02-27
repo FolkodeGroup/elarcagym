@@ -1,10 +1,11 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/auth.js';
 
 export default function(prisma: any) {
   const router = Router();
 
   // Obtener todos los slots con sus reservaciones
-  router.get('/', async (req, res) => {
+  router.get('/', requirePermission('reservations.view'), async (req, res) => {
     try {
       const { date, startDate, endDate } = req.query;
       
@@ -51,7 +52,7 @@ export default function(prisma: any) {
   });
 
   // Obtener un slot por ID
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', requirePermission('reservations.view'), async (req, res) => {
     try {
       const slot = await prisma.slot.findUnique({
         where: { id: req.params.id },
@@ -77,7 +78,7 @@ export default function(prisma: any) {
   });
 
   // Crear un slot
-  router.post('/', async (req, res) => {
+  router.post('/', requirePermission('reservations.create'), async (req, res) => {
     try {
       const { date, time, duration, status, target, color } = req.body;
       // Convertir la fecha y hora a formato ISO con zona horaria local
@@ -102,7 +103,7 @@ export default function(prisma: any) {
   });
 
   // Actualizar un slot
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', requirePermission('reservations.edit'), async (req, res) => {
     try {
       const { date, ...rest } = req.body;
       // Convertir la fecha y hora a formato ISO con zona horaria local si se actualiza
@@ -136,7 +137,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar un slot (y sus reservaciones por cascade)
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requirePermission('reservations.delete'), async (req, res) => {
     try {
       await prisma.slot.delete({ where: { id: req.params.id } });
       res.status(204).end();

@@ -1,10 +1,11 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/auth.js';
 
 export default function(prisma: any) {
   const router = Router();
 
   // Obtener todos los recordatorios
-  router.get('/', async (req, res) => {
+  router.get('/', requirePermission('reminders.view'), async (req, res) => {
     try {
       const reminders = await prisma.reminder.findMany({
         orderBy: { date: 'asc' }
@@ -16,7 +17,7 @@ export default function(prisma: any) {
   });
 
   // Obtener un recordatorio por ID
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', requirePermission('reminders.view'), async (req, res) => {
     try {
       const reminder = await prisma.reminder.findUnique({
         where: { id: req.params.id }
@@ -29,7 +30,7 @@ export default function(prisma: any) {
   });
 
   // Crear un recordatorio
-  router.post('/', async (req, res) => {
+  router.post('/', requirePermission('reminders.create'), async (req, res) => {
     try {
       const { text, date, priority } = req.body;
       const reminder = await prisma.reminder.create({
@@ -46,7 +47,7 @@ export default function(prisma: any) {
   });
 
   // Actualizar un recordatorio
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', requirePermission('reminders.edit'), async (req, res) => {
     try {
       const { date, ...rest } = req.body;
       const reminder = await prisma.reminder.update({
@@ -63,7 +64,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar un recordatorio
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requirePermission('reminders.delete'), async (req, res) => {
     try {
       await prisma.reminder.delete({ where: { id: req.params.id } });
       res.status(204).end();

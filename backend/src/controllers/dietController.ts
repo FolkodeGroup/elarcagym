@@ -1,16 +1,17 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/auth.js';
 
 export default function(prisma: any) {
   const router = Router();
 
   // Obtener todas las dietas
-  router.get('/', async (req, res) => {
+  router.get('/', requirePermission('nutrition.view'), async (req, res) => {
     const diets = await prisma.diet.findMany();
     res.json(diets);
   });
 
   // Crear una dieta
-  router.post('/', async (req, res) => {
+  router.post('/', requirePermission('nutrition.create'), async (req, res) => {
     try {
       const diet = await prisma.diet.create({ data: req.body });
       res.status(201).json(diet);
@@ -20,7 +21,7 @@ export default function(prisma: any) {
   });
 
   // Actualizar una dieta
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', requirePermission('nutrition.edit'), async (req, res) => {
     try {
       const diet = await prisma.diet.update({ where: { id: req.params.id }, data: req.body });
       res.json(diet);
@@ -30,7 +31,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar una dieta
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requirePermission('nutrition.delete'), async (req, res) => {
     try {
       await prisma.diet.delete({ where: { id: req.params.id } });
       res.status(204).end();

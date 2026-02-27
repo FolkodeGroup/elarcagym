@@ -3,6 +3,13 @@ import request from 'supertest';
 import express from 'express';
 import reservationController from '../src/controllers/reservationController';
 
+// Mock de auth middleware — no bloquea en tests
+vi.mock('../src/middleware/auth', () => ({
+  authenticateToken: (req: any, res: any, next: any) => next(),
+  requireAdmin: (req: any, res: any, next: any) => next(),
+  requirePermission: () => (req: any, res: any, next: any) => next(),
+}));
+
 describe('Integración: reservas', () => {
   let app, prisma;
 
