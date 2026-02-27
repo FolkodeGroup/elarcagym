@@ -28,14 +28,21 @@ const AttendanceTracker: React.FC = () => {
       const result = await ReservationsAPI.getWithHabitual(selectedDate);
       const now = new Date();
       const processed = result.reservations.map((r: any) => {
-        // Para reservas virtuales sin asistencia, verificar si pasaron 2 horas
+        // Para reservas virtuales sin asistencia, verificar si terminó el día (en lugar de solo 2 horas)
+        // O simplemente dejarlas pendientes hasta que termine el día operativo.
         if (r.isVirtual && (r.attended === null || r.attended === undefined)) {
           const timeStr = r.end || r.time || r.start;
           if (timeStr) {
             const [h, m] = timeStr.split(':');
-            const turnoEnd = new Date(selectedDate + 'T' + h.padStart(2, '0') + ':' + (m || '00').padStart(2, '0') + ':00');
-            turnoEnd.setHours(turnoEnd.getHours() + 2);
-            if (now > turnoEnd) {
+            // Usar la fecha seleccionada para construir el objeto Date
+            const [year, month, day] = selectedDate.split('-').map(Number);
+            const turnoEnd = new Date(year, month - 1, day, parseInt(h), parseInt(m || '00'), 0);
+            
+            // Si el turno ya pasó hace más de 2 horas, marcar como ausente automáticamente en la vista
+            const twoHoursAgo = new Date();
+            twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
+            
+            if (now > turnoEnd && now > twoHoursAgo) {
               return { ...r, attended: false };
             }
           }

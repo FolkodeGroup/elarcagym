@@ -8,7 +8,7 @@ import {
 import { requirePermission } from '../middleware/auth.js';
 
 const TIME_ZONE = 'America/Argentina/Buenos_Aires';
-const WINDOW_MS = 2 * 60 * 60 * 1000; // 2 horas en milisegundos
+const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 horas en milisegundos para permitir marcar ausencias de todo el día
 
 /**
  * Calcula el tiempo del slot en UTC (combinando fecha y hora del slot con zona horaria de Buenos Aires)
@@ -41,7 +41,7 @@ export function canMarkAsNotAttended(slot: { date: Date | string; time: string }
   }
   
   if (diffMs > WINDOW_MS) {
-    return { allowed: false, reason: 'Han pasado más de 2 horas desde el horario reservado. No se puede modificar la asistencia.' };
+    return { allowed: false, reason: 'Han pasado más de 24 horas desde el horario reservado. No se puede modificar la asistencia.' };
   }
   
   return { allowed: true };

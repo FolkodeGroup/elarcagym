@@ -13,18 +13,18 @@ describe('canMarkAsNotAttended', () => {
     expect(result.reason).toMatch(/no ha comenzado/);
   });
 
-  it('permite marcar dentro de las 2 horas', () => {
-    // 1 hora después del turno
-    const now = new Date('2026-02-05T11:00:00-03:00');
+  it('permite marcar dentro de las 24 horas', () => {
+    // 23 horas después del turno
+    const now = new Date('2026-02-06T09:00:00-03:00');
     const result = canMarkAsNotAttended(baseSlot, now);
     expect(result.allowed).toBe(true);
   });
 
-  it('no permite marcar si pasaron más de 2 horas', () => {
-    // 2 horas y 1 minuto después del turno
-    const now = new Date('2026-02-05T12:01:00-03:00');
+  it('no permite marcar si pasaron más de 24 horas', () => {
+    // 24 horas y 1 minuto después del turno
+    const now = new Date('2026-02-06T10:01:00-03:00');
     const result = canMarkAsNotAttended(baseSlot, now);
     expect(result.allowed).toBe(false);
-    expect(result.reason).toMatch(/m[aá]s de 2 horas/);
+    expect(result.reason).toMatch(/m[aá]s de 24 horas/);
   });
 });
