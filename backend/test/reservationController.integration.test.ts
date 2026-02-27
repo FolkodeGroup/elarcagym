@@ -90,10 +90,10 @@ describe('Integración: reservas', () => {
   });
 
   it('no permite marcar como no asistió fuera de la ventana', async () => {
-    // Simular reserva a las 07:00 hora de Buenos Aires
-    // Si ahora son las 11:00 hora de Buenos Aires, han pasado 4h (fuera de la ventana de 2h)
-    const slotDateStr = '2026-02-05'; // Fecha fija
-    const slotTimeStr = '07:00'; // Hora de Buenos Aires
+    // Simular reserva a las 10:00 hora de Buenos Aires del día anterior
+    // Si ahora son las 11:00 hora de Buenos Aires de hoy, han pasado 25h (fuera de la ventana de 24h)
+    const slotDateStr = '2026-02-04'; // Día anterior
+    const slotTimeStr = '10:00'; // Hora de Buenos Aires
     prisma.reservation.findUnique.mockResolvedValue({ id: 'r1', slot: { date: slotDateStr, time: slotTimeStr }, attended: null });
     const res = await request(app)
       .patch('/reservations/r1/attendance')

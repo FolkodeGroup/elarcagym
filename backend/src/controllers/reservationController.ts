@@ -41,7 +41,7 @@ export function canMarkAsNotAttended(slot: { date: Date | string; time: string }
   }
   
   if (diffMs > WINDOW_MS) {
-    return { allowed: false, reason: 'Han pasado más de 2 horas desde el horario reservado. No se puede modificar la asistencia.' };
+    return { allowed: false, reason: 'Han pasado más de 24 horas desde el horario reservado. No se puede modificar la asistencia.' };
   }
   
   return { allowed: true };
