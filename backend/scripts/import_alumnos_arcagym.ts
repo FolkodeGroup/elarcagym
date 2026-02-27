@@ -107,7 +107,7 @@ function extraerDia(fecha: string): number {
   if (!trimmed) return 1;
   const partes = trimmed.split('/');
   const dia = parseInt(partes[0], 10);
-  return isNaN(dia) ? 1 : Math.min(Math.max(dia, 1), 28); // cap en 28 para Feb
+  return isNaN(dia) ? 1 : Math.min(Math.max(dia, 1), 31);
 }
 
 /** Parsea una línea CSV respetando comas dentro de comillas */
@@ -221,11 +221,11 @@ async function importarSocios(filas: CsvRow[]): Promise<ImportStats> {
     errores: [],
   };
 
-  // El "mes en curso" es Febrero 2026 (hoy 26/02/2026)
-  // joinDate = FECHA día en Febrero 2026 (max día 28 ya aplicado en parseo)
-  // paymentDate = mismo día en Febrero 2026 (registra que ya pagó)
+  // El "mes en curso" es Marzo 2026 (nueva lista actualizada)
+  // joinDate = FECHA día en Marzo 2026
+  // paymentDate = mismo día en Marzo 2026 (registra que ya pagó)
   const PAYMENT_YEAR  = 2026;
-  const PAYMENT_MONTH = 1; // 0-indexed: 1 = Febrero
+  const PAYMENT_MONTH = 2; // 0-indexed: 2 = Marzo
 
   console.log(`\n📋 Procesando ${filas.length} registros...\n`);
 
@@ -388,7 +388,7 @@ function mostrarReporte(stats: ImportStats, filas: CsvRow[]): void {
   console.log('═'.repeat(65) + '\n');
   console.log('💡 Los socios marcados como DATOS_INCOMPLETOS mostrarán el aviso');
   console.log('   en la interfaz web cada vez que se acceda a su perfil.');
-  console.log('💡 Todos los socios tienen pago de Febrero 2026 → estado AL DÍA.');
+  console.log('💡 Todos los socios tienen pago de Marzo 2026 → estado AL DÍA.');
   console.log('');
 }
 
@@ -396,16 +396,20 @@ function mostrarReporte(stats: ImportStats, filas: CsvRow[]): void {
 async function main() {
   // Buscar el CSV relativo al script o en docs/
   const possiblePaths = [
+    path.resolve(__dirname, '..', 'docs', 'ALUMNOS-ARCAGYM-1.csv'),
     path.resolve(__dirname, '..', 'docs', 'ALUMNOS-ARCAGYM.csv'),
+    path.resolve(__dirname, 'ALUMNOS-ARCAGYM-1.csv'),
     path.resolve(__dirname, 'ALUMNOS-ARCAGYM.csv'),
+    path.resolve(process.cwd(), 'backend', 'docs', 'ALUMNOS-ARCAGYM-1.csv'),
     path.resolve(process.cwd(), 'backend', 'docs', 'ALUMNOS-ARCAGYM.csv'),
+    path.resolve(process.cwd(), 'docs', 'ALUMNOS-ARCAGYM-1.csv'),
     path.resolve(process.cwd(), 'docs', 'ALUMNOS-ARCAGYM.csv'),
   ];
 
   const csvPath = possiblePaths.find(p => fs.existsSync(p));
 
   if (!csvPath) {
-    console.error('❌ Archivo ALUMNOS-ARCAGYM.csv no encontrado.');
+    console.error('❌ Archivo ALUMNOS-ARCAGYM-1.csv (o ALUMNOS-ARCAGYM.csv) no encontrado.');
     console.error('   Rutas buscadas:');
     possiblePaths.forEach(p => console.error(`     ${p}`));
     process.exit(1);
