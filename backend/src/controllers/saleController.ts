@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { sendNotificationToAdmins } from '../utils/notificationService.js';
+import { requirePermission } from '../middleware/auth.js';
 
 export default function(prisma: any) {
   const router = Router();
 
   // Obtener todas las ventas con items y miembro
-  router.get('/', async (req, res) => {
+  router.get('/', requirePermission('sales.view'), async (req, res) => {
     try {
       const sales = await prisma.sale.findMany({
         include: {
@@ -41,7 +42,7 @@ export default function(prisma: any) {
   });
 
   // Obtener una venta por ID
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', requirePermission('sales.view'), async (req, res) => {
     try {
       const sale = await prisma.sale.findUnique({
         where: { id: req.params.id },
@@ -68,7 +69,7 @@ export default function(prisma: any) {
   });
 
   // Crear una venta (con transacción para actualizar stock)
-  router.post('/', async (req, res) => {
+  router.post('/', requirePermission('sales.create'), async (req, res) => {
     try {
       const { items, memberId } = req.body;
       
@@ -154,7 +155,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar una venta (opcionalmente restaurar stock)
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requirePermission('sales.delete'), async (req, res) => {
     try {
       const { restoreStock } = req.query;
       

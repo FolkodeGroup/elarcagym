@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { sendNotificationToAdmins } from '../utils/notificationService.js';
+import { requirePermission } from '../middleware/auth.js';
 
 export default function(prisma: any) {
   const router = Router();
 
   // Obtener todos los logs de pago
-  router.get('/', async (req, res) => {
+  router.get('/', requirePermission('payments.view'), async (req, res) => {
     const payments = await prisma.paymentLog.findMany({
       include: {
         member: {
@@ -27,7 +28,7 @@ export default function(prisma: any) {
   });
 
   // Crear un log de pago
-  router.post('/', async (req, res) => {
+  router.post('/', requirePermission('payments.create'), async (req, res) => {
     try {
       const payment = await prisma.paymentLog.create({ data: req.body });
       
@@ -69,7 +70,7 @@ export default function(prisma: any) {
   });
 
   // Actualizar un log de pago
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', requirePermission('payments.edit'), async (req, res) => {
     try {
       const payment = await prisma.paymentLog.update({ where: { id: req.params.id }, data: req.body });
       res.json(payment);
@@ -79,7 +80,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar un log de pago
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requirePermission('payments.delete'), async (req, res) => {
     try {
       await prisma.paymentLog.delete({ where: { id: req.params.id } });
       res.status(204).end();

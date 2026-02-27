@@ -1,17 +1,18 @@
 import { Router } from 'express';
 import { sendNotificationToAdmins } from '../utils/notificationService.js';
+import { requirePermission } from '../middleware/auth.js';
 
 export default function(prisma: any) {
   const router = Router();
 
   // Obtener todos los productos
-  router.get('/', async (req, res) => {
+  router.get('/', requirePermission('products.view'), async (req, res) => {
     const products = await prisma.product.findMany();
     res.json(products);
   });
 
   // Crear un producto
-  router.post('/', async (req, res) => {
+  router.post('/', requirePermission('products.create'), async (req, res) => {
     try {
       const { name, price, category, stock, imageUrl } = req.body;
       // Validaciones estrictas
@@ -46,7 +47,7 @@ export default function(prisma: any) {
   });
 
   // Actualizar un producto
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', requirePermission('products.edit'), async (req, res) => {
     try {
       const product = await prisma.product.update({ where: { id: req.params.id }, data: req.body });
       
@@ -69,7 +70,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar un producto
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requirePermission('products.delete'), async (req, res) => {
     try {
       const product = await prisma.product.findUnique({ where: { id: req.params.id } });
       await prisma.product.delete({ where: { id: req.params.id } });

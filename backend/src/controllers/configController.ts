@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import multer from 'multer';
+import { requirePermission } from '../middleware/auth.js';
 
 export default function(prisma: any) {
   const router = Router();
 
   // Obtener todas las configuraciones
-  router.get('/', async (req, res) => {
+  router.get('/', requirePermission('config.view'), async (req, res) => {
     try {
       const configs = await prisma.config.findMany();
       res.json(configs);
@@ -16,7 +17,7 @@ export default function(prisma: any) {
   });
 
   // Obtener una configuración por key
-  router.get('/:key', async (req, res) => {
+  router.get('/:key', requirePermission('config.view'), async (req, res) => {
     try {
       const config = await prisma.config.findUnique({
         where: { key: req.params.key }
@@ -31,7 +32,7 @@ export default function(prisma: any) {
   });
 
   // Crear o actualizar una configuración
-  router.put('/:key', async (req, res) => {
+  router.put('/:key', requirePermission('config.edit'), async (req, res) => {
     try {
       const { value, description } = req.body;
       const config = await prisma.config.upsert({
@@ -46,7 +47,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar una configuración
-  router.delete('/:key', async (req, res) => {
+  router.delete('/:key', requirePermission('config.edit'), async (req, res) => {
     try {
       await prisma.config.delete({ where: { key: req.params.key } });
       res.status(204).end();
@@ -60,7 +61,7 @@ export default function(prisma: any) {
 
   // Exportar respaldo completo en formato Excel
     // Importar respaldo desde archivo Excel
-    router.post('/backup/import-excel', upload.single('file'), async (req, res) => {
+    router.post('/backup/import-excel', upload.single('file'), requirePermission('config.edit'), async (req, res) => {
       try {
         if (!req.file) {
           return res.status(400).json({ error: 'No se recibió archivo.' });
@@ -118,7 +119,7 @@ export default function(prisma: any) {
         res.status(500).json({ error: (e as Error).message });
       }
     });
-  router.get('/backup/export-excel', async (req, res) => {
+  router.get('/backup/export-excel', requirePermission('config.view'), async (req, res) => {
     try {
       // Función para truncar campos de texto largos (límite de Excel: 32767 caracteres)
       const truncateData = (data: any[]) => {

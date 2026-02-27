@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { sendNotificationToAdmins } from '../utils/notificationService.js';
 import { fromZonedTime, toZonedTime } from 'date-fns-tz';
+import { requirePermission } from '../middleware/auth.js';
 
 const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
@@ -8,7 +9,7 @@ export default function(prisma: any) {
   const router = Router();
 
   // Obtener todos los miembros con relaciones
-  router.get('/', async (req, res) => {
+  router.get('/', requirePermission('members.view'), async (req, res) => {
     try {
       const members = await prisma.member.findMany({
         include: {
@@ -37,7 +38,7 @@ export default function(prisma: any) {
   });
 
   // Obtener un miembro por ID con todas sus relaciones
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', requirePermission('members.view'), async (req, res) => {
     try {
       const member = await prisma.member.findUnique({
         where: { id: req.params.id },
@@ -67,7 +68,7 @@ export default function(prisma: any) {
   });
 
   // Crear un nuevo miembro
-  router.post('/', async (req, res) => {
+  router.post('/', requirePermission('members.create'), async (req, res) => {
     try {
       const { habitualSchedules, ...memberData } = req.body;
       // Validaciones de inputs
@@ -175,7 +176,7 @@ export default function(prisma: any) {
   });
 
   // Actualizar un miembro (PATCH)
-  router.patch('/:id', async (req, res) => {
+  router.patch('/:id', requirePermission('members.edit'), async (req, res) => {
     try {
       const { habitualSchedules, ...memberData } = req.body;
       // Validaciones de inputs
@@ -284,7 +285,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar un miembro
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requirePermission('members.delete'), async (req, res) => {
     try {
       await prisma.member.delete({ where: { id: req.params.id } });
       res.status(204).end();
@@ -296,7 +297,7 @@ export default function(prisma: any) {
   // ==================== BIOMETRICS ====================
   
   // Obtener biométricos de un miembro
-  router.get('/:memberId/biometrics', async (req, res) => {
+  router.get('/:memberId/biometrics', requirePermission('biometrics.view'), async (req, res) => {
     try {
       const biometrics = await prisma.biometricLog.findMany({
         where: { memberId: req.params.memberId },
@@ -309,7 +310,7 @@ export default function(prisma: any) {
   });
 
   // Agregar biométrico a un miembro
-  router.post('/:memberId/biometrics', async (req, res) => {
+  router.post('/:memberId/biometrics', requirePermission('biometrics.create'), async (req, res) => {
     try {
       // Usar fecha de Argentina como default
       let biometricDate: Date;
@@ -335,7 +336,7 @@ export default function(prisma: any) {
   });
 
   // Actualizar biométrico
-  router.put('/:memberId/biometrics/:biometricId', async (req, res) => {
+  router.put('/:memberId/biometrics/:biometricId', requirePermission('biometrics.edit'), async (req, res) => {
     try {
       let biometricDate = undefined;
       if (req.body.date) {
@@ -357,7 +358,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar biométrico
-  router.delete('/:memberId/biometrics/:biometricId', async (req, res) => {
+  router.delete('/:memberId/biometrics/:biometricId', requirePermission('biometrics.delete'), async (req, res) => {
     try {
       await prisma.biometricLog.delete({ where: { id: req.params.biometricId } });
       res.status(204).end();
@@ -369,7 +370,7 @@ export default function(prisma: any) {
   // ==================== ROUTINES ====================
   
   // Obtener rutinas de un miembro
-  router.get('/:memberId/routines', async (req, res) => {
+  router.get('/:memberId/routines', requirePermission('routines.view'), async (req, res) => {
     try {
       const routines = await prisma.routine.findMany({
         where: { memberId: req.params.memberId },
@@ -389,7 +390,7 @@ export default function(prisma: any) {
   });
 
   // Agregar rutina a un miembro
-  router.post('/:memberId/routines', async (req, res) => {
+  router.post('/:memberId/routines', requirePermission('routines.create'), async (req, res) => {
     try {
       const { days, ...routineData } = req.body;
       
@@ -445,7 +446,7 @@ export default function(prisma: any) {
   });
 
   // Actualizar rutina
-  router.put('/:memberId/routines/:routineId', async (req, res) => {
+  router.put('/:memberId/routines/:routineId', requirePermission('routines.edit'), async (req, res) => {
     try {
       const { days, ...routineData } = req.body;
       
@@ -506,7 +507,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar rutina
-  router.delete('/:memberId/routines/:routineId', async (req, res) => {
+  router.delete('/:memberId/routines/:routineId', requirePermission('routines.delete'), async (req, res) => {
     try {
       await prisma.routine.delete({ where: { id: req.params.routineId } });
       res.status(204).end();
@@ -518,7 +519,7 @@ export default function(prisma: any) {
   // ==================== PAYMENTS ====================
   
   // Obtener pagos de un miembro
-  router.get('/:memberId/payments', async (req, res) => {
+  router.get('/:memberId/payments', requirePermission('payments.view'), async (req, res) => {
     try {
       const payments = await prisma.paymentLog.findMany({
         where: { memberId: req.params.memberId },
@@ -531,7 +532,7 @@ export default function(prisma: any) {
   });
 
   // Agregar pago a un miembro
-  router.post('/:memberId/payments', async (req, res) => {
+  router.post('/:memberId/payments', requirePermission('payments.create'), async (req, res) => {
     try {
       // Validar existencia del miembro
       const member = await prisma.member.findUnique({ where: { id: req.params.memberId } });
@@ -597,7 +598,7 @@ export default function(prisma: any) {
   // ==================== NUTRITION PLAN ====================
   
   // Actualizar plan de nutrición
-  router.put('/:memberId/nutrition', async (req, res) => {
+  router.put('/:memberId/nutrition', requirePermission('nutrition.edit'), async (req, res) => {
     try {
       const member = await prisma.member.update({
         where: { id: req.params.memberId },
@@ -617,7 +618,7 @@ export default function(prisma: any) {
   // ==================== SCHEDULE EXCEPTIONS ====================
 
   // Obtener excepciones de horario de un miembro
-  router.get('/:memberId/schedule-exceptions', async (req, res) => {
+  router.get('/:memberId/schedule-exceptions', requirePermission('reservations.view'), async (req, res) => {
     try {
       const exceptions = await prisma.scheduleException.findMany({
         where: { memberId: req.params.memberId },
@@ -630,7 +631,7 @@ export default function(prisma: any) {
   });
 
   // Crear excepción de horario para un miembro
-  router.post('/:memberId/schedule-exceptions', async (req, res) => {
+  router.post('/:memberId/schedule-exceptions', requirePermission('reservations.create'), async (req, res) => {
     try {
       const { date, start, end, reason } = req.body;
       if (!date || !start || !end) {
@@ -652,7 +653,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar excepción de horario
-  router.delete('/:memberId/schedule-exceptions/:exceptionId', async (req, res) => {
+  router.delete('/:memberId/schedule-exceptions/:exceptionId', requirePermission('reservations.delete'), async (req, res) => {
     try {
       await prisma.scheduleException.delete({ where: { id: req.params.exceptionId } });
       res.status(204).end();
@@ -664,7 +665,7 @@ export default function(prisma: any) {
   // ==================== ATTENDANCE HISTORY ====================
 
   // Obtener historial de asistencia de un miembro (reservas con attended=true)
-  router.get('/:memberId/attendance-history', async (req, res) => {
+  router.get('/:memberId/attendance-history', requirePermission('members.view'), async (req, res) => {
     try {
       const { limit = '20', offset = '0' } = req.query;
       const attendanceRecords = await prisma.reservation.findMany({

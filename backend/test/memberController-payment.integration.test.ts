@@ -3,6 +3,13 @@ import request from 'supertest';
 import express from 'express';
 import memberController from '../src/controllers/memberController';
 
+// Mock de auth middleware — no bloquea en tests
+vi.mock('../src/middleware/auth', () => ({
+  authenticateToken: (req: any, res: any, next: any) => next(),
+  requireAdmin: (req: any, res: any, next: any) => next(),
+  requirePermission: () => (req: any, res: any, next: any) => next(),
+}));
+
 describe('Integración: pago de membresía y cambio de estado', () => {
   let app, prisma;
 

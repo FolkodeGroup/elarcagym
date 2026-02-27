@@ -5,6 +5,7 @@ import {
   combineReservationsWithHabitual,
   getDayName 
 } from '../utils/habitualScheduleUtils.js';
+import { requirePermission } from '../middleware/auth.js';
 
 const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 const WINDOW_MS = 2 * 60 * 60 * 1000; // 2 horas en milisegundos
@@ -50,7 +51,7 @@ export default function(prisma: any) {
   const router = Router();
 
   // Obtener todas las reservas con slot y miembro
-  router.get('/', async (req, res) => {
+  router.get('/', requirePermission('reservations.view'), async (req, res) => {
     try {
       const reservations = await prisma.reservation.findMany({
         include: {
@@ -77,7 +78,7 @@ export default function(prisma: any) {
    * Nuevo endpoint: Obtener reservas con horarios habituales incluidos para una fecha
    * GET /reservations/with-habitual?date=YYYY-MM-DD
    */
-  router.get('/with-habitual', async (req, res) => {
+  router.get('/with-habitual', requirePermission('reservations.view'), async (req, res) => {
     try {
       const { date } = req.query;
       
@@ -151,7 +152,7 @@ export default function(prisma: any) {
   });
 
   // Obtener una reserva por ID
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', requirePermission('reservations.view'), async (req, res) => {
     try {
       const reservation = await prisma.reservation.findUnique({
         where: { id: req.params.id },
@@ -176,7 +177,7 @@ export default function(prisma: any) {
   });
 
   // Crear una reserva
-  router.post('/', async (req, res) => {
+  router.post('/', requirePermission('reservations.create'), async (req, res) => {
     try {
       const { slotId, memberId, clientName, clientPhone, clientEmail, notes } = req.body;
 
@@ -257,7 +258,7 @@ export default function(prisma: any) {
   });
 
   // Actualizar una reserva
-  router.put('/:id', async (req: Request, res: Response) => {
+  router.put('/:id', requirePermission('reservations.edit'), async (req: Request, res: Response) => {
     try {
       const { attended, ...otherData } = req.body;
       
@@ -322,7 +323,7 @@ export default function(prisma: any) {
   });
 
   // Eliminar una reserva
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requirePermission('reservations.delete'), async (req, res) => {
     try {
       const reservation = await prisma.reservation.findUnique({ where: { id: req.params.id } });
       if (!reservation) {
@@ -351,7 +352,7 @@ export default function(prisma: any) {
   });
 
   // Marcar asistencia
-  router.patch('/:id/attendance', async (req: Request, res: Response) => {
+  router.patch('/:id/attendance', requirePermission('reservations.edit'), async (req: Request, res: Response) => {
     try {
       const { attended } = req.body;
       
@@ -399,7 +400,7 @@ export default function(prisma: any) {
   });
 
   // Endpoint para verificar si se puede cambiar la asistencia
-  router.get('/:id/can-change-attendance', async (req: Request, res: Response) => {
+  router.get('/:id/can-change-attendance', requirePermission('reservations.view'), async (req: Request, res: Response) => {
     try {
       const reservation = await prisma.reservation.findUnique({
         where: { id: req.params.id },
