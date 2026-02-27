@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { SlotsAPI, ReservationsAPI, MembersAPI } from '../services/api';
 import { Slot, Reservation, Member, UserStatus, ReservationsWithHabitualResponse } from '../types';
 import { 
@@ -10,6 +11,10 @@ import Toast from '../components/Toast';
 import { getLocalISODate, getLocalDateString } from '../services/dateUtils';
 
 const Reservas: React.FC = () => {
+  const { hasPermission } = useAuth();
+  const canCreateReservation = hasPermission('reservations.create');
+  const canEditReservation = hasPermission('reservations.edit');
+  const canDeleteReservation = hasPermission('reservations.delete');
   const [slots, setSlots] = useState<Slot[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
@@ -583,7 +588,7 @@ const Reservas: React.FC = () => {
                 </div>
 
                 <div className="mt-8 flex justify-between items-center">
-                    {activeSlotId ? (
+                    {activeSlotId && canDeleteReservation ? (
                         <button onClick={handleDeleteFullSlot} className="flex items-center gap-2 text-red-500 text-xs font-bold hover:underline"><Trash2 size={14}/> Eliminar turno completo</button>
                     ) : <div></div>}
                     <div className="flex gap-3">

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { SalesAPI, PaymentLogsAPI } from '../services/api';
 import { Sale, PaymentLog } from '../types';
 import { DollarSign, TrendingUp, Edit2, Trash2, Printer, X, CreditCard, ShoppingCart } from 'lucide-react';
@@ -20,6 +21,9 @@ interface IncomeItem {
 }
 
 const Ingresos = () => {
+    const { hasPermission } = useAuth();
+    const canDeleteSale = hasPermission('sales.delete');
+    const canDeletePayment = hasPermission('payments.delete');
     const { t } = useLanguage();
     const [ventas, setVentas] = useState<Sale[]>([]);
     const [pagos, setPagos] = useState<PaymentLog[]>([]);
@@ -381,13 +385,15 @@ const Ingresos = () => {
                                                         <Printer size={16} />
                                                     </button>
                                                 )}
-                                                <button
-                                                    onClick={() => eliminarItem(item)}
-                                                    className="bg-red-600 text-white p-2 rounded hover:bg-red-700 transition"
-                                                    title={t('eliminar')}
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                {((item.type === 'sale' && canDeleteSale) || (item.type === 'payment' && canDeletePayment)) && (
+                                                  <button
+                                                      onClick={() => eliminarItem(item)}
+                                                      className="bg-red-600 text-white p-2 rounded hover:bg-red-700 transition"
+                                                      title={t('eliminar')}
+                                                  >
+                                                      <Trash2 size={16} />
+                                                  </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

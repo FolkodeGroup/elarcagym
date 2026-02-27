@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { apiFetch } from '../services/api';
 import Toast from '../components/Toast';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -23,6 +24,9 @@ const HORARIOS_DISPONIBLES = (() => {
 })();
 
 const WaitlistPage: React.FC = () => {
+  const { hasPermission } = useAuth();
+  const canCreateWaitlist = hasPermission('members.create');
+  const canDeleteWaitlist = hasPermission('members.delete');
   const [waitlist, setWaitlist] = useState<Waitlist[]>([]);
   const [form, setForm] = useState({
     firstName: '',
@@ -171,8 +175,9 @@ const WaitlistPage: React.FC = () => {
         </select>
         <button 
           type="submit" 
-          disabled={loading}
+          disabled={loading || !canCreateWaitlist}
           className="px-5 py-2 bg-brand-gold text-black font-semibold rounded hover:bg-yellow-400 transition disabled:opacity-60 disabled:cursor-not-allowed"
+          title={!canCreateWaitlist ? 'No tienes permiso para agregar a la lista de espera' : ''}
         >
           {loading ? 'Guardando...' : 'Guardar'}
         </button>
@@ -235,12 +240,14 @@ const WaitlistPage: React.FC = () => {
                     >
                       Confirmar
                     </button>
-                    <button
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
-                      onClick={() => setDeleteConfirm({ id: w.id, name: `${w.firstName} ${w.lastName}` })}
-                    >
-                      Eliminar
-                    </button>
+                    {canDeleteWaitlist && (
+                      <button
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
+                        onClick={() => setDeleteConfirm({ id: w.id, name: `${w.firstName} ${w.lastName}` })}
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -311,12 +318,14 @@ const WaitlistPage: React.FC = () => {
                     >
                       Confirmar
                     </button>
-                    <button
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
-                      onClick={() => setDeleteConfirm({ id: w.id, name: `${w.firstName} ${w.lastName}` })}
-                    >
-                      Eliminar
-                    </button>
+                    {canDeleteWaitlist && (
+                      <button
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
+                        onClick={() => setDeleteConfirm({ id: w.id, name: `${w.firstName} ${w.lastName}` })}
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -380,21 +389,25 @@ const WaitlistPage: React.FC = () => {
                     >
                       ↩ Pendiente
                     </button>
-                    <button
-                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
-                      onClick={() => {
-                        setConfirmConvertId(w.id);
-                        setConfirmConvertPhone(w.phone);
-                      }}
-                    >
-                      Agregar a Socio
-                    </button>
-                    <button
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
-                      onClick={() => setDeleteConfirm({ id: w.id, name: `${w.firstName} ${w.lastName}` })}
-                    >
-                      Eliminar
-                    </button>
+                    {canCreateWaitlist && (
+                      <button
+                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                        onClick={() => {
+                          setConfirmConvertId(w.id);
+                          setConfirmConvertPhone(w.phone);
+                        }}
+                      >
+                        Agregar a Socio
+                      </button>
+                    )}
+                    {canDeleteWaitlist && (
+                      <button
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
+                        onClick={() => setDeleteConfirm({ id: w.id, name: `${w.firstName} ${w.lastName}` })}
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

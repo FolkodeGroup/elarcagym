@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { ProductsAPI, SalesAPI, ConfigAPI } from '../services/api';
 import { Product } from '../types';
 import { ShoppingCart, Plus, Minus, Trash2, Edit2, Search, AlertTriangle } from 'lucide-react';
@@ -7,6 +8,11 @@ import Toast from '../components/Toast';
 import ImagePicker from '../components/ImagePicker';
 
 const Admin: React.FC = () => {
+    const { hasPermission } = useAuth();
+    const canCreateProduct = hasPermission('products.create');
+    const canEditProduct = hasPermission('products.edit');
+    const canDeleteProduct = hasPermission('products.delete');
+    const canSell = hasPermission('sales.create');
     // Gestión de configuración
     const [showConfigModal, setShowConfigModal] = useState(false);
     const [monthlyFee, setMonthlyFee] = useState('35000');
@@ -432,9 +438,11 @@ const Admin: React.FC = () => {
             </div>
 
             {/* Add Product Button */}
-            <button onClick={() => setShowAddModal(true)} className="bg-brand-gold text-black px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-yellow-500 transition shadow-lg"> 
-                <Plus size={18} /> Nuevo Producto
-            </button>
+            {canCreateProduct && (
+              <button onClick={() => setShowAddModal(true)} className="bg-brand-gold text-black px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-yellow-500 transition shadow-lg"> 
+                  <Plus size={18} /> Nuevo Producto
+              </button>
+            )}
         </div>
 
         {/* Product Count */}
@@ -464,28 +472,32 @@ const Admin: React.FC = () => {
                         )}
                     </p>
                     <div className="mt-3 flex gap-2">
-                        <button 
-                            type="button" 
-                            onClick={(e) => { 
-                                e.stopPropagation(); 
-                                setEditingProduct(product); 
-                                setEditProductForm({ name: product.name, price: String(product.price), category: product.category, stock: String(product.stock), newCategory: '', imageUrl: product.imageUrl || '' }); 
-                                setShowEditModal(true); 
-                            }} 
-                            className="text-gray-300 bg-gray-800 p-2 rounded hover:bg-gray-700"
-                        >
-                            <Edit2 size={14} />
-                        </button>
-                        <button 
-                            type="button" 
-                            onClick={(e) => { 
-                                e.stopPropagation(); 
-                                setProductToDelete(product);
-                            }} 
-                            className="text-red-400 bg-gray-800 p-2 rounded hover:bg-gray-700"
-                        >
-                            <Trash2 size={14} />
-                        </button>
+                        {canEditProduct && (
+                          <button 
+                              type="button" 
+                              onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  setEditingProduct(product); 
+                                  setEditProductForm({ name: product.name, price: String(product.price), category: product.category, stock: String(product.stock), newCategory: '', imageUrl: product.imageUrl || '' }); 
+                                  setShowEditModal(true); 
+                              }} 
+                              className="text-gray-300 bg-gray-800 p-2 rounded hover:bg-gray-700"
+                          >
+                              <Edit2 size={14} />
+                          </button>
+                        )}
+                        {canDeleteProduct && (
+                          <button 
+                              type="button" 
+                              onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  setProductToDelete(product);
+                              }} 
+                              className="text-red-400 bg-gray-800 p-2 rounded hover:bg-gray-700"
+                          >
+                              <Trash2 size={14} />
+                          </button>
+                        )}
                     </div>
                 </div>
             ))}
@@ -531,8 +543,9 @@ const Admin: React.FC = () => {
              </div>
              <button 
                 onClick={handleCheckout}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || !canSell}
                 className="w-full bg-brand-gold text-black font-black py-4 rounded-xl hover:bg-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-tighter transition-all active:scale-95 shadow-lg shadow-brand-gold/10"
+                title={!canSell ? 'No tienes permiso para registrar ventas' : ''}
              >
                  REGISTRAR VENTA
              </button>

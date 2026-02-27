@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { MembersAPI, NutritionTemplatesAPI } from '../services/api';
 import { Member } from '../types';
 import { Search, Save, Coffee, Sun, Utensils, Moon, Apple, Check, AlertCircle, Plus, Trash2, X, Settings } from 'lucide-react';
@@ -6,6 +7,8 @@ import Toast from '../components/Toast';
 import { useNavigation } from '../contexts/NavigationContext';
 
 const Nutrition: React.FC = () => {
+    const { hasPermission } = useAuth();
+    const canEditNutrition = hasPermission('nutrition.edit');
     // Estados de datos
     const [members, setMembers] = useState<Member[]>([]);
     const [selectedMemberId, setSelectedMemberId] = useState<string>('');
@@ -420,11 +423,15 @@ HORARIOS
                             
                             <button 
                                 onClick={handleSave}
+                                disabled={!canEditNutrition}
                                 className={`w-full font-bold py-3 rounded-lg transition mt-auto flex items-center justify-center gap-2 ${
-                                    isDirty 
+                                    !canEditNutrition
+                                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                                    : isDirty 
                                     ? 'bg-brand-gold text-black hover:bg-yellow-500 shadow-[0_0_15px_rgba(212,175,55,0.3)]' 
                                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
+                                title={!canEditNutrition ? 'No tienes permiso para editar nutrición' : ''}
                             >
                                 <Save size={18} /> {isDirty ? 'GUARDAR CAMBIOS' : 'GUARDADO'}
                             </button>

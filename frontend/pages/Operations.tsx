@@ -11,7 +11,11 @@ interface OperationsProps {
 }
 
 const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, hasPermission } = useAuth();
+  const canCreateRoutine = hasPermission('routines.create');
+  const canEditRoutine = hasPermission('routines.edit');
+  const canDeleteRoutine = hasPermission('routines.delete');
+  const canManageExercises = hasPermission('exercises.create');
   const [members, setMembers] = useState<Member[]>([]);
   const [exercisesMaster, setExercisesMaster] = useState<ExerciseMaster[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -448,8 +452,9 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
             )}
             <button 
                 onClick={handleSaveRoutine}
-                disabled={routineNameDuplicate || !routineName.trim()}
+                disabled={routineNameDuplicate || !routineName.trim() || (!canCreateRoutine && !editingRoutineId) || (!canEditRoutine && !!editingRoutineId)}
                 className="bg-brand-gold text-black px-6 py-2 rounded font-bold hover:bg-yellow-500 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-brand-gold"
+                title={(!canCreateRoutine && !editingRoutineId) ? 'No tienes permiso para crear rutinas' : (!canEditRoutine && !!editingRoutineId) ? 'No tienes permiso para editar rutinas' : ''}
             >
                 <Save size={20} /> {editingRoutineId ? 'Actualizar Rutina' : 'Guardar Rutina'}
             </button>
@@ -569,20 +574,24 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
                                     <p className="text-xs text-gray-500">{new Date(routine.createdAt).toLocaleDateString()}</p>
                                 </div>
                                 <div className="flex gap-1">
-                                    <button 
-                                        onClick={() => loadRoutineForEditing(routine)}
-                                        className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-700"
-                                        title="Editar Rutina"
-                                    >
-                                        <Edit2 size={14} />
-                                    </button>
-                                    <button 
-                                        onClick={() => handleDeleteRoutine(routine.id, routine.name)}
-                                        className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-gray-700"
-                                        title="Eliminar Rutina"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
+                                    {canEditRoutine && (
+                                      <button 
+                                          onClick={() => loadRoutineForEditing(routine)}
+                                          className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-700"
+                                          title="Editar Rutina"
+                                      >
+                                          <Edit2 size={14} />
+                                      </button>
+                                    )}
+                                    {canDeleteRoutine && (
+                                      <button 
+                                          onClick={() => handleDeleteRoutine(routine.id, routine.name)}
+                                          className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-gray-700"
+                                          title="Eliminar Rutina"
+                                      >
+                                          <Trash2 size={14} />
+                                      </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -722,18 +731,18 @@ const Operations: React.FC<OperationsProps> = ({ onNavigate }) => {
                                     <p className="text-xs text-gray-500 px-2 py-1">No se encontraron resultados.</p>
                                     <button
                                       type="button"
-                                      className={`w-full text-left px-2 py-2 text-brand-gold rounded text-sm font-bold flex items-center gap-2 border border-brand-gold justify-center transition-colors ${isAdmin ? 'hover:bg-[#333] cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
-                                      disabled={!isAdmin}
+                                      className={`w-full text-left px-2 py-2 text-brand-gold rounded text-sm font-bold flex items-center gap-2 border border-brand-gold justify-center transition-colors ${canManageExercises ? 'hover:bg-[#333] cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                                      disabled={!canManageExercises}
                                       onClick={() => {
-                                        if (isAdmin && onNavigate) {
+                                        if (canManageExercises && onNavigate) {
                                           onNavigate('exercises_admin');
                                         }
                                       }}
                                     >
                                       Gestionar ejercicios
                                     </button>
-                                    {!isAdmin && (
-                                      <span className="text-xs text-gray-500 px-2">Solo administradores pueden gestionar ejercicios</span>
+                                    {!canManageExercises && (
+                                      <span className="text-xs text-gray-500 px-2">No tienes permiso para gestionar ejercicios</span>
                                     )}
                                   </div>
                                 )}
