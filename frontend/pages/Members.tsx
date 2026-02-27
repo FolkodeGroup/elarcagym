@@ -35,6 +35,7 @@ function TimeDropdown({ value, onChange, label, options }:{ value:string, onChan
 }
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { MembersAPI, ConfigAPI, NutritionTemplatesAPI } from '../services/api';
 import { Member, UserStatus, Routine, NutritionData, ScheduleException, AttendanceRecord } from '../types';
@@ -66,6 +67,11 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
   // --- ESTADOS ---
   const [members, setMembers] = useState<Member[]>([]);
   const { t } = useLanguage();
+  const { hasPermission } = useAuth();
+  const canCreateMember = hasPermission('members.create');
+  const canEditMember = hasPermission('members.edit');
+  const canDeleteMember = hasPermission('members.delete');
+  const canPayMember = hasPermission('payments.create');
   const [statusFilter, setStatusFilter] = useState<string | null>(initialFilter || null);
   const [filter, setFilter] = useState('');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -1383,20 +1389,24 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
 
                       <div className="mb-4 flex flex-col items-end gap-2">
                           <div className="flex gap-2">
-                              <button
-                                  onClick={handleOpenPaymentModal}
-                                  className="px-4 py-2 bg-brand-gold hover:bg-yellow-500 text-black rounded font-bold flex items-center gap-2 transition-colors"
-                                  title="Registrar pago de cuota"
-                              >
-                                  <CreditCard size={16} /> Registrar Pago
-                              </button>
-                              <button
-                                  onClick={handleOpenEditModal}
-                                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-bold flex items-center gap-2 transition-colors"
-                                  title="Editar datos del cliente"
-                              >
-                                  <Edit2 size={16} /> Editar
-                              </button>
+                              {canPayMember && (
+                                <button
+                                    onClick={handleOpenPaymentModal}
+                                    className="px-4 py-2 bg-brand-gold hover:bg-yellow-500 text-black rounded font-bold flex items-center gap-2 transition-colors"
+                                    title="Registrar pago de cuota"
+                                >
+                                    <CreditCard size={16} /> Registrar Pago
+                                </button>
+                              )}
+                              {canEditMember && (
+                                <button
+                                    onClick={handleOpenEditModal}
+                                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-bold flex items-center gap-2 transition-colors"
+                                    title="Editar datos del cliente"
+                                >
+                                    <Edit2 size={16} /> Editar
+                                </button>
+                              )}
                           </div>
                             <span className={`px-4 py-2 rounded-full text-sm font-bold border ${
                               selectedMember.status === UserStatus.ACTIVE ? 'bg-green-900/30 border-green-800 text-green-400' :
@@ -2129,12 +2139,14 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h2 className="text-2xl font-display font-bold text-white">Directorio de Socios</h2>
-        <button 
-          onClick={handleOpenAddModal}
-          className="bg-brand-gold text-black px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition flex items-center gap-2"
-        >
-          <Plus size={20} /> Nuevo Socio
-        </button>
+        {canCreateMember && (
+          <button 
+            onClick={handleOpenAddModal}
+            className="bg-brand-gold text-black px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition flex items-center gap-2"
+          >
+            <Plus size={20} /> Nuevo Socio
+          </button>
+        )}
       </div>
 
       {/* Stats + Filters */}
@@ -2329,37 +2341,41 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                         <FaWhatsapp size={16} />
                       </button>
                     )}
-                    <button
-                      className="p-2 text-blue-400 hover:text-blue-300 bg-blue-900/20 hover:bg-blue-900/40 rounded transition"
-                      title="Editar"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedMember(member);
-                        setEditMember({
-                          firstName: member.firstName,
-                          lastName: member.lastName,
-                          dni: member.dni || '',
-                          email: member.email,
-                          phone: member.phone,
-                          status: member.status,
-                          phase: member.phase || 'volumen',
-                          habitualSchedules: member.habitualSchedules ? [...member.habitualSchedules] : []
-                        });
-                        setShowEditModal(true);
-                      }}
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      className="p-2 text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 rounded transition"
-                      title="Eliminar"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteMember(member.id, `${member.firstName} ${member.lastName}`);
-                      }}
-                    >
-                      <X size={16} />
-                    </button>
+                    {canEditMember && (
+                      <button
+                        className="p-2 text-blue-400 hover:text-blue-300 bg-blue-900/20 hover:bg-blue-900/40 rounded transition"
+                        title="Editar"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedMember(member);
+                          setEditMember({
+                            firstName: member.firstName,
+                            lastName: member.lastName,
+                            dni: member.dni || '',
+                            email: member.email,
+                            phone: member.phone,
+                            status: member.status,
+                            phase: member.phase || 'volumen',
+                            habitualSchedules: member.habitualSchedules ? [...member.habitualSchedules] : []
+                          });
+                          setShowEditModal(true);
+                        }}
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    )}
+                    {canDeleteMember && (
+                      <button
+                        className="p-2 text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 rounded transition"
+                        title="Eliminar"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteMember(member.id, `${member.firstName} ${member.lastName}`);
+                        }}
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

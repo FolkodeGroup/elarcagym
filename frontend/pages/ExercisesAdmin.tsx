@@ -3,8 +3,13 @@ import { ExercisesAPI, ExerciseCategoriesAPI, ExerciseCategory } from '../servic
 import { ExerciseMaster } from '../types';
 import { Plus, Edit2, Trash2, Save, X, FolderPlus, List } from 'lucide-react';
 import Toast from '../components/Toast';
+import { useAuth } from '../contexts/AuthContext';
 
 const ExercisesAdmin: React.FC = () => {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('exercises.create');
+  const canEdit = hasPermission('exercises.edit');
+  const canDelete = hasPermission('exercises.delete');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteName, setConfirmDeleteName] = useState<string | null>(null);
   const [exercises, setExercises] = useState<ExerciseMaster[]>([]);
@@ -220,6 +225,9 @@ const ExercisesAdmin: React.FC = () => {
               <button 
                 onClick={() => handleOpenModal()} 
                 className="bg-brand-gold text-black px-4 py-2 rounded font-bold flex items-center gap-2 hover:bg-yellow-500 transition"
+                disabled={!canCreate}
+                title={!canCreate ? 'No tienes permiso para crear ejercicios' : ''}
+                style={!canCreate ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
               >
                 <Plus size={18} /> Nuevo Ejercicio
               </button>
@@ -254,6 +262,7 @@ const ExercisesAdmin: React.FC = () => {
                         </td>
                         <td className="p-3">
                           <div className="flex gap-2 justify-end">
+                            {canEdit && (
                             <button 
                               onClick={() => handleOpenModal(ex)} 
                               className="p-2 text-blue-400 hover:text-blue-200 hover:bg-blue-400/10 rounded transition"
@@ -261,6 +270,8 @@ const ExercisesAdmin: React.FC = () => {
                             >
                               <Edit2 size={16} />
                             </button>
+                            )}
+                            {canDelete && (
                             <button 
                               onClick={() => handleDelete(ex.id)} 
                               className="p-2 text-red-400 hover:text-red-200 hover:bg-red-400/10 rounded transition"
@@ -268,6 +279,7 @@ const ExercisesAdmin: React.FC = () => {
                             >
                               <Trash2 size={16} />
                             </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -288,6 +300,9 @@ const ExercisesAdmin: React.FC = () => {
                 <button 
                   onClick={() => handleOpenCategoryModal()} 
                   className="bg-purple-600 text-white px-3 py-2 rounded font-semibold flex items-center gap-2 hover:bg-purple-500 transition text-sm"
+                  disabled={!canCreate}
+                  title={!canCreate ? 'No tienes permiso para crear categorías' : ''}
+                  style={!canCreate ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
                 >
                   <Plus size={16} /> Nueva
                 </button>
@@ -304,6 +319,7 @@ const ExercisesAdmin: React.FC = () => {
                     >
                       <span className="text-white font-medium">{cat.name}</span>
                       <div className="flex gap-1">
+                        {canEdit && (
                         <button
                           onClick={() => handleOpenCategoryModal(cat)}
                           className="p-1.5 text-blue-400 hover:text-blue-200 hover:bg-blue-400/10 rounded transition"
@@ -311,6 +327,8 @@ const ExercisesAdmin: React.FC = () => {
                         >
                           <Edit2 size={14} />
                         </button>
+                        )}
+                        {canDelete && (
                         <button
                           onClick={() => handleDeleteCategory(cat.id, cat.name)}
                           className="p-1.5 text-red-400 hover:text-red-200 hover:bg-red-400/10 rounded transition"
@@ -318,6 +336,7 @@ const ExercisesAdmin: React.FC = () => {
                         >
                           <Trash2 size={14} />
                         </button>
+                        )}
                       </div>
                     </div>
                   ))

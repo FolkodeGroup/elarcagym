@@ -85,6 +85,10 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
   
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
+    // 403 = sin permisos
+    if (res.status === 403) {
+      throw new Error(errorData.error || 'No tienes permiso para realizar esta acción');
+    }
     if (errorData.error && errorData.error.toLowerCase().includes('token')) {
       clearToken();
       // Forzar logout automático y recargar la app

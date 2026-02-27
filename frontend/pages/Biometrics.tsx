@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { MembersAPI } from '../services/api';
 import { Member, BiometricLog } from '../types';
 import { Plus, Trash2, Edit2, X, Search } from 'lucide-react';
@@ -6,6 +7,10 @@ import Toast from '../components/Toast';
 import { getLocalISODate } from '../services/dateUtils';
 
 const Biometrics: React.FC = () => {
+    const { hasPermission } = useAuth();
+    const canCreateBio = hasPermission('biometrics.create');
+    const canEditBio = hasPermission('biometrics.edit');
+    const canDeleteBio = hasPermission('biometrics.delete');
     const [members, setMembers] = useState<Member[]>([]);
     const [selectedMemberId, setSelectedMemberId] = useState<string>('');
     const [searchMember, setSearchMember] = useState<string>('');
@@ -228,7 +233,9 @@ const dateToInput = (dateStr: string) => {
                             </button>
                             <h3 className="text-xl font-bold text-brand-gold uppercase tracking-widest">{selectedMember.firstName} {selectedMember.lastName}</h3>
                         </div>
-                        <button onClick={() => handleOpenModal()} className="bg-brand-gold text-black px-6 py-2 rounded-lg font-black hover:bg-yellow-500 shadow-lg shadow-brand-gold/20 transition-all active:scale-95">Cargar Datos</button>
+                        {canCreateBio && (
+                          <button onClick={() => handleOpenModal()} className="bg-brand-gold text-black px-6 py-2 rounded-lg font-black hover:bg-yellow-500 shadow-lg shadow-brand-gold/20 transition-all active:scale-95">Cargar Datos</button>
+                        )}
                     </div>
 
                     <div className="flex-1 overflow-hidden p-4">
@@ -241,8 +248,8 @@ const dateToInput = (dateStr: string) => {
                                             <th key={log.id} className="px-2 py-2 text-center border-r border-b border-gray-800 relative group min-w-[100px]">
                                                 {formatDateHeader(log.date)}
                                                 <div className="absolute top-1 right-1 hidden group-hover:flex gap-1 bg-black/90 rounded px-1 z-40 border border-gray-700">
-                                                    <button onClick={() => handleOpenModal(log.id)} className="text-blue-400 hover:text-white p-1"><Edit2 size={10}/></button>
-                                                    <button onClick={() => handleDeleteLog(log.id)} className="text-red-500 hover:text-red-400 p-1"><Trash2 size={10}/></button>
+                                                    {canEditBio && <button onClick={() => handleOpenModal(log.id)} className="text-blue-400 hover:text-white p-1"><Edit2 size={10}/></button>}
+                                                    {canDeleteBio && <button onClick={() => handleDeleteLog(log.id)} className="text-red-500 hover:text-red-400 p-1"><Trash2 size={10}/></button>}
                                                 </div>
                                             </th>
                                         ))}
