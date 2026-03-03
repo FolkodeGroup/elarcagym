@@ -1,4 +1,15 @@
 import { Member, UserStatus } from '../types';
+import { getLocalISODate } from './dateUtils';
+
+/**
+ * Parsea una fecha ISO string al día local en Argentina, sin desfase de timezone.
+ * Evita el bug de UTC midnight que hace aparecer un día antes en Argentina (UTC-3).
+ */
+function parseLocalDate(dateStr: string): Date {
+  const localISO = getLocalISODate(dateStr); // "YYYY-MM-DD" en Argentina
+  const [y, m, d] = localISO.split('-').map(Number);
+  return new Date(y, m - 1, d); // medianoche local
+}
 
 /**
  * Calcula la fecha de cobro del CICLO ACTUAL.
@@ -12,7 +23,7 @@ import { Member, UserStatus } from '../types';
  */
 function getCurrentCycleBillingDate(member: Member): Date {
   if (!member.joinDate) return new Date();
-  const joinDay = new Date(member.joinDate).getDate();
+  const joinDay = parseLocalDate(member.joinDate).getDate();
   const today = new Date();
 
   // Fecha de cobro del mes en curso
@@ -46,7 +57,7 @@ export function isCurrentOnPayment(member: Member): boolean {
   if (member.status !== UserStatus.ACTIVE) return false;
 
   const currentBillingDate = getCurrentCycleBillingDate(member);
-  const joinDate = new Date(member.joinDate);
+  const joinDate = parseLocalDate(member.joinDate);
 
   // Si el socio ingresó DESPUÉS de la fecha de cobro del ciclo actual,
   // su primer ciclo empieza en el futuro → no ha "pagado" este ciclo (pendiente)
@@ -54,7 +65,7 @@ export function isCurrentOnPayment(member: Member): boolean {
 
   // Verificar si hay algún pago desde la fecha de cobro del ciclo actual
   if (!member.payments || member.payments.length === 0) return false;
-  return member.payments.some(p => new Date(p.date) >= currentBillingDate);
+  return member.payments.some(p => parseLocalDate(p.date) >= currentBillingDate);
 }
 
 /**
@@ -72,7 +83,7 @@ export function isDebtorByPayment(member: Member): boolean {
   if (member.status !== UserStatus.ACTIVE) return false;
 
   const currentBillingDate = getCurrentCycleBillingDate(member);
-  const joinDate = new Date(member.joinDate);
+  const joinDate = parseLocalDate(member.joinDate);
 
   // Si el socio ingresó DESPUÉS del ciclo actual, aún no está obligado a pagar este ciclo
   if (joinDate > currentBillingDate) return false;
@@ -88,7 +99,7 @@ export function isDebtorByPayment(member: Member): boolean {
 
   // Plazo vencido: verificar si pagó en este ciclo
   if (!member.payments || member.payments.length === 0) return true;
-  const hasPaid = member.payments.some(p => new Date(p.date) >= currentBillingDate);
+  const hasPaid = member.payments.some(p => parseLocalDate(p.date) >= currentBillingDate);
   return !hasPaid;
 }
 
@@ -102,7 +113,8 @@ export function isPaymentDueSoon(member: Member): boolean {
 
   const today = new Date();
   const currentBillingDate = getCurrentCycleBillingDate(member);
-  const joinDate = new Date(member.joinDate);
+  const joinDate = parseLocalDate(member.joinDate);
+  const joinDay = joinDate.getDate();
 
   // Socio nuevo: su primer cobro es su joinDate
   if (joinDate > currentBillingDate) {
@@ -113,14 +125,14 @@ export function isPaymentDueSoon(member: Member): boolean {
   const deadline = new Date(currentBillingDate);
   deadline.setDate(deadline.getDate() + 5);
 
-  const hasPaid = member.payments?.some(p => new Date(p.date) >= currentBillingDate);
+  const hasPaid = member.payments?.some(p => parseLocalDate(p.date) >= currentBillingDate);
 
-  // Si ya pagó este ciclo: verificar si el PRÓXIMO cobro se acerca
+  // Si ya pagó este ciclo: verificar si el PRÓXIMO cobro se acerca (dentro de 5 días)
   if (hasPaid) {
     const nextBilling = new Date(
       currentBillingDate.getFullYear(),
       currentBillingDate.getMonth() + 1,
-      new Date(member.joinDate).getDate()
+      joinDay
     );
     const daysUntilNext = (nextBilling.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
     return daysUntilNext >= 0 && daysUntilNext <= 5;
@@ -142,7 +154,7 @@ export function isPaymentDueSoon(member: Member): boolean {
 export function getNextPaymentDate(member: Member): Date | null {
   if (!member.joinDate) return null;
 
-  const joinDate = new Date(member.joinDate);
+  const joinDate = parseLocalDate(member.joinDate);
   const joinDay = joinDate.getDate();
   const currentBillingDate = getCurrentCycleBillingDate(member);
 
@@ -152,7 +164,7 @@ export function getNextPaymentDate(member: Member): Date | null {
   }
 
   // Verificar si pagó en el ciclo actual
-  const hasPaidCurrentCycle = member.payments?.some(p => new Date(p.date) >= currentBillingDate);
+  const hasPaidCurrentCycle = member.payments?.some(p => parseLocalDate(p.date) >= currentBillingDate);
 
   if (hasPaidCurrentCycle) {
     // Pagó: próximo cobro = mes siguiente
