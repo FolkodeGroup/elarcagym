@@ -125,6 +125,7 @@ export default function(prisma: any) {
   router.get('/', authenticateToken, requirePermission('users.view'), async (req: any, res) => {
     try {
       const users = await prisma.user.findMany({
+        where: { isHidden: false },
         select: {
           id: true,
           email: true,
@@ -350,6 +351,11 @@ export default function(prisma: any) {
         return res.status(404).json({ error: 'Usuario no encontrado' });
       }
 
+      // Evitar edición de usuarios ocultos (superadmin protegido)
+      if (existingUser.isHidden) {
+        return res.status(403).json({ error: 'Este usuario está protegido y no puede ser editado desde la interfaz' });
+      }
+
       // Verificar email único (si se cambia)
       if (email && email.toLowerCase().trim() !== existingUser.email) {
         const emailExists = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
@@ -450,6 +456,11 @@ export default function(prisma: any) {
       const user = await prisma.user.findUnique({ where: { id } });
       if (!user) {
         return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      // Evitar eliminación de usuarios ocultos (superadmin protegido)
+      if (user.isHidden) {
+        return res.status(403).json({ error: 'Este usuario está protegido y no puede ser eliminado' });
       }
 
       await prisma.user.delete({ where: { id } });
