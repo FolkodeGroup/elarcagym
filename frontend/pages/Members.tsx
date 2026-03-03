@@ -39,7 +39,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { MembersAPI, ConfigAPI, NutritionTemplatesAPI } from '../services/api';
 import { Member, UserStatus, Routine, NutritionData, ScheduleException, AttendanceRecord } from '../types';
-import { isDebtorByPayment, getNextPaymentDate, getPaymentDeadline, formatPaymentDate } from '../services/membershipUtils';
+import { isDebtorByPayment, isCurrentOnPayment, isPaymentDueSoon, getNextPaymentDate, getPaymentDeadline, formatPaymentDate } from '../services/membershipUtils';
 import { 
     Search, Plus, Clock, ArrowLeft, Camera, CreditCard, Dumbbell, 
     ChevronDown, ChevronUp, Download, Edit2, Mail, Phone, X, 
@@ -652,36 +652,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
     }
   };
 
-  // Helper: Check if member payment is due soon (within 30 days without payment)
-    const isPaymentDueSoon = (member: Member): boolean => {
-      if (member.status !== UserStatus.ACTIVE) return false;
-      if (!member.payments || member.payments.length === 0) return true;
-  
-      // find the most recent payment date
-      const paymentDates = member.payments.map((p: { date: string }) => new Date(p.date).getTime());
-      const lastPaymentTs = Math.max(...paymentDates);
-      const lastPaymentDate = new Date(lastPaymentTs);
-      const today = new Date();
-      const daysWithoutPayment = (today.getTime() - lastPaymentDate.getTime()) / (1000 * 60 * 60 * 24);
-  
-      // Return true if between 30 and 60 days since last payment
-      return daysWithoutPayment >= 30 && daysWithoutPayment < 60;
-    };
-  
-  
-    // Helper: Check if member is current (paid recently - within last 30 days)
-    const isCurrentOnPayment = (member: Member): boolean => {
-      if (member.status !== UserStatus.ACTIVE) return false;
-      if (!member.payments || member.payments.length === 0) return false;
-  
-      // If any payment within last 30 days, consider current
-      const today = new Date();
-      return member.payments.some((p: { date: string }) => {
-        const pd = new Date(p.date);
-        const days = (today.getTime() - pd.getTime()) / (1000 * 60 * 60 * 24);
-        return days < 30;
-      });
-    };
+  // isPaymentDueSoon e isCurrentOnPayment se importan desde membershipUtils.ts (lógica correcta por ciclo de cobro)
   
     // Helper: Calculate previous debt (months unpaid * monthlyFee)
     const calculatePreviousDebt = (member: Member): number => {
@@ -2258,11 +2229,17 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {filteredMembers.map(member => (
+              {filteredMembers.map(member => {
+                const dueSoon = isPaymentDueSoon(member);
+                return (
                 <tr 
                     key={member.id} 
                     onClick={() => handleMemberClick(member)}
-                    className="hover:bg-gray-900 transition-colors cursor-pointer group"
+                    className={`transition-colors cursor-pointer group ${
+                      dueSoon
+                        ? 'bg-yellow-950/30 hover:bg-yellow-900/30 border-l-2 border-l-yellow-500'
+                        : 'hover:bg-gray-900'
+                    }`}
                 >
                   <td className="p-4">
                     <div className="flex items-center gap-3">
@@ -2277,10 +2254,12 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                             <Toast message={toast.message} type={toast.type} duration={3500} onClose={() => setToast(null)} />
                         )}
                         <div>
-                            <div className="font-bold text-white group-hover:text-brand-gold transition-colors">{capitalizeName(member.lastName)}, {capitalizeName(member.firstName)}</div>
+                            <div className={`font-bold transition-colors ${
+                              dueSoon ? 'text-yellow-400 group-hover:text-yellow-300' : 'text-white group-hover:text-brand-gold'
+                            }`}>{capitalizeName(member.lastName)}, {capitalizeName(member.firstName)}</div>
 
 
-                            <div className="text-xs text-gray-500">Desde: {new Date(member.joinDate).toLocaleDateString()}</div>
+                            <div className="text-xs text-gray-500">Desde: {getLocalISODate(member.joinDate).split('-').reverse().join('/')}</div>
                         </div>
                     </div>
                   </td>
@@ -2294,7 +2273,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                       const deadline = getPaymentDeadline(member);
                       const today = new Date();
                       const isOverdue = deadline && today > deadline;
-                      const isClose = nextDate && !isOverdue && ((nextDate.getTime() - today.getTime()) / (1000*60*60*24)) <= 5;
+                      const isClose = dueSoon || (nextDate && !isOverdue && ((nextDate.getTime() - today.getTime()) / (1000*60*60*24)) <= 5);
                       return (
                         <div>
                           <div className={`text-sm font-semibold ${isOverdue ? 'text-red-400' : isClose ? 'text-yellow-400' : 'text-gray-300'}`}>
@@ -2310,11 +2289,15 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                       ${member.status === UserStatus.INACTIVE ? 'bg-gray-700 text-gray-300' :
-                        isCurrentOnPayment(member) ? 'bg-green-900 text-green-200' : 
-                        isDebtorByPayment(member) ? 'bg-red-900 text-red-200' : 'bg-yellow-900 text-yellow-200'}`}>
+                        isDebtorByPayment(member) ? 'bg-red-900 text-red-200' :
+                        dueSoon ? 'bg-yellow-700 text-yellow-100 font-bold' :
+                        isCurrentOnPayment(member) ? 'bg-green-900 text-green-200' :
+                        'bg-yellow-900 text-yellow-200'}`}>
                       {member.status === UserStatus.INACTIVE ? t('inactivo') :
-                       isCurrentOnPayment(member) ? t('alDia') : 
-                       isDebtorByPayment(member) ? t('moroso') : t('pendiente')}
+                       isDebtorByPayment(member) ? t('moroso') :
+                       dueSoon ? 'Próx. a Vencer' :
+                       isCurrentOnPayment(member) ? t('alDia') :
+                       t('pendiente')}
                     </span>
                   </td>
                   <td className="p-4 text-right space-x-2" onClick={e => e.stopPropagation()}>
@@ -2378,7 +2361,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                     )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           {filteredMembers.length === 0 && (
