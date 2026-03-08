@@ -128,6 +128,7 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
     status: UserStatus;
     phase: 'volumen' | 'deficit' | 'recomposicion' | 'transicion';
     habitualSchedules: { day: string; start: string; end: string }[];
+    joinDate: string;
   }>({
     firstName: '',
     lastName: '',
@@ -136,7 +137,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
     phone: '',
     status: UserStatus.PENDING,
     phase: 'volumen',
-    habitualSchedules: []
+    habitualSchedules: [],
+    joinDate: ''
   });
 
   const [selectedScheduleDays, setSelectedScheduleDays] = useState<Record<string, boolean>>(
@@ -383,7 +385,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
               phone: selectedMember.phone,
               status: selectedMember.status,
               phase: selectedMember.phase || 'volumen',
-              habitualSchedules: selectedMember.habitualSchedules ? [...selectedMember.habitualSchedules] : []
+              habitualSchedules: selectedMember.habitualSchedules ? [...selectedMember.habitualSchedules] : [],
+              joinDate: selectedMember.joinDate ? getLocalISODate(selectedMember.joinDate) : ''
             });
           setShowEditModal(true);
       }
@@ -437,7 +440,8 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
           email,
           phone: phoneClean,
           phase: editMember.phase,
-          habitualSchedules: editMember.habitualSchedules
+          habitualSchedules: editMember.habitualSchedules,
+          joinDate: editMember.joinDate || undefined
         });
         setShowEditModal(false);
         await refreshMembers();
@@ -1975,6 +1979,19 @@ const Members: React.FC<MembersProps> = ({ initialFilter, currentPage, membersRe
                                 <option value={UserStatus.DEBTOR}>Moroso</option>
                                 <option value={UserStatus.INACTIVE}>Inactivo</option>
                               </select>
+                            </label>
+
+                            <label className="block">
+                              <span className="text-xs text-gray-400 mb-1 block">Fecha de Ingreso</span>
+                              <input
+                                type="date"
+                                value={editMember.joinDate}
+                                onChange={e => setEditMember({ ...editMember, joinDate: e.target.value })}
+                                className="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold/60"
+                              />
+                              <p className="text-xs text-yellow-400 mt-1 flex items-center gap-1">
+                                <span>⚠</span> El día determina el ciclo de cobro mensual. Cambiar esta fecha afecta cuándo se considera vencida la membresía.
+                              </p>
                             </label>
                           </div>
                         </div>
