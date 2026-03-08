@@ -247,6 +247,17 @@ export default function(prisma: any) {
         console.log(`[MEMBER] Actualizando status del socio ${req.params.id} a: ${memberData.status}`);
       }
       if ('nutritionPlan' in memberData) updateData.nutritionPlan = memberData.nutritionPlan;
+      if ('joinDate' in memberData && memberData.joinDate) {
+        const dateStr = String(memberData.joinDate).includes('T')
+          ? String(memberData.joinDate)
+          : `${memberData.joinDate}T12:00:00`;
+        const parsedJoinDate = fromZonedTime(dateStr, TIME_ZONE);
+        if (isNaN(parsedJoinDate.getTime())) {
+          return res.status(400).json({ error: 'Fecha de ingreso inválida.' });
+        }
+        updateData.joinDate = parsedJoinDate;
+        console.log(`[MEMBER] Actualizando fecha de ingreso del socio ${req.params.id} a: ${memberData.joinDate}`);
+      }
       // ...agrega aquí otros campos si es necesario
       const member = await prisma.member.update({
         where: { id: req.params.id },
